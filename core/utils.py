@@ -1,3 +1,5 @@
+import os
+
 import requests
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
@@ -8,6 +10,7 @@ from django.core.mail import EmailMessage
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.mail import EmailMultiAlternatives
 from django.utils.html import strip_tags
+import environ
 
 def send_telegram_notification(user_profile, message):
     """
@@ -16,7 +19,7 @@ def send_telegram_notification(user_profile, message):
     if not user_profile.telegram_id:
         return False  # Уведомление не отправлено, нет ID
 
-    token = "8505922369:AAHAv595sVcvPL5dRwuOcBhP_R_kW2jFgJk"
+    token = settings.TELEGRAM_BOT_TOKEN
     url = f"https://api.telegram.org/bot{token}/sendMessage"
 
     data = {
