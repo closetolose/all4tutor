@@ -1,8 +1,7 @@
 import telebot
 import os
-from django.conf import settings
 
-TOKEN = settings.TELEGRAM_BOT_TOKEN
+TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start'])
