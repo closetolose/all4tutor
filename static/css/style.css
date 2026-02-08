@@ -722,3 +722,439 @@ input[type="radio"] {
     0% { transform: translateY(-50%) scale(1); opacity: 1; }
     100% { transform: translateY(-50%) scale(2.5); opacity: 0; }
 }
+
+/* Стили для файлов-тегов */
+.file-pill {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f2f5;
+    border: 1px solid #e0e4e9;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #495057;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    max-width: 180px; /* Чтобы длинные имена не ломали верстку */
+}
+
+.file-pill i {
+    margin-right: 6px;
+    color: #6c757d;
+}
+
+.file-pill:hover {
+    background-color: #e2e6ea;
+    border-color: var(--primary); /* Используем твой основной фиолетовый */
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.file-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.assignment-text {
+    font-weight: 500;
+    color: #212529;
+}
+
+
+    /* Центрирование модалки */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.6); /* Темный полупрозрачный фон */
+        backdrop-filter: blur(4px); /* Размытие заднего плана */
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal-window {
+        position: relative;
+        animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .close-btn {
+        position: absolute;
+        cursor: pointer;
+        font-size: 24px;
+        color: #94a3b8;
+        transition: 0.2s;
+    }
+    .close-btn:hover { color: #1e293b; }
+
+/* Прижимаем футер к низу сайдбара */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-footer {
+    margin-top: auto; /* Самое важное: выталкивает блок вниз */
+    padding: 20px 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-divider {
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin: 15px 0;
+}
+
+/* Статус Telegram */
+.tg-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    padding: 5px 10px;
+    border-radius: 6px;
+}
+
+.tg-status.connected { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+.tg-status.disconnected { color: #f87171; background: rgba(248, 113, 113, 0.1); }
+
+/* Мини-профиль */
+.user-profile-mini {
+    display: flex;
+    align-items: center; /* Центрируем по вертикали */
+    justify-content: space-between; /* Расталкиваем по краям */
+    gap: 10px; /* Отступ между именем и кнопкой */
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mini-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.user-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.user-role {
+    font-size: 0.7rem;
+    color: #888;
+}
+
+/* Кнопка выхода */
+.logout-icon-btn {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: 0.3s;
+    padding: 5px;
+}
+
+.logout-icon-btn:hover {
+    color: #f87171;
+    transform: translateX(3px);
+}
+
+/* Фикс футера сайдбара */
+.sidebar-footer {
+    margin-top: auto;
+    padding: 20px 0 0 0;
+}
+
+.sidebar-divider {
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 15px 0;
+}
+
+.user-profile-mini {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.user-info-link {
+    text-decoration: none;
+    flex-grow: 1;
+    display: block;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mini-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+}
+
+.user-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+}
+
+.user-role {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.logout-icon-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 18px;
+    transition: 0.2s;
+}
+
+.logout-icon-btn:hover { color: #f87171; }
+
+.tg-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+.tg-status.connected { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
+.tg-status.disconnected { background: rgba(239, 68, 68, 0.1); color: #f87171; }
+
+/* FAQ Ссылка */
+.sidebar-faq-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #94a3b8;
+    text-decoration: none;
+    margin-bottom: 15px;
+    padding: 5px 10px;
+    transition: 0.2s;
+}
+
+.sidebar-faq-link:hover {
+    color: #fff;
+}
+
+/* Карточка урока */
+.next-lesson-card {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 15px;
+}
+
+.lesson-header {
+    font-size: 9px;
+    font-weight: 800;
+    color: #818cf8;
+    letter-spacing: 0.8px;
+    margin-bottom: 8px;
+}
+
+.lesson-time {
+    font-size: 12px;
+    font-weight: 600;
+    color: #4ade80; /* Зеленый акцент на время */
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.lesson-subject {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lesson-student {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+/* Разделитель */
+.sidebar-divider {
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin: 15px 0;
+}
+
+.subject-tag {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+    margin-right: 8px;
+    margin-bottom: 8px;
+    transition: 0.2s;
+}
+
+.subject-tag:hover {
+    border-color: var(--primary);
+}
+
+.delete-tag {
+    margin-left: 8px;
+    color: #94a3b8;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.delete-tag:hover {
+    color: #f87171;
+}
+
+.text-muted {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.mb-20 input {
+    margin-bottom: 8px !important;
+}
+
+/* Стили для текста подсказки */
+.hint-text {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 20px; /* Создаем отступ перед кнопкой */
+    color: var(--text-muted);
+}
+
+.hint-text a {
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+/* Класс для отступов между блоками (если его нет в CSS) */
+.mb-20 {
+    margin-bottom: 20px;
+}
+.forgot-link {
+        font-size: 13px;
+        color: #94a3b8;
+        text-decoration: none;
+        transition: 0.3s;
+    }
+
+    .forgot-link:hover {
+        color: #6366f1;
+        text-decoration: underline;
+    }
+
+.details-container {
+    text-align: left;
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8fafc; /* Легкий фон, чтобы отделить от белой карточки */
+    border-radius: 16px;
+}
+
+.detail-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.detail-row:last-child { margin-bottom: 0; }
+
+.detail-row i {
+    color: #6366f1; /* Наш фирменный фиолетовый */
+    width: 20px;
+    text-align: center;
+    font-size: 14px;
+}
+
+.detail-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8; /* Приглушенный цвет для заголовков */
+}
+
+.detail-value {
+    margin-left: auto; /* Прижимает значение к правому краю */
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+}
+<style>
+    /* Стиль для кнопки автоопределения */
+    .btn-detect {
+        background: #f1f5f9;
+        border: 2px solid #e2e8f0;
+        color: #6366f1;
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-detect:hover {
+        background: #6366f1;
+        color: white;
+        border-color: #6366f1;
+    }
+
+    /* Стилизуем select, чтобы он был в один ряд с кнопкой */
+    #tz-selector {
+        width: 100%;
+        padding: 10px;
+        border-radius: 12px;
+        border: 2px solid #f1f5f9;
+        font-size: 14px;
+    }
+</style>
