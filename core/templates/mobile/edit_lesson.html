@@ -1,0 +1,148 @@
+{% extends 'mobile/base.html' %}
+{% block content %}
+
+<div class="form-header">
+    <a href="{% url 'index' %}"><i class="fas fa-arrow-left"></i></a>
+    <h2>{% if lesson %}Урок: {{ lesson.subject }}{% else %}Новый урок{% endif %}</h2>
+</div>
+
+<form method="post" class="mobile-final-form">
+    {% csrf_token %}
+
+    <div class="m-card">
+        <div class="m-field">
+            <label>Ученик / Группа</label>
+            {{ form.student }}{{ form.group }}
+        </div>
+        <div class="m-field">
+            <label>Предмет</label>
+            {{ form.subject }}
+        </div>
+        <div class="m-row">
+            <div class="m-field">
+                <label>Цена (₽)</label>
+                {{ form.price }}
+            </div>
+            <div class="m-field">
+                <label>Минуты</label>
+                {{ form.duration }}
+            </div>
+        </div>
+    </div>
+
+    <div class="m-card">
+        <label class="m-label-cap">Тип занятия</label>
+        <div class="type-selector-grid">
+            {% for radio in form.lesson_type %}
+                <div class="type-option">
+                    {{ radio.tag }}
+                    <label for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="m-card">
+        <div class="m-switch-row">
+            <span>Включить повторение</span>
+            <label class="m-switch">
+                {{ form.is_recurring }}
+                <span class="m-slider"></span>
+            </label>
+        </div>
+
+        <div id="recurring-box" class="m-hidden-box">
+            <label class="m-label-cap" style="margin-top: 20px;">Дни недели</label>
+            <div class="m-week-grid">
+                {% for checkbox in form.weekdays %}
+                    <div class="m-day">
+                        {{ checkbox.tag }}
+                        <label for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="m-field" style="margin-top: 20px;">
+                <label>Количество недель</label>
+                {{ form.repeat_count }}
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="m-save-btn">Сохранить изменения</button>
+</form>
+
+<style>
+    /* ГЛОБАЛЬНЫЙ ФИКС: Чтобы ничего не исчезало на узком экране */
+    .mobile-final-form {
+        display: flex; flex-direction: column; gap: 12px; width: 100% !important;
+    }
+    .m-card {
+        background: white; border-radius: 20px; padding: 18px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;
+    }
+
+    /* ФИКС КНОПОК: Связка input + label */
+    .type-selector-grid, .m-week-grid { display: grid; gap: 8px; }
+    .type-selector-grid { grid-template-columns: 1fr 1fr; }
+    .m-week-grid { grid-template-columns: repeat(4, 1fr); }
+
+    /* Скрываем реальные кружки/квадратики */
+    input[type="radio"], input[type="checkbox"] {
+        position: absolute; opacity: 0; width: 0; height: 0;
+    }
+
+    /* Стилизуем наши кастомные кнопки */
+    .type-option label, .m-day label {
+        display: block; padding: 12px; background: #f1f5f9; border-radius: 12px;
+        text-align: center; font-weight: 700; color: #64748b; font-size: 14px; transition: 0.2s;
+    }
+
+    /* Состояние "Нажато" */
+    input:checked + label {
+        background: #6366f1 !important; color: white !important;
+        box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+    }
+
+    /* Верстка полей */
+    .form-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+    .m-field { margin-bottom: 15px; }
+    .m-field label { display: block; font-size: 12px; font-weight: 700; color: #94a3b8; margin-bottom: 6px; }
+    .m-field input, .m-field select {
+        width: 100%; padding: 12px; border: 1.5px solid #f1f5f9; border-radius: 10px;
+        background: #f8fafc; font-size: 16px; outline: none;
+    }
+    .m-row { display: flex; gap: 10px; }
+
+    /* Тумблер (iOS Style) */
+    .m-switch-row { display: flex; justify-content: space-between; align-items: center; font-weight: 800; }
+    .m-switch { position: relative; width: 46px; height: 26px; }
+    .m-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #e2e8f0; border-radius: 34px; transition: .4s; }
+    .m-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background: white; border-radius: 50%; transition: .4s; }
+    input:checked + .m-slider { background: #22c55e; }
+    input:checked + .m-slider:before { transform: translateX(20px); }
+
+    .m-hidden-box { display: none; }
+    .m-save-btn {
+        background: #6366f1; color: white; border: none; padding: 18px;
+        border-radius: 18px; font-weight: 900; font-size: 16px; margin-top: 10px;
+    }
+</style>
+
+<script>
+    // Оживляем тумблер повторения
+    const recurringToggle = document.querySelector('input[name="is_recurring"]');
+    const recurringBox = document.getElementById('recurring-box');
+
+    function checkRecurring() {
+        if (recurringToggle && recurringBox) {
+            recurringBox.style.display = recurringToggle.checked ? 'block' : 'none';
+        }
+    }
+
+    if (recurringToggle) {
+        recurringToggle.addEventListener('change', checkRecurring);
+        checkRecurring(); // Проверка при загрузке страницы
+    }
+</script>
+
+{% endblock %}

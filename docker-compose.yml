@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=tutor_db
+      - MYSQL_USER=tutor_user
+      - MYSQL_PASSWORD=tutor_password
+      - MYSQL_ROOT_PASSWORD=root_password
+    ports:
+      - "3306:3306" # Этот порт оставляем только здесь!
+
+  web:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment: &env_vars # Создаем шаблон переменных
+      - DB_NAME=tutor_db
+      - DB_USER=tutor_user
+      - DB_PASSWORD=tutor_password
+      - DB_HOST=db
+      - DB_PORT=3306
+      - TELEGRAM_BOT_TOKEN=tg_token
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+    depends_on:
+      - db
+
+
+  cron:
+    build: .
+    command: >
+      sh -c "printenv | grep -v 'no_proxy' > /etc/environment && 
+             touch /var/log/cron.log && 
+             echo '*/5 * * * * root . /etc/environment; python /app/manage.py send_reminders >> /proc/1/fd/1 2>&1' > /etc/cron.d/tutor-cron && 
+             chmod 0644 /etc/cron.d/tutor-cron && 
+             cron -f"
+    volumes: 
+      - .:/app
+    environment:
+      - DB_NAME=tutor_db
+      - DB_USER=tutor_user
+      - DB_PASSWORD=tutor_password
+      - DB_HOST=db
+      - DB_PORT=3306
+      - TELEGRAM_BOT_TOKEN=tg_token
+    depends_on:
+      - db
+  bot:
+    build: .
+    command: python /app/bot_polling.py
+    volumes:
+      - .:/app
+    environment:
+      - TELEGRAM_BOT_TOKEN=tg_token
+    depends_on:
+      - db
+
+
+volumes:
+  mysql_data:

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 50px 0; }
+        .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 30px rgba(99, 102, 241, 0.1); }
+        .header { background-color: #6366f1; padding: 40px 20px; text-align: center; }
+        .logo { color: #ffffff; font-size: 28px; font-weight: 900; letter-spacing: 1px; text-decoration: none; }
+        .content { padding: 40px; text-align: center; color: #1e293b; }
+        .title { font-size: 24px; font-weight: 800; margin-bottom: 15px; color: #1e293b; }
+        .text { font-size: 16px; line-height: 1.6; color: #64748b; margin-bottom: 30px; }
+        .btn { background-color: #6366f1; color: #ffffff !important; padding: 18px 35px; border-radius: 14px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; }
+        .footer { padding: 30px; text-align: center; font-size: 13px; color: #94a3b8; background-color: #fcfcfc; border-top: 1px solid #f1f5f9; }
+        .link-alt { font-size: 12px; color: #cbd5e1; margin-top: 25px; word-break: break-all; }
+    </style>
+</head>
+<body class="body">
+    <div class="wrapper">
+        <div class="header">
+            <div class="logo">ALL4TUTORS</div>
+        </div>
+        <div class="content">
+            <h1 class="title">Добро пожаловать! 🚀</h1>
+            <p class="text">Мы рады, что ты с нами. All4Tutors поможет тебе навести порядок в расписании и финансах. Остался последний шаг — подтверди свой аккаунт.</p>
+
+            <a href="http://{{ domain }}{% url 'activate' uidb64=uid token=token %}" class="btn">Подтвердить почту</a>
+
+            <p class="text" style="font-size: 13px; margin-top: 30px;">Если кнопка выше не работает, скопируй эту ссылку в браузер:</p>
+            <div class="link-alt">
+                http://{{ domain }}{% url 'activate' uidb64=uid token=token %}
+            </div>
+        </div>
+        <div class="footer">
+            &copy; 2026 All4Tutors. Это автоматическое письмо. <br>
+            Если ты не регистрировался у нас, просто удали его.
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,70 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Создать группу | All4Tutors{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    
+    <a href="{% url 'my_students' %}" style="display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); margin-bottom: 20px; font-size: 14px;">
+        <i class="fas fa-arrow-left"></i> Назад к списку
+    </a>
+
+    <div class="card">
+        <h2 style="margin-top: 0; margin-bottom: 20px;">Создать новую группу</h2>
+
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-20">
+                <label style="display: block; font-weight: 600; margin-bottom: 5px; font-size: 13px;">Название группы</label>
+                {{ form.name }} 
+            </div>
+
+            <div class="mb-20">
+                <label style="display: block; font-weight: 600; margin-bottom: 5px; font-size: 13px;">Предмет</label>
+                {{ form.subject }}
+                {% if not form.subject.field.queryset %}
+                    <div style="margin-top: 5px; font-size: 12px; color: #ef4444;">
+                        <i class="fas fa-exclamation-circle"></i> Сначала добавьте предметы на главной.
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-20">
+                <label style="display: block; font-weight: 600; margin-bottom: 5px; font-size: 13px;">Выберите учеников:</label>
+                
+                <div style="max-height: 250px; overflow-y: auto; background: #f8fafc; padding: 15px; border: 1px solid var(--border); border-radius: 8px;">
+                    {% for checkbox in form.students %}
+                        <div style="display: flex; align-items: center; margin-bottom: 8px; padding: 8px; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+                            
+                            <div style="width: auto; margin-right: 10px; display: flex; align-items: center;">
+                                {{ checkbox.tag }} 
+                            </div>
+                            
+                            <label for="{{ checkbox.id_for_label }}" style="margin: 0; cursor: pointer; font-size: 14px; width: 100%;">
+                                {{ checkbox.choice_label }}
+                            </label>
+                        </div>
+                    {% empty %}
+                        <div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px;">
+                            Нет доступных учеников.
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Сохранить группу</button>
+        </form>
+    </div>
+</div>
+
+<style>
+    /* Переопределяем глобальный стиль input { width: 100% } только для чекбоксов */
+    input[type="checkbox"] {
+        width: 18px !important;
+        height: 18px !important;
+        margin: 0 !important;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

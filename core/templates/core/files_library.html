@@ -1,0 +1,112 @@
+{% extends 'core/base.html' %}
+{% block content %}
+
+<div class="flex-between mb-20">
+    <h2><i class="fas fa-folder-open"></i> Мои материалы</h2>
+    <button onclick="openModal('uploadFileModal')" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Добавить файл
+    </button>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;">
+    {% for f in files %}
+    <div class="card" style="text-align: center; position: relative; padding: 20px; transition: transform 0.2s;">
+        <div style="font-size: 45px; margin-bottom: 15px;">
+            {% if f.get_extension == '.pdf' %}<i class="fas fa-file-pdf" style="color: #ef4444;"></i>
+            {% elif f.get_extension in '.doc,.docx' %}<i class="fas fa-file-word" style="color: #3b82f6;"></i>
+            {% elif f.get_extension in '.xls,.xlsx' %}<i class="fas fa-file-excel" style="color: #10b981;"></i>
+            {% elif f.get_extension in '.mp4,.mov' %}<i class="fas fa-file-video" style="color: #8b5cf6;"></i>
+            {% elif f.get_extension in '.jpg,.png,.jpeg' %}<i class="fas fa-file-image" style="color: #f59e0b;"></i>
+            {% else %}<i class="fas fa-file-alt" style="color: #64748b;"></i>{% endif %}
+        </div>
+
+        <div style="font-size: 14px; font-weight: 600; margin-bottom: 5px; height: 40px; overflow: hidden; line-height: 1.4;">
+            {{ f.file_name }}
+        </div>
+
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 15px;">
+            {{ f.upload_date|date:"d.m.Y" }}
+        </div>
+
+        <div style="display: flex; gap: 8px; justify-content: center;">
+            <a href="{{ f.file.url }}" target="_blank" class="btn btn-outline btn-sm" title="Скачать/Открыть">
+                <i class="fas fa-download"></i>
+            </a>
+
+            <button onclick="prepareEditModal('{{ f.id }}', '{{ f.file_name|escapejs }}')" class="btn btn-outline btn-sm" title="Редактировать">
+                <i class="fas fa-edit"></i>
+            </button>
+
+            <a href="{% url 'delete_file' f.id %}" class="btn btn-outline btn-sm" style="color: #ef4444; border-color: #fee2e2;" onclick="return confirm('Удалить файл навсегда?')" title="Удалить">
+                <i class="fas fa-trash"></i>
+            </a>
+        </div>
+    </div>
+    {% empty %}
+    <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: #94a3b8; border: 2px dashed #e2e8f0; border-radius: 12px;">
+        <i class="fas fa-cloud-upload-alt" style="font-size: 40px; margin-bottom: 10px; opacity: 0.5;"></i>
+        <p>Библиотека пуста. Загрузите свои методички, книги или тесты.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div id="uploadFileModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 450px;">
+        <div class="close-btn" onclick="closeModal('uploadFileModal')">&times;</div>
+        <h3 class="modal-title">Загрузить файл</h3>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-15">
+                <label class="form-label">Название (видят ученики)</label>
+                <input type="text" name="file_name" class="filter-select" placeholder="Например: ЕГЭ 2024 Вариант 1">
+            </div>
+            <div class="mb-20">
+                <label class="form-label">Выберите файл</label>
+                <input type="file" name="file" required class="filter-select" style="border: 1px dashed var(--border);">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Загрузить</button>
+        </form>
+    </div>
+</div>
+
+<div id="editFileModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 450px;">
+        <div class="close-btn" onclick="closeModal('editFileModal')">&times;</div>
+        <h3 class="modal-title">Редактировать файл</h3>
+
+        <form id="editFileForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-15">
+                <label class="form-label">Название</label>
+                <input type="text" name="file_name" id="editFileNameInput" class="filter-select" required>
+            </div>
+
+            <div class="mb-20" style="background: #f8fafc; padding: 10px; border-radius: 8px;">
+                <label class="form-label" style="margin-bottom: 5px;">Заменить файл (опционально)</label>
+                <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">Если хотите оставить старый файл, не выбирайте ничего.</div>
+                <input type="file" name="file" class="filter-select">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">Сохранить изменения</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Функция подготовки модалки редактирования
+    function prepareEditModal(id, currentName) {
+        const form = document.getElementById('editFileForm');
+        const nameInput = document.getElementById('editFileNameInput');
+
+        // 1. Подставляем текущее имя
+        nameInput.value = currentName;
+
+        // 2. Меняем Action формы, чтобы она вела на правильный URL (lesson/edit/ID)
+        form.action = `/files/edit/${id}/`;
+
+        // 3. Открываем (используем глобальную функцию из base.html)
+        openModal('editFileModal');
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,37 @@
+# --- Секреты и настройки (САМОЕ ВАЖНОЕ) ---
+.env
+secrets.json
+local_settings.py
+
+# --- MySQL / Базы данных ---
+# Если ты делаешь дампы базы данных локально
+*.sql
+*.sql.gz
+# Старый файл SQLite (раз ты перешел на MySQL, он не нужен)
+db.sqlite3
+db.sqlite3-journal
+
+# --- Docker ---
+.docker_temp/
+# Если у тебя есть локальные переопределения для docker-compose
+docker-compose.override.yml
+
+# --- Python / Django ---
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.venv/
+env/
+# Статика и медиа (на сервере они будут свои)
+staticfiles/
+static/
+media/
+*.log
+
+# --- Системный мусор ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

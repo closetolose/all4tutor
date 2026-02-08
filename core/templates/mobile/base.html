@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>All4Tutors</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --p: #6366f1; --bg: #f8fafc; --c: #ffffff; --t: #1e293b; --tm: #64748b; }
+        body { margin: 0; background: var(--bg); font-family: -apple-system, sans-serif; color: var(--t); }
+        body.menu-open { overflow: hidden; } /* Запрещаем скролл при открытом меню */
+
+        .m-header {
+            background: var(--p); color: white; padding: 15px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 1000;
+        }
+
+        /* Выдвижное меню */
+        .drawer-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
+            z-index: 2000; opacity: 0; visibility: hidden; transition: 0.3s;
+        }
+        .drawer {
+            position: fixed; top: 0; left: -85%; width: 80%; max-width: 300px; height: 100%;
+            background: var(--c); z-index: 2100; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 30px 20px; box-shadow: 10px 0 20px rgba(0,0,0,0.1);
+        }
+
+        body.menu-open .drawer-overlay { opacity: 1; visibility: visible; }
+        body.menu-open .drawer { left: 0; }
+
+        .nav-link {
+            display: flex; align-items: center; gap: 15px; padding: 14px 18px;
+            text-decoration: none; color: var(--t); font-weight: 600; border-radius: 12px; margin-bottom: 5px;
+        }
+        .nav-link i { color: var(--p); width: 20px; }
+        .nav-link:active { background: #f1f5f9; }
+
+        .m-content { padding: 20px; }
+    </style>
+</head>
+<body id="body">
+    <header class="m-header">
+        <i class="fas fa-bars" onclick="toggleMenu()" style="font-size: 22px;"></i>
+        <span style="font-weight: 800;">ALL4TUTORS</span>
+        <div style="width: 22px;"></div>
+    </header>
+
+    <div class="drawer-overlay" onclick="toggleMenu()"></div>
+    <aside class="drawer">
+        <div style="font-weight: 900; font-size: 24px; color: var(--p); margin-bottom: 30px; padding-left: 18px;">Меню</div>
+        <nav>
+            <a href="{% url 'index' %}" class="nav-link"><i class="fas fa-home"></i> Главная</a>
+            <a href="{% url 'my_subjects' %}" class="nav-link"><i class="fas fa-book"></i> Предметы</a>
+            <a href="{% url 'edit_profile' %}" class="nav-link"><i class="fas fa-user-circle"></i> Профиль</a>
+            <form action="{% url 'logout' %}" method="post">{% csrf_token %}
+                <button type="submit" class="nav-link" style="width:100%; border:none; background:none; font:inherit; cursor:pointer;">
+                    <i class="fas fa-sign-out-alt" style="color:#ef4444;"></i> Выйти
+                </button>
+            </form>
+        </nav>
+    </aside>
+
+    <main class="m-content">{% block content %}{% endblock %}</main>
+
+    <script>
+        function toggleMenu() { document.getElementById('body').classList.toggle('menu-open'); }
+    </script>
+</body>
+</html>

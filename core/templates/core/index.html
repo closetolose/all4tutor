@@ -1,0 +1,709 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Панель управления | All4Tutors{% endblock %}
+
+{% block content %}
+    <style>
+        /* Выбор дней недели */
+        .weekdays-selector { display: flex; gap: 5px; flex-wrap: wrap; }
+        .weekday-btn input { display: none !important; }
+        .weekday-btn span {
+            display: flex; justify-content: center; align-items: center; width: 35px; height: 35px;
+            border-radius: 8px; background: white; border: 1px solid #cbd5e1;
+            font-size: 12px; font-weight: 600; color: #64748b; cursor: pointer; transition: 0.2s;
+        }
+        .weekday-btn input:checked + span { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .lesson-type-selector { margin-bottom: 35px !important; }
+        .extra-params { margin-top: 25px; margin-bottom: 15px; }
+        .extra-params summary { font-weight: 600; color: var(--text-muted); cursor: pointer; padding: 5px 0; outline: none; }
+
+        .filter-select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: white; }
+
+        /* Бар массовых действий */
+        .bulk-bar {
+            position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
+            background: #1e293b; color: white; padding: 12px 25px; border-radius: 50px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); transition: 0.3s ease-in-out; z-index: 1000;
+            display: flex; align-items: center; width: max-content; min-width: 450px;
+        }
+        .bulk-bar.active { bottom: 30px; }
+        .bulk-content { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 30px; }
+        .btn-bulk { background: none; border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: 0.2s; }
+
+        /* Таблица материалов в модалке */
+        .materials-selector-container {
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #fff;
+            margin-top: 8px;
+        }
+        .materials-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .materials-table thead { position: sticky; top: 0; background: #f8fafc; z-index: 2; box-shadow: 0 1px 0 var(--border); }
+        .materials-table td, .materials-table th { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: left; }
+    </style>
+
+    <div style="margin-bottom: 30px;">
+        <h1 style="font-size: 24px; margin-bottom: 5px;">Привет, {{ user.first_name|default:user.username }}!</h1>
+        <p style="color: var(--text-muted);">Твое расписание на сегодня.</p>
+    </div>
+
+    {% if role == 'tutor' %}
+<div class="card" style="margin-bottom: 30px; padding: 20px;">
+    <form method="GET" action="{% url 'index' %}" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+
+        <div style="flex: 1.5; min-width: 180px;">
+            <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">УЧЕНИК / ГРУППА</label>
+            <select name="target" class="filter-select">
+                <option value="">Все занятия</option>
+                <optgroup label="Ученики">
+                    {% for s in tutor_students %}
+                        <option value="s_{{ s.id }}" {% if request.GET.target == 's_'|add:s.id|stringformat:"s" %}selected{% endif %}>{{ s.first_name }} {{ s.last_name }}</option>
+                    {% endfor %}
+                </optgroup>
+                <optgroup label="Группы">
+                    {% for g in tutor_groups %}
+                        <option value="g_{{ g.id }}" {% if request.GET.target == 'g_'|add:g.id|stringformat:"s" %}selected{% endif %}>{{ g.name }}</option>
+                    {% endfor %}
+                </optgroup>
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex: 2; min-width: 280px;">
+            <div style="flex: 1;">
+                <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ДАТА С</label>
+                <input type="date" name="date_from" value="{{ request.GET.date_from }}" class="filter-select">
+            </div>
+            <div style="flex: 1;">
+                <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ПО</label>
+                <input type="date" name="date_to" value="{{ request.GET.date_to }}" class="filter-select">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex: 1.5; min-width: 200px;">
+            <div style="flex: 1;">
+                <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ВРЕМЯ С</label>
+                <input type="time" name="time_from" value="{{ request.GET.time_from }}" class="filter-select">
+            </div>
+            <div style="flex: 1;">
+                <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ДО</label>
+                <input type="time" name="time_to" value="{{ request.GET.time_to }}" class="filter-select">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 18px;">
+            <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 20px; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-search"></i> Найти
+            </button>
+            <a href="{% url 'index' %}" class="btn btn-sm" style="height: 38px; width: 38px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--text-main); text-decoration: none;">
+                <i class="fas fa-sync-alt"></i>
+            </a>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+    <div class="grid-stats" style="margin-bottom: 30px;">
+        <div class="card">
+            <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+            <div class="stat-label">Всего занятий</div>
+            <div class="stat-value">{{ lessons.count|default:"0" }}</div>
+        </div>
+
+        {% if role == 'student' %}
+            <div class="card">
+                <div class="stat-icon" style="color: #10b981;"><i class="fas fa-wallet"></i></div>
+                <div class="stat-label">Баланс на счету</div>
+                <div class="stat-value">{{ user.profile.balance|default:"0" }} ₽</div>
+            </div>
+
+            <div class="card">
+                <div class="stat-icon" style="color: #ef4444;"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="stat-label">Нужно оплатить</div>
+                <div class="stat-value">{{ student_debt }} ₽</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 30px;">
+        <div style="padding: 20px; border-bottom: 1px solid var(--border);" class="flex-between">
+            <h3 style="margin: 0; font-size: 18px;"><i class="fas fa-calendar-alt"></i> Ближайшие занятия</h3>
+            {% if role == 'tutor' %}
+                <button onclick="openModal('lessonModal')" class="btn btn-primary btn-sm">+ Добавить занятие</button>
+            {% endif %}
+        </div>
+
+       <div class="table-container">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <thead>
+                    <tr style="text-align: left; background: #f8fafc; color: #64748b; font-size: 11px; text-transform: uppercase;">
+                        {% if role == 'tutor' %}
+                            <th style="padding: 15px; width: 45px;"><input type="checkbox" id="selectAll"></th>
+                        {% endif %}
+                        <th style="padding: 15px; width: 22%;">Предмет</th>
+                        <th style="width: 20%;">С кем</th>
+                        <th style="width: 18%;">Дата и время</th>
+                        <th style="width: 12%;">Стоимость</th>
+                        <th style="width: 15%;">Посещаемость</th>
+                        {% if role == 'tutor' %}
+                            <th style="text-align: center; width: 100px; padding-right: 15px;">Действия</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lesson in lessons %}
+                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.1s;" onmouseover="this.style.background='#fcfdfe'" onmouseout="this.style.background='transparent'">
+                        {% if role == 'tutor' %}
+                            <td style="padding: 15px;"><input type="checkbox" class="lesson-checkbox" value="{{ lesson.id }}"></td>
+                        {% endif %}
+
+                        <td class="hover-info-container" style="padding: 15px;">
+                            <span style="font-weight: 700; color: #4f46e5;">{{ lesson.subject.name }}</span>
+                            <div class="hover-tooltip-content" style="display: none;">
+                                <span class="tooltip-title"><i class="fas fa-info-circle"></i> Инфо</span>
+
+                                <div class="tooltip-row">
+                                    <span class="tooltip-label">Длительность:</span>
+                                    <span class="tooltip-value">{{ lesson.duration|default:"60" }} мин</span>
+                                </div>
+
+                                <div class="tooltip-row">
+                                    <span class="tooltip-label">Формат:</span>
+                                    <span class="tooltip-value">{{ lesson.get_format_display|default:lesson.format }}</span>
+                                </div>
+
+                                <div class="tooltip-row" style="align-items: center; gap: 10px;">
+                                    <span class="tooltip-label">Место / Ссылка:</span>
+                                    <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                                        <span class="tooltip-value truncate-text" title="{{ lesson.location }}">
+                                            {{ lesson.location|default:"-" }}
+                                        </span>
+                                        {% if lesson.location %}
+                                        <button type="button" class="copy-btn"
+                                                onclick="copyToClipboard('{{ lesson.location|escapejs }}', this)"
+                                                title="Копировать адрес">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                {% if role == 'tutor' and lesson.notes %}
+                                    <div class="tooltip-divider"></div>
+                                    <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Заметки:</div>
+                                    <div style="font-size: 13px; color: #1e293b; line-height: 1.4;">{{ lesson.notes }}</div>
+                                {% endif %}
+
+                                {% if lesson.materials.exists %}
+                                    <div class="tooltip-divider"></div>
+                                    <span class="tooltip-label" style="display: block; margin-bottom: 5px;">Материалы:</span>
+                                    <div style="max-height: 80px; overflow-y: auto; margin-bottom: 8px; font-size: 11px;">
+                                        {% for m in lesson.materials.all %}
+                                            <div style="margin-bottom: 2px;">• {{ m.file_name }}</div>
+                                        {% endfor %}
+                                    </div>
+                                    <a href="{% url 'download_materials' lesson.id %}" class="btn btn-primary btn-sm" style="width: 100%; font-size: 10px; padding: 4px;">
+                                        <i class="fas fa-download"></i> Скачать всё (.zip)
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <td class="hover-info-container">
+                            {% if lesson.group %}
+                                <span class="badge" style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-weight: 600;">{{ lesson.group.name }}</span>
+                                <div class="hover-tooltip-content" style="display: none;">
+                                    <span class="tooltip-title">Группа: {{ lesson.group.name }}</span>
+                                    {% for s in lesson.group.students.all %}
+                                        <div class="tooltip-row"><i class="fas fa-user"></i> {{ s.first_name }} {{ s.last_name }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span style="font-weight: 500;">{{ lesson.student.first_name }} {{ lesson.student.last_name }}</span>
+                            {% endif %}
+                        </td>
+
+                        <td style="color: #475569; font-size: 14px;">{{ lesson.start_time|date:"d.m.Y" }} <span style="color: #94a3b8; font-size: 12px;">{{ lesson.start_time|date:"H:i" }}</span></td>
+                        <td style="font-weight: 700;">{{ lesson.price|default:"0" }} ₽</td>
+                        <td>
+                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                {% for att in lesson.attendances.all %}
+                                <span onclick="togglePresence(this, {{ att.id }})"
+                                      class="pay-dot {% if att.was_present %}paid{% else %}debt{% endif %}"
+                                      style="width: 24px; height: 24px; font-size: 10px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-weight: 700;">
+                                    {{ att.student.first_name|slice:":1" }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </td>
+
+                        {% if role == 'tutor' %}
+                        <td style="text-align: center; padding-right: 15px;">
+                            <div style="display: flex; gap: 10px; justify-content: center;">
+                                <button type="button"
+                                        onclick="openUniversalEdit('single', '{{ lesson.id }}', {
+                                            subject:'{{ lesson.subject.id }}',
+                                            date:'{{ lesson.start_time|date:'Y-m-d' }}',
+                                            time:'{{ lesson.start_time|date:'H:i' }}',
+                                            dur:'{{ lesson.duration }}',
+                                            price:'{{ lesson.price }}',
+                                            materials: [{% for m in lesson.materials.all %}{{ m.id }}{% if not forloop.last %},{% endif %}{% endfor %}]
+                                        })"
+                                        style="border:none; background:none; color: #4f46e5; cursor:pointer;"><i class="fas fa-edit"></i></button>
+                                <button type="button" onclick="openDeleteModal('{{ lesson.id }}')" style="border:none; background:none; color: #ef4444; cursor:pointer;"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" style="text-align: center; padding: 60px; color: #94a3b8;">Занятий не найдено.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% if role == 'student' %}
+<div class="card" style="padding: 0; overflow: hidden; margin-top: 30px;">
+    <div style="padding: 20px; border-bottom: 1px solid var(--border);">
+        <h3 style="margin: 0; font-size: 18px;"><i class="fas fa-tasks" style="color: var(--primary); margin-right: 10px;"></i> Мои задания</h3>
+    </div>
+
+    <div class="table-container">
+        <table class="table-fixed">
+            <thead>
+                <tr>
+                    <th style="width: 150px;">Предмет</th>
+                    <th>Задание и материалы</th>
+                    <th style="width: 150px;">Срок сдачи</th>
+                    <th style="width: 140px;">Статус</th>
+                    <th style="width: 120px; text-align: center;">Отправить</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for hw in homeworks %}
+                <tr>
+                    <td><strong>{{ hw.subject.name }}</strong></td>
+                    <td>
+                        <div style="font-size: 14px; margin-bottom: 8px;">{{ hw.description }}</div>
+                        {% if hw.files.exists %}
+                            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                                {% for f in hw.files.all %}
+                                    <a href="{{ f.file.url }}" class="copy-btn" style="font-size: 10px; text-decoration: none;">
+                                        <i class="fas fa-file-download"></i> {{ f.file_name|truncatechars:15 }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 13px; color: var(--text-muted);">
+                        {{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}
+                    </td>
+                    <td>
+                        <span class="badge-hw
+                            {% if hw.status == 'pending' %}status-pending
+                            {% elif hw.status == 'submitted' %}status-submitted
+                            {% else %}status-completed{% endif %}">
+                            {{ hw.get_status_display }}
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        <button onclick="openSubmitModal('{{ hw.id }}')" class="btn-icon" style="color: var(--primary); background: none; border: none; cursor: pointer; font-size: 18px;">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">Заданий пока нет</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="submitHWModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 450px;">
+        <div class="close-btn" onclick="closeModal('submitHWModal')">&times;</div>
+        <h2 class="modal-title">Сдать домашнее задание</h2>
+        <form action="" id="submitHWForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-20">
+                <label class="form-label">Прикрепите файлы с решением</label>
+                <input type="file" name="response_files" multiple class="filter-select" required style="padding: 10px;">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Отправить на проверку</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+    {% if role == 'tutor' %}
+    <div class="card" style="margin-bottom: 30px;">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px;"><i class="fas fa-book"></i> Мои предметы</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            {% for item in my_subjects %}
+                <span class="badge badge-active" style="padding: 8px 15px;">
+                    {{ item.subject.name }}
+                    <form method="post" style="display: inline; margin-left: 5px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="delete_subject" value="1">
+                        <input type="hidden" name="subject_id" value="{{ item.subject.id }}">
+                        <button type="submit" style="border:none; background:none; cursor:pointer; opacity: 0.5;">&times;</button>
+                    </form>
+                </span>
+            {% endfor %}
+        </div>
+        <form method="post" style="display: flex; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px dashed var(--border);">
+            {% csrf_token %}
+            <input type="hidden" name="add_subject" value="1">
+            <input type="text" name="subject_name" placeholder="Новый предмет" required style="margin: 0; flex: 1;">
+            <button type="submit" class="btn btn-primary btn-sm">Добавить</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <div id="lessonModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 550px;">
+        <div class="close-btn" onclick="closeModal('lessonModal')">&times;</div>
+        <h2 class="modal-title">Новое занятие</h2>
+
+        <form method="post" action="{% url 'add_lesson' %}">
+            {% csrf_token %}
+
+            <div class="lesson-type-tabs">
+                <div class="type-tab active" id="tab-ind" onclick="setType('individual')">Индивидуально</div>
+                <div class="type-tab" id="tab-group" onclick="setType('group')">Группа</div>
+                <div style="display:none;">{{ add_lesson_form.lesson_type }}</div>
+            </div>
+
+            <div id="block-student" class="mb-20"><label class="form-label">Ученик</label>{{ add_lesson_form.student }}</div>
+            <div id="block-group" class="mb-20" style="display: none;"><label class="form-label">Группа</label>{{ add_lesson_form.group }}</div>
+
+            <div style="display: flex; gap: 15px;" class="mb-20">
+                <div style="flex: 2;"><label class="form-label">Начало</label>{{ add_lesson_form.start_time }}</div>
+                <div style="flex: 1;"><label class="form-label">Мин.</label>{{ add_lesson_form.duration }}</div>
+            </div>
+
+            <div class="mb-20">
+                <label class="form-label">Предмет и Цена (₽)</label>
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 2;">{{ add_lesson_form.subject }}</div>
+                    <div style="flex: 1;">{{ add_lesson_form.price }}</div>
+                </div>
+            </div>
+
+            <div class="recurring-box">
+                <label style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; cursor: pointer;">
+                    {{ add_lesson_form.is_recurring }} <span><i class="fas fa-redo"></i> Повторять еженедельно</span>
+                </label>
+
+                <div id="recurring-settings" style="margin-top: 15px; display: none;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <div style="flex: 1;"><label class="form-label">Кол-во недель</label>{{ add_lesson_form.repeat_count }}</div>
+                        <div style="flex: 1;"><label class="form-label">Или до даты</label>{{ add_lesson_form.repeat_until }}</div>
+                    </div>
+                    <label class="form-label">Дни недели</label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                        {% for value, label in add_lesson_form.fields.weekdays.choices %}
+                        <label class="weekday-pill">
+                            <input type="checkbox" name="weekdays" value="{{ value }}">
+                            <span>{{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="static-extra-params">
+                <h4 style="margin: 0 0 15px 0; font-size: 14px; color: var(--text-muted);"><i class="fas fa-cog"></i> Дополнительно</h4>
+                <div style="display: flex; gap: 15px;" class="mb-15">
+                    <div style="flex: 1;"><label class="form-label">Формат</label>{{ add_lesson_form.format }}</div>
+                    <div style="flex: 1;"><label class="form-label">Место / Ссылка</label>{{ add_lesson_form.location }}</div>
+                </div>
+                <div class="mb-15"><label class="form-label">Личные заметки (скрыты от ученика)</label>{{ add_lesson_form.notes }}</div>
+            </div>
+
+            <div class="mb-20">
+                <label class="form-label"><i class="fas fa-paperclip"></i> Файлы из библиотеки</label>
+                <div class="materials-selector-container">
+                    <table class="materials-table">
+                        <tbody>
+                            {% for f in files %}
+                            <tr><td style="width: 40px;"><input type="checkbox" name="materials" value="{{ f.id }}"></td><td>{{ f.file_name }}</td></tr>
+                            {% empty %}
+                            <tr><td colspan="2" style="text-align: center; color: #94a3b8; padding: 10px;">Библиотека пуста</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-save-modal" style="width: 100%;">Создать занятие</button>
+        </form>
+    </div>
+</div>
+
+    <div id="universalEditModal" class="modal-overlay">
+        <div class="modal-window" style="max-width: 550px;">
+            <div class="close-btn" onclick="closeUniversalEdit()">&times;</div>
+            <h2 id="edit-modal-title" class="modal-title">Правка</h2>
+            <div class="form-section" style="background: #f8fafc; padding: 15px; border-radius: 10px;">
+                <div style="display: flex; gap: 10px;" class="mb-15">
+                    <div style="flex: 1;"><label class="form-label">Дата</label><input type="date" id="m-date-select" class="filter-select"></div>
+                    <div style="flex: 1;"><label class="form-label">Время</label><input type="time" id="m-time-select" class="filter-select"></div>
+                </div>
+                <div class="mb-15">
+                    <label class="form-label">Цена и Предмет</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="m-price-select" class="filter-select" placeholder="Цена" style="flex: 1;">
+                        <select id="m-subject-select" class="filter-select" style="flex: 1.5;">
+                            <option value="">Без изменений</option>
+                            {% for item in my_subjects %}<option value="{{ item.subject.id }}">{{ item.subject.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-15">
+                    <label class="form-label"><i class="fas fa-paperclip"></i> Материалы</label>
+                    <div class="materials-selector-container">
+                        <table class="materials-table">
+                            <thead><tr><th style="width: 40px;"><input type="checkbox" id="selectAllMaterials" onclick="toggleAllMaterials(this)"></th><th>Файл</th></tr></thead>
+                            <tbody id="materials-edit-list">
+                                {% for f in files %}
+                                <tr>
+                                    <td><input type="checkbox" value="{{ f.id }}" class="material-checkbox"></td>
+                                    <td>{{ f.file_name }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <button type="button" onclick="applyMassEdit()" class="btn-save-modal">Применить</button>
+        </div>
+    </div>
+
+    <div id="bulk-actions-bar" class="bulk-bar">
+        <div class="bulk-content">
+            <span>Выбрано: <strong id="selected-count">0</strong></span>
+            <form action="{% url 'bulk_action' %}" method="post" id="bulk-form">
+                {% csrf_token %}
+                <input type="hidden" name="lesson_ids" id="hidden-ids">
+                <input type="hidden" name="action_type" id="action-type">
+                <input type="hidden" name="mass_subject" id="m-subject-input">
+                <input type="hidden" name="mass_date" id="m-date-input">
+                <input type="hidden" name="mass_time" id="m-time-input">
+                <input type="hidden" name="mass_price" id="m-price-input">
+                <div id="m-materials-container" style="display:none;"></div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="openUniversalEdit('mass')" class="btn-bulk">Редактировать</button>
+                    <button type="button" onclick="submitBulk('delete')" class="btn-bulk" style="color:#ef4444;">Удалить</button>
+                </div>
+            </form>
+            <button onclick="clearSelection()" style="background:none; border:none; color:white; cursor:pointer; font-size: 20px;">&times;</button>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal-window" style="max-width: 400px; text-align: center;">
+            <div class="close-btn" onclick="closeModal('deleteModal')">&times;</div>
+            <h3 class="modal-title">Удаление занятия</h3>
+            <form id="deleteForm" method="post">
+                {% csrf_token %}
+                <p style="margin-bottom: 25px; color: var(--text-muted);">Вы действительно хотите удалить это занятие?</p>
+                <button type="submit" class="btn btn-danger btn-full">Да, удалить</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ЛОГИКА ТАБЛИЦЫ И ВЫДЕЛЕНИЯ
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.lesson-checkbox');
+            const bulkBar = document.getElementById('bulk-actions-bar');
+
+            function updateBulk() {
+                const checked = document.querySelectorAll('.lesson-checkbox:checked');
+                document.getElementById('selected-count').innerText = checked.length;
+                checked.length > 0 ? bulkBar.classList.add('active') : bulkBar.classList.remove('active');
+            }
+
+            if(selectAll) selectAll.onchange = () => { checkboxes.forEach(cb => cb.checked = selectAll.checked); updateBulk(); };
+            checkboxes.forEach(cb => cb.onchange = updateBulk);
+        });
+
+        // МАТЕРИАЛЫ
+        function toggleAllMaterials(source) {
+            document.querySelectorAll('#materials-edit-list .material-checkbox').forEach(cb => cb.checked = source.checked);
+        }
+        function toggleAllIn(source, modalId) {
+            document.querySelectorAll(`#${modalId} input[name="materials"]`).forEach(cb => cb.checked = source.checked);
+        }
+
+        // РЕДАКТИРОВАНИЕ
+        function openUniversalEdit(mode, id, data) {
+            const idsInput = document.getElementById('hidden-ids');
+            const title = document.getElementById('edit-modal-title');
+
+            // Сброс галочек
+            document.querySelectorAll('.material-checkbox').forEach(cb => cb.checked = false);
+            if(document.getElementById('selectAllMaterials')) document.getElementById('selectAllMaterials').checked = false;
+
+            if (mode === 'single') {
+                title.innerText = "Редактировать";
+                idsInput.value = id;
+                document.getElementById('m-date-select').value = data.date;
+                document.getElementById('m-time-select').value = data.time;
+                document.getElementById('m-subject-select').value = data.subject;
+                document.getElementById('m-price-select').value = data.price;
+
+                if (data.materials) {
+                    data.materials.forEach(mId => {
+                        const cb = document.querySelector(`.material-checkbox[value="${mId}"]`);
+                        if(cb) cb.checked = true;
+                    });
+                }
+            } else {
+                title.innerText = "Массовая правка";
+                const checkedIds = Array.from(document.querySelectorAll('.lesson-checkbox:checked')).map(cb => cb.value);
+                idsInput.value = checkedIds.join(',');
+                document.querySelectorAll('#universalEditModal input:not([type="checkbox"]), #universalEditModal select').forEach(el => el.value = "");
+            }
+            openModal('universalEditModal');
+        }
+
+        function applyMassEdit() {
+            document.getElementById('m-subject-input').value = document.getElementById('m-subject-select').value;
+            document.getElementById('m-date-input').value = document.getElementById('m-date-select').value;
+            document.getElementById('m-time-input').value = document.getElementById('m-time-select').value;
+            document.getElementById('m-price-input').value = document.getElementById('m-price-select').value;
+
+            const container = document.getElementById('m-materials-container');
+            container.innerHTML = '';
+            document.querySelectorAll('#universalEditModal .material-checkbox:checked').forEach(cb => {
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden'; hidden.name = 'materials'; hidden.value = cb.value;
+                container.appendChild(hidden);
+            });
+
+            document.getElementById('action-type').value = 'mass_edit';
+            document.getElementById('bulk-form').submit();
+        }
+
+        function openDeleteModal(id) {
+            document.getElementById('deleteForm').action = `/lesson/delete/${id}/`;
+            openModal('deleteModal');
+        }
+
+        function submitBulk(action) { if(confirm('Применить действие?')) { document.getElementById('action-type').value = action; document.getElementById('bulk-form').submit(); } }
+
+        function clearSelection() {
+            document.querySelectorAll('.lesson-checkbox').forEach(cb => cb.checked = false);
+            if(document.getElementById('selectAll')) document.getElementById('selectAll').checked = false;
+            document.getElementById('bulk-actions-bar').classList.remove('active');
+        }
+
+        function closeUniversalEdit() { closeModal('universalEditModal'); }
+
+        // Переключение Студент/Группа в создании
+        document.addEventListener('DOMContentLoaded', function() {
+            const radios = document.querySelectorAll('input[name="lesson_type"]');
+            radios.forEach(r => r.addEventListener('change', () => {
+                const isGroup = document.querySelector('input[name="lesson_type"]:checked')?.value === 'group';
+                document.getElementById('block-student').style.display = isGroup ? 'none' : 'block';
+                document.getElementById('block-group').style.display = isGroup ? 'block' : 'none';
+            }));
+        });
+
+        const globalTariffs = JSON.parse('{{ tariffs_json|safe }}');
+        function autoFill(sId, gId, subjId, targetInputId) {
+            const tariff = globalTariffs.find(t => (sId && t.student_id == sId && t.subject_id == subjId) || (gId && t.group_id == gId && t.subject_id == subjId));
+            if (tariff) document.getElementById(targetInputId).value = Math.round(tariff.price);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const s = document.getElementById('id_student');
+            const g = document.getElementById('id_group');
+            const sub = document.getElementById('id_subject');
+            [s, g, sub].forEach(el => el?.addEventListener('change', () => autoFill(s?.value, g?.value, sub?.value, 'id_price')));
+        });
+
+        function togglePresence(el, attId) {
+            fetch(`/toggle-presence/${attId}/`).then(r => r.json()).then(data => {
+                if(data.status === 'ok') { el.classList.toggle('paid', data.was_present); el.classList.toggle('debt', !data.was_present); }
+            });
+        }
+        function setType(type) {
+            const isGroup = type === 'group';
+
+            // Визуальные табы
+            document.getElementById('tab-ind').classList.toggle('active', !isGroup);
+            document.getElementById('tab-group').classList.toggle('active', isGroup);
+
+            // Реальные поля
+            document.getElementById('block-student').style.display = isGroup ? 'none' : 'block';
+            document.getElementById('block-group').style.display = isGroup ? 'block' : 'none';
+
+            // Обновляем скрытый инпут Django
+            const radio = document.querySelector(`input[name="lesson_type"][value="${type}"]`);
+            if(radio) radio.checked = true;
+        }
+
+        // Показ настроек повторения при чеке
+        document.querySelector('input[name="is_recurring"]')?.addEventListener('change', function() {
+            document.getElementById('recurring-settings').style.display = this.checked ? 'block' : 'none';
+        });
+            document.addEventListener('DOMContentLoaded', function() {
+        const dateFromInput = document.querySelector('input[name="date_from"]');
+
+        // Если поле даты пустое (первый запуск), ставим сегодняшнее число
+        if (dateFromInput && !dateFromInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateFromInput.value = today;
+        }
+    });
+
+    function togglePay(btn, attendanceId) {
+    fetch(`/toggle-attendance-pay/${attendanceId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}', // Берем токен из Django
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            // Если сервер вернул 400 или 500, читаем текст ошибки
+            return response.json().then(err => { throw new Error(err.message) });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.status === 'ok') {
+            // 1. Меняем визуальное состояние точки
+            btn.classList.toggle('paid', data.is_paid);
+            btn.classList.toggle('debt', !data.is_paid);
+
+            // 2. Обновляем цифры в карточках статистики (если они есть на этой странице)
+            const balanceEl = document.getElementById('student-balance-display');
+            const debtEl = document.getElementById('student-debt-display');
+
+            if (balanceEl) balanceEl.innerText = data.new_balance + ' ₽';
+            if (debtEl) debtEl.innerText = data.new_total_debt + ' ₽';
+        }
+    })
+    .catch(error => {
+        // Показываем сообщение "Недостаточно средств"
+        alert(error.message);
+    });
+}
+        function openSubmitModal(hwId) {
+    // Устанавливаем правильный URL для формы
+    document.getElementById('submitHWForm').action = `/homework/submit/${hwId}/`;
+    openModal('submitHWModal');
+}
+    </script>
+{% endblock %}

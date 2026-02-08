@@ -1,0 +1,32 @@
+{% extends 'core/auth_base.html' %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h2>Вход в All4Tutors</h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="auth-form-group">
+                <label class="auth-label">Имя пользователя</label>
+                <input type="text" name="username" class="auth-input" required>
+            </div>
+
+            <div class="auth-form-group">
+                <label class="auth-label">Пароль</label>
+                <input type="password" name="password" class="auth-input" required>
+            </div>
+
+            <button type="submit" class="btn-auth">Войти</button>
+        </form>
+
+        <div class="auth-footer">
+            <div>Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a></div>
+            <div style="margin-top: 15px;">
+                <a href="{% url 'password_reset' %}" class="forgot-link">Забыли пароль?</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'core/base.html' %}
+{% block title %}Редактировать занятие{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    <div class="card">
+        <h2>Редактировать занятие</h2>
+        <form method="post">
+            {% csrf_token %}
+            
+            {% for field in form %}
+            <div class="mb-20">
+                <label style="display: block; font-weight: 600; margin-bottom: 5px;">{{ field.label }}</label>
+                {{ field }} 
+                </div>
+            {% endfor %}
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+                <a href="{% url 'index' %}" class="btn" style="background: #e2e8f0; color: #334155;">Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

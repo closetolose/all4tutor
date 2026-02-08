@@ -1,0 +1,27 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="header-section">
+    <h1>Мои предметы</h1>
+</div>
+
+<div class="card">
+    <div class="subjects-container">
+        <div class="current-subjects" style="margin-bottom: 25px;">
+            {% for subject in subjects %}
+                <span class="subject-tag" style="background: var(--bg-alt); padding: 8px 15px; border-radius: 20px; margin-right: 10px; display: inline-block; border: 1px solid var(--border);">
+                    {{ subject.name }}
+                    <a href="{% url 'delete_subject' subject.id %}" style="margin-left: 8px; color: var(--text-muted);">×</a>
+                </span>
+            {% empty %}
+                <p class="text-muted">Предметы еще не добавлены.</p>
+            {% endfor %}
+        </div>
+
+        <form action="{% url 'my_subjects' %}" method="post" style="display: flex; gap: 10px;">
+            {% csrf_token %}
+            <input type="text" name="name" placeholder="Новый предмет" required style="margin: 0; flex-grow: 1;">
+            <button type="submit" class="btn btn-primary">Добавить</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

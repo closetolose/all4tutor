@@ -1,0 +1,121 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Настройки профиля | All4Tutors{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    
+    <div class="card">
+        <div class="text-center mb-20">
+            <h2 style="margin: 0;">Ваш профиль</h2>
+            <p style="color: var(--text-muted);">Обновите контактную информацию</p>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-20">
+                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Имя</label>
+                {{ form.first_name }}
+            </div>
+
+            <div class="mb-20">
+                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Фамилия</label>
+                {{ form.last_name }}
+            </div>
+
+            <div class="mb-20">
+                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Отчество</label>
+                {{ form.patronymic }}
+            </div>
+
+            <div class="mb-20">
+                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Контакты (Email/Телефон)</label>
+                {{ form.contact }}
+            </div>
+            <div class="mb-20">
+                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">
+                    <i class="fab fa-telegram"></i> Telegram ID
+                </label>
+                {{ form.telegram_id }}
+
+                {% if form.telegram_id.errors %}
+                    <div style="color: var(--danger-text); font-size: 12px; margin-top: -15px; margin-bottom: 15px;">
+                        {{ form.telegram_id.errors }}
+                    </div>
+                {% endif %}
+
+                <small class="text-muted hint-text">
+                    Узнать свой ID можно у бота
+                    <a href="https://t.me/All4tutors_bot" target="_blank">@All4tutors</a>
+                </small>
+            </div>
+            {% if request.user.profile.role == 'student' %}
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px dashed #e2e8f0;">
+                    <h3 style="font-size: 16px; font-weight: 800; color: #6366f1; margin-bottom: 20px;">Информация для репетитора</h3>
+
+                    <div class="mb-20">
+                        <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Ваш класс</label>
+                        {{ form.school_class }}
+                    </div>
+
+                    <div class="mb-20">
+                        <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">ФИО родителя</label>
+                        {{ form.parent_name }}
+                    </div>
+
+                    <div class="mb-20">
+                        <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Телефон родителя</label>
+                        {{ form.parent_phone }}
+                    </div>
+                </div>
+            {% endif %}
+            <button type="submit" class="btn btn-primary btn-full">
+                <i class="fas fa-save"></i> Сохранить изменения
+            </button>
+
+            <div class="mb-20" style="padding-top: 15px; border-top: 1px solid #f1f5f9;">
+                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">
+                    <i class="fas fa-globe-americas"></i> Ваш часовой пояс
+                </label>
+
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div style="flex: 1;">
+                        {{ form.timezone }}
+                    </div>
+                    <button type="button" onclick="detectTimezone()" class="btn-detect" title="Определить автоматически">
+                        <i class="fas fa-crosshairs"></i>
+                    </button>
+                </div>
+
+                <small class="text-muted" style="display: block; margin-top: 5px;">
+                    Время занятий будет отображаться с учетом этого пояса.
+                </small>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+<script>
+    function detectTimezone() {
+        // Получаем системный часовой пояс браузера
+        const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const selector = document.getElementById('tz-selector');
+
+        if (detectedTz) {
+            // Ищем совпадение в нашем списке select
+            for (let i = 0; i < selector.options.length; i++) {
+                if (selector.options[i].value === detectedTz) {
+                    selector.selectedIndex = i;
+                    // Подсветим, что всё получилось
+                    selector.style.borderColor = '#10b981';
+                    setTimeout(() => selector.style.borderColor = '#f1f5f9', 2000);
+                    return;
+                }
+            }
+            alert('Ваш пояс ' + detectedTz + ' найден, но его нужно выбрать вручную в списке.');
+        }
+    }
+</script>
+{% endblock %}

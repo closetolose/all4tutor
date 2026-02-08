@@ -1,0 +1,8 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div style="text-align: center; padding: 50px 20px;">
+    <h1 style="color: #ef4444;">Ссылка недействительна</h1>
+    <p>Похоже, ссылка для активации устарела или уже была использована.</p>
+    <a href="{% url 'register' %}" style="color: #6366f1; font-weight: bold;">Попробовать зарегистрироваться снова</a>
+</div>
+{% endblock %}

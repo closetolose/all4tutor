@@ -1,0 +1,203 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}All4Tutors{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body class="{% if not user.is_authenticated %}auth-body{% endif %}">
+
+    {% if user.is_authenticated %}
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h3>All4Tutors</h3>
+        </div>
+
+        <nav class="nav-list">
+            <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                <i class="fas fa-chart-pie"></i> Дашборд
+            </a>
+
+            <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
+                <i class="fas fa-folder-open"></i> Мои Файлы
+            </a>
+            {% if user.profile.role == 'student' %}
+                <a href="{% url 'confirmations' %}" class="nav-item {% if 'confirmations' in request.path %}active{% endif %}">
+                    <i class="fas fa-user-check"></i> Подтверждение
+                </a>
+                <a href="{% url 'my_assignments' %}" class="nav-item {% if request.resolver_match.url_name == 'my_assignments' %}active{% endif %}">
+                    <i class="fas fa-tasks"></i> Мои задания
+                </a>
+            {% endif %}
+            {% if user.profile.role == 'tutor' %}
+                <a href="{% url 'my_students' %}" class="nav-item {% if 'my_students' in request.path %}active{% endif %}">
+                    <i class="fas fa-user-graduate"></i> Мои ученики
+                </a>
+                <a href="{% url 'my_subjects' %}" class="nav-item {% if request.resolver_match.url_name == 'my_subjects' %}active{% endif %}">
+                    <i class="fas fa-book"></i> Мои предметы
+                </a>
+                <a href="{% url 'finances' %}" class="nav-item {% if request.resolver_match.url_name == 'finances' %}active{% endif %}">
+                    <i class="fas fa-wallet"></i> Финансы
+                </a>
+            {% endif %}
+
+
+                </form>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+    <a href="{% url 'faq' %}" class="sidebar-faq-link">
+        <i class="far fa-question-circle"></i> Помощь и FAQ
+    </a>
+
+    {% if next_lesson %}
+    <div class="next-lesson-card">
+        <div class="lesson-header">СЛЕДУЮЩИЙ УРОК</div>
+        <div class="lesson-time">
+            <i class="far fa-clock"></i> {{ next_lesson.start_time|date:"H:i" }}
+        </div>
+        <div class="lesson-subject">{{ next_lesson.subject.name }}</div>
+    </div>
+    {% endif %}
+
+    <div class="tg-status {% if request.user.profile.telegram_id %}connected{% else %}disconnected{% endif %}">
+        <i class="fab fa-telegram"></i>
+        <span>{% if request.user.profile.telegram_id %}Бот активен{% else %}Бот не привязан{% endif %}</span>
+    </div>
+
+    <hr class="sidebar-divider">
+
+    <div class="user-profile-mini">
+        <a href="{% url 'edit_profile' %}" class="user-info-link">
+            <div class="user-info">
+                <img src="https://ui-avatars.com/api/?name={{ request.user.profile.first_name|default:request.user.username }}&background=6366f1&color=fff" alt="Avatar" class="mini-avatar">
+                <div class="user-text">
+                    <span class="user-name">{{ request.user.profile.first_name|default:request.user.username }}</span>
+                    <span class="user-role">{{ request.user.profile.get_role_display }}</span>
+                </div>
+            </div>
+        </a> <form action="{% url 'logout' %}" method="post" class="logout-form">
+            {% csrf_token %}
+            <button type="submit" class="logout-icon-btn" title="Выйти">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </form>
+    </div>
+</div>
+    </aside>
+    {% endif %}
+
+    <main class="{% if request.user.is_authenticated %}main-content{% else %}auth-content{% endif %}">
+        {% if messages %}
+        <div class="messages-container">
+            {% for message in messages %}
+                <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <div id="global-tooltip"></div>
+
+    <script>
+        // 1. ФУНКЦИИ МОДАЛЬНЫХ ОКОН (ДОБАВЛЕНО)
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.add('active');
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.remove('active');
+        }
+
+        // Закрытие по клику на фон
+        window.addEventListener('click', function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.classList.remove('active');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+    const tooltip = document.getElementById('global-tooltip');
+    const triggers = document.querySelectorAll('.hover-info-container');
+    let hideTimeout;
+
+    function showTooltip(content, rect) {
+        clearTimeout(hideTimeout);
+        tooltip.innerHTML = content;
+        tooltip.classList.add('active');
+
+        const tooltipRect = tooltip.getBoundingClientRect();
+
+        // Центрируем по горизонтали
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        // Ставим чуть выше (с небольшим нахлестом невидимой зоны)
+        let top = rect.top - tooltipRect.height - 5;
+
+        // Если вылетает за верхнюю границу — показываем под текстом
+        if (top < 10) {
+            top = rect.bottom + 5;
+        }
+
+        tooltip.style.left = Math.max(10, left) + 'px';
+        tooltip.style.top = top + 'px';
+    }
+
+    triggers.forEach(trigger => {
+        trigger.addEventListener('mouseenter', function() {
+            const content = this.querySelector('.hover-tooltip-content')?.innerHTML;
+            if (content) showTooltip(content, this.getBoundingClientRect());
+        });
+
+        trigger.addEventListener('mouseleave', () => {
+            // Увеличим задержку до 500мс (полсекунды), этого хватит даже медленному пользователю
+            hideTimeout = setTimeout(() => {
+                tooltip.classList.remove('active');
+            }, 100);
+        });
+    });
+
+    // Если мышка внутри окна — не закрываем!
+    tooltip.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
+
+    // Как только ушла из окна — закрываем через паузу
+    tooltip.addEventListener('mouseleave', () => {
+        hideTimeout = setTimeout(() => {
+            tooltip.classList.remove('active');
+        }, 100);
+    });
+});
+        function copyToClipboard(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Находим иконку внутри кнопки
+        const icon = btn.querySelector('i');
+        const originalClass = icon.className;
+
+        // Меняем иконку на галочку и красим в зеленый
+        icon.className = 'fas fa-check';
+        btn.classList.add('copied');
+
+        // Через 2 секунды возвращаем как было
+        setTimeout(() => {
+            icon.className = originalClass;
+            btn.classList.remove('copied');
+        }, 2000);
+    }).catch(err => {
+        console.error('Ошибка копирования: ', err);
+    });
+}
+
+    </script>
+
+
+</body>
+</html>

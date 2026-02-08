@@ -1,0 +1,55 @@
+{% extends 'core/auth_base.html' %}
+
+{% block title %}Регистрация | All4Tutors{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <div class="auth-title">Регистрация</div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% if form.errors %}
+            <div style="background: var(--danger-bg); color: var(--danger-text); padding: 15px; border-radius: 12px; margin-bottom: 20px; font-size: 14px;">
+                Пожалуйста, исправьте ошибки в форме.
+            </div>
+        {% endif %}
+
+        <div class="mb-20">
+            <label class="auth-label">Логин</label>
+            {{ form.username }}
+        </div>
+
+        <div class="mb-20">
+            <label class="auth-label">Email</label>
+            {{ form.email }}
+        </div>
+
+        <div class="mb-20">
+            <label class="auth-label">Роль</label>
+            {{ form.role }}
+        </div>
+
+        <div class="mb-20">
+            <label class="auth-label">Пароль</label>
+            {{ form.password }}
+        </div>
+
+        <div class="mb-25">
+            <label class="auth-label">Повторите пароль</label>
+            {{ form.password_confirm }}
+        </div>
+
+        <button type="submit" class="btn-auth">Создать аккаунт</button>
+    </form>
+
+    <div class="auth-footer">
+        Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a>
+    </div>
+    {% for field in form %}
+    {% if field.errors %}
+        <div style="color: red;">{{ field.errors }}</div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endblock %}

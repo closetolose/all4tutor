@@ -1,0 +1,35 @@
+{% extends 'core/base.html' %}
+{% block title %}Редактировать группу{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    <div class="card">
+        <h2>Редактировать группу: {{ group.name }}</h2>
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-20">
+                <label>Название</label>
+                {{ form.name }}
+            </div>
+            
+             <div class="mb-20">
+                <label>Предмет</label>
+                {{ form.subject }}
+            </div>
+
+            <div class="mb-20">
+                <label>Ученики</label>
+                <div style="max-height: 200px; overflow-y: auto; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    {{ form.students }}
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+                <a href="{% url 'my_students' %}" class="btn" style="background: #e2e8f0; color: #334155;">Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

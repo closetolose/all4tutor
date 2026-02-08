@@ -1,0 +1,164 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Мои задания | All4Tutors{% endblock %}
+
+{% block content %}
+<style>
+    /* Главный контейнер (фон) */
+    .modal-overlay {
+        display: none; /* Скрыто по умолчанию */
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.75); /* Темный фон */
+        backdrop-filter: blur(4px); /* Размытие */
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Окно внутри */
+    .modal-window {
+        background: white !important;
+        padding: 32px;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 450px;
+        position: relative;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Крестик */
+    .close-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        font-size: 28px;
+        color: #94a3b8;
+        cursor: pointer;
+        line-height: 1;
+    }
+    .close-btn:hover { color: #1e293b; }
+
+    .modal-overlay.active {
+    display: flex !important; /* Показываем окно, если есть этот класс */
+}
+</style>
+<div class="content-header">
+    <h1><i class="fas fa-tasks"></i> Мои учебные задания</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Предмет</th>
+                    <th>Задание</th>
+                    <th>Срок сдачи</th>
+                    <th>Статус</th>
+                    <th>Действие</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for hw in homeworks %}
+                <tr>
+                    <td><strong>{{ hw.subject.name }}</strong></td>
+                    <td>
+                        <div class="assignment-text mb-2">
+                            {{ hw.description }}
+                        </div>
+
+                        {% if hw.files.all %}
+                        <div class="assignment-files d-flex flex-wrap gap-2">
+                            {% for f in hw.files.all %}
+                                <a href="{{ f.file.url }}" class="file-pill" title="Скачать: {{ f.file_name }}" target="_blank">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span class="file-name">{{ f.file_name }}</span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>{{ hw.deadline|date:"d.m.Y H:i" }}</td>
+                    <td>
+                        <span class="badge status-{{ hw.status }}">
+                            {{ hw.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <button onclick="openSubmitModal({{ hw.id }})" class="btn btn-sm btn-primary">
+                            Отправить
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">У вас пока нет назначенных заданий.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="submitHWModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 500px; padding: 30px; background: white; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+        <div class="close-btn" onclick="closeModal('submitHWModal')" style="top: 20px; right: 20px;">&times;</div>
+
+        <div style="text-align: center; margin-bottom: 25px;">
+            <div style="width: 60px; height: 60px; background: #eef2ff; color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-size: 24px;">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <h2 style="font-size: 20px; color: #1e293b; margin: 0;">Сдать задание</h2>
+            <p style="color: #64748b; font-size: 14px; margin-top: 5px;">Прикрепите файлы с вашим решением</p>
+        </div>
+
+        <form id="submitHWForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 2px dashed #e2e8f0; margin-bottom: 25px;">
+                <input type="file" name="response_files" multiple class="filter-select" required
+                       style="width: 100%; font-size: 14px; color: #475569;">
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <button type="button" onclick="closeModal('submitHWModal')" class="btn" style="flex: 1; background: #f1f5f9; color: #475569; border: none;">
+                    Отмена
+                </button>
+                <button type="submit" class="btn btn-primary" style="flex: 2; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">
+                    Отправить работу
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    function openSubmitModal(hwId) {
+        const modal = document.getElementById('submitHWModal');
+        const form = document.getElementById('submitHWForm');
+
+        // Устанавливаем путь отправки
+        form.action = `/homework/submit/${hwId}/`;
+
+        // Открываем через класс, как в student_card.html
+        modal.classList.add('active');
+    }
+
+    function closeModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) {
+            // Закрываем через класс
+            modal.classList.remove('active');
+        }
+    }
+
+    // Этот код позволит закрывать окно кликом на темный фон
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('submitHWModal');
+        if (event.target === modal) {
+            closeModal('submitHWModal');
+        }
+    });
+</script>
+{% endblock %}

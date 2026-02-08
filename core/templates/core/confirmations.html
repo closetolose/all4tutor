@@ -1,0 +1,45 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Заявки | All4Tutors{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px;">
+    <div class="mb-20">
+        <h2 style="margin: 0;"><i class="fas fa-bell"></i> Входящие заявки</h2>
+        <p style="color: var(--text-muted);">Репетиторы, которые хотят добавить вас в группу.</p>
+    </div>
+
+    {% if requests %}
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            {% for req in requests %}
+                <div class="card list-item" style="border-left: 4px solid var(--primary);">
+                    <div class="list-info">
+                        <h3 style="font-size: 18px; margin-bottom: 5px;">
+                            {{ req.tutor.first_name }} {{ req.tutor.last_name }}
+                        </h3>
+                        <p>
+
+                            {{ req.created_at|date:"d.m.Y" }}
+                        </p>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <a href="{% url 'accept_request' req.id %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-check"></i> Принять
+                        </a>
+                        <a href="{% url 'reject_request' req.id %}" class="btn btn-danger btn-sm">
+                            <i class="fas fa-times"></i> Отклонить
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card text-center" style="padding: 60px;">
+            <i class="fas fa-check-circle" style="font-size: 48px; color: #cbd5e1; margin-bottom: 20px; display: block;"></i>
+            <h3 style="margin: 0;">Все спокойно</h3>
+            <p style="color: var(--text-muted);">Новых заявок пока нет.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

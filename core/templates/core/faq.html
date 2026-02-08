@@ -1,0 +1,48 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Помощь | All4Tutors{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
+    <div class="auth-card" style="text-align: center; max-width: 450px; width: 100%;">
+        <div style="margin-bottom: 25px;">
+            <div style="width: 70px; height: 70px; background: #f0f7ff; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px;">
+                <i class="fas fa-question-circle" style="font-size: 32px; color: #6366f1;"></i>
+            </div>
+            <h2 style="font-weight: 900; color: #1e293b; margin: 0;">Помощь и поддержка</h2>
+        </div>
+
+        <div style="background: #f8fafc; padding: 25px; border-radius: 20px; border: 1px solid #f1f5f9;">
+            <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+                Если у вас возникли трудности с использованием платформы или есть предложения по улучшению:
+            </p>
+            
+            <p style="font-weight: 700; color: #1e293b; margin-bottom: 10px;">
+                По всем вопросам обращаться к Никите
+            </p>
+            
+            <a href="https://t.me/closetolose" target="_blank" class="btn-auth" style="display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none;">
+                <i class="fab fa-telegram-plane"></i> @closetolose
+            </a>
+        </div>
+
+        <div style="margin-top: 25px;">
+            <a href="{% url 'index' %}" style="color: #94a3b8; text-decoration: none; font-size: 14px; font-weight: 600;">
+                <i class="fas fa-arrow-left"></i> Вернуться на главную
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Плавное появление карточки */
+    .auth-card {
+        animation: slideUp 0.5s ease-out;
+    }
+
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
