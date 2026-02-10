@@ -1057,24 +1057,25 @@ def my_assignments(request):
 
 @login_required
 def my_subjects(request):
-    # Проверяем, что это репетитор
-    if request.user.profile.role != 'tutor':
-        return redirect('index')
-
-    # Обработка добавления нового предмета
+    tutor = getattr(request.user, 'profile', None)
+    if not tutor:
+        from .models import Users
+        tutor = Users.objects.filter(user=request.user).first()
+    if not tutor:
+        from .models import Users
+        tutor = Users.objects.create(user=request.user)
     if request.method == 'POST':
         subject_name = request.POST.get('name')
         if subject_name:
-            # Создаем предмет, привязывая его к профилю текущего юзера
-            Subjects.objects.create(
-                name=subject_name,
-                tutor=request.user.profile
+            subject, _ = Subjects.objects.get_or_create(
+                name=subject_name.strip(),
+                tutor=tutor
             )
+            TutorSubjects.objects.get_or_create(tutor=tutor, subject=subject)
+            messages.success(request, f"Предмет '{subject_name}' добавлен!")
         return redirect('my_subjects')
 
-    # Получаем все предметы этого репетитора
-    subjects = Subjects.objects.filter(tutor=request.user.profile)
-
+    subjects = Subjects.objects.filter(tutor=tutor)
     return render(request, 'core/my_subjects.html', {'subjects': subjects})
 
 
