@@ -1,0 +1,107 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<style>
+    /* Стили как в student_card.html */
+    .user-avatar-large {
+        width: 70px; height: 70px; background: #e0e7ff; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 15px; font-size: 28px; color: #4338ca; font-weight: 600;
+    }
+    .info-stat-card { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; }
+</style>
+
+<div style="display: flex; gap: 25px; align-items: flex-start;">
+    <div style="width: 320px; flex-shrink: 0;">
+        <div class="card" style="text-align: center; border-top: 5px solid #4338ca;">
+            <div class="user-avatar-large">{{ group.name|slice:":2"|upper }}</div>
+            <h2 style="margin: 0;">{{ group.name }}</h2>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Предмет: {{ group.subject.name }}</p>
+
+            <div class="info-stat-card">
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 10px;">Состав группы ({{ members.count }})</span>
+                <div style="text-align: left;">
+                    {% for student in members %}
+                        <a href="{% url 'student_card' student.id %}" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; text-decoration: none; color: var(--text-main); font-size: 13px;">
+                            <div style="width: 24px; height: 24px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">{{ student.first_name|slice:":1" }}</div>
+                            {{ student.first_name }} {{ student.last_name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button onclick="openModal('groupHomeworkModal')" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+                <i class="fas fa-plus-circle"></i> Задать ДЗ группе
+            </button>
+        </div>
+    </div>
+
+    <div style="flex: 1;">
+        <div class="card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 20px; border-bottom: 1px solid var(--border);"><h3 style="margin: 0;">Журнал группы</h3></div>
+            <div class="table-container">
+                <table style="width: 100%;">
+                    <thead>
+                        <tr style="text-align: left; font-size: 12px; color: #64748b; background: #f8fafc;">
+                            <th style="padding: 15px;">ДАТА</th>
+                            <th>СТОИМОСТЬ</th>
+                            <th>ПОСЕЩАЕМОСТЬ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% regroup attendances by lesson as lesson_list %}
+                        {% for item in lesson_list %}
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 15px;">{{ item.grouper.start_time|date:"d.m.Y H:i" }}</td>
+                            <td>{{ item.grouper.price }} ₽</td>
+                            <td>
+                                <div style="display: flex; gap: 5px;">
+                                    {% for att in item.list %}
+                                        <span class="pay-dot {% if att.was_present %}paid{% else %}debt{% endif %}" title="{{ att.student.first_name }}" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700;">
+                                            {{ att.student.first_name|slice:":1" }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="groupHomeworkModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 500px;">
+        <div class="close-btn" onclick="closeModal('groupHomeworkModal')">&times;</div>
+        <h2 class="modal-title">ДЗ для всей группы</h2>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="assign_group_homework" value="1">
+            <div class="mb-15">
+                <label class="form-label">Описание задания</label>
+                <textarea name="description" class="filter-select" style="height: 100px; padding: 10px;" required placeholder="Опишите задание..."></textarea>
+            </div>
+            <div class="mb-15">
+                <label class="form-label">Срок сдачи</label>
+                <input type="datetime-local" name="deadline" class="filter-select">
+            </div>
+            <div class="mb-20">
+                <label class="form-label">Прикрепить файлы из библиотеки</label>
+                <div style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #f8fafc;">
+                    {% for f in tutor_files %}
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; cursor: pointer;">
+                        <input type="checkbox" name="files" value="{{ f.id }}">
+                        <span style="font-size: 13px;">{{ f.file_name }}</span>
+                    </label>
+                    {% empty %}
+                        <p style="font-size: 12px; color: var(--text-muted); text-align: center;">В библиотеке нет файлов</p>
+                    {% endfor %}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Разослать всем ученикам</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

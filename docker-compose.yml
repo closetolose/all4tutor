@@ -26,7 +26,7 @@ services:
       - DB_PASSWORD=tutor_password
       - DB_HOST=db
       - DB_PORT=3306
-      - TELEGRAM_BOT_TOKEN=tg_token
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - EMAIL_HOST=${EMAIL_HOST}
       - EMAIL_PORT=${EMAIL_PORT}
       - EMAIL_HOST_USER=${EMAIL_HOST_USER}
@@ -51,7 +51,7 @@ services:
       - DB_PASSWORD=tutor_password
       - DB_HOST=db
       - DB_PORT=3306
-      - TELEGRAM_BOT_TOKEN=tg_token
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     depends_on:
       - db
   bot:
@@ -60,7 +60,7 @@ services:
     volumes:
       - .:/app
     environment:
-      - TELEGRAM_BOT_TOKEN=tg_token
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     depends_on:
       - db
 

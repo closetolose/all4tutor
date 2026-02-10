@@ -212,17 +212,27 @@
                         </td>
 
                         <td class="hover-info-container">
-                            {% if lesson.group %}
-                                <span class="badge" style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-weight: 600;">{{ lesson.group.name }}</span>
-                                <div class="hover-tooltip-content" style="display: none;">
-                                    <span class="tooltip-title">Группа: {{ lesson.group.name }}</span>
-                                    {% for s in lesson.group.students.all %}
-                                        <div class="tooltip-row"><i class="fas fa-user"></i> {{ s.first_name }} {{ s.last_name }}</div>
-                                    {% endfor %}
-                                </div>
+                            {% if role == 'student' %}
+                                <span style="font-weight: 500;">{{ lesson.tutor.first_name }} {{ lesson.tutor.last_name }}</span>
+                                {% if lesson.group %}
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                                        <i class="fas fa-users" style="font-size: 10px;"></i> Группа: {{ lesson.group.name }}
+                                    </div>
+                                {% endif %}
                             {% else %}
-                                <span style="font-weight: 500;">{{ lesson.student.first_name }} {{ lesson.student.last_name }}</span>
+                                {% if lesson.group %}
+                                    <span class="badge" style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-weight: 600;">{{ lesson.group.name }}</span>
+                                    <div class="hover-tooltip-content" style="display: none;">
+                                        <span class="tooltip-title">Группа: {{ lesson.group.name }}</span>
+                                        {% for s in lesson.group.students.all %}
+                                            <div class="tooltip-row"><i class="fas fa-user"></i> {{ s.first_name }} {{ s.last_name }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span style="font-weight: 500;">{{ lesson.student.first_name }} {{ lesson.student.last_name }}</span>
+                                {% endif %}
                             {% endif %}
+
                         </td>
 
                         <td style="color: #475569; font-size: 14px;">{{ lesson.start_time|date:"d.m.Y" }} <span style="color: #94a3b8; font-size: 12px;">{{ lesson.start_time|date:"H:i" }}</span></td>
@@ -264,104 +274,11 @@
             </table>
         </div>
     </div>
-{% if role == 'student' %}
-<div class="card" style="padding: 0; overflow: hidden; margin-top: 30px;">
-    <div style="padding: 20px; border-bottom: 1px solid var(--border);">
-        <h3 style="margin: 0; font-size: 18px;"><i class="fas fa-tasks" style="color: var(--primary); margin-right: 10px;"></i> Мои задания</h3>
-    </div>
 
-    <div class="table-container">
-        <table class="table-fixed">
-            <thead>
-                <tr>
-                    <th style="width: 150px;">Предмет</th>
-                    <th>Задание и материалы</th>
-                    <th style="width: 150px;">Срок сдачи</th>
-                    <th style="width: 140px;">Статус</th>
-                    <th style="width: 120px; text-align: center;">Отправить</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for hw in homeworks %}
-                <tr>
-                    <td><strong>{{ hw.subject.name }}</strong></td>
-                    <td>
-                        <div style="font-size: 14px; margin-bottom: 8px;">{{ hw.description }}</div>
-                        {% if hw.files.exists %}
-                            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                                {% for f in hw.files.all %}
-                                    <a href="{{ f.file.url }}" class="copy-btn" style="font-size: 10px; text-decoration: none;">
-                                        <i class="fas fa-file-download"></i> {{ f.file_name|truncatechars:15 }}
-                                    </a>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </td>
-                    <td style="font-size: 13px; color: var(--text-muted);">
-                        {{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}
-                    </td>
-                    <td>
-                        <span class="badge-hw
-                            {% if hw.status == 'pending' %}status-pending
-                            {% elif hw.status == 'submitted' %}status-submitted
-                            {% else %}status-completed{% endif %}">
-                            {{ hw.get_status_display }}
-                        </span>
-                    </td>
-                    <td style="text-align: center;">
-                        <button onclick="openSubmitModal('{{ hw.id }}')" class="btn-icon" style="color: var(--primary); background: none; border: none; cursor: pointer; font-size: 18px;">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                        </button>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">Заданий пока нет</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
 
-<div id="submitHWModal" class="modal-overlay">
-    <div class="modal-window" style="max-width: 450px;">
-        <div class="close-btn" onclick="closeModal('submitHWModal')">&times;</div>
-        <h2 class="modal-title">Сдать домашнее задание</h2>
-        <form action="" id="submitHWForm" method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            <div class="mb-20">
-                <label class="form-label">Прикрепите файлы с решением</label>
-                <input type="file" name="response_files" multiple class="filter-select" required style="padding: 10px;">
-            </div>
-            <button type="submit" class="btn btn-primary btn-full">Отправить на проверку</button>
-        </form>
-    </div>
-</div>
-{% endif %}
 
-    {% if role == 'tutor' %}
-    <div class="card" style="margin-bottom: 30px;">
-        <h3 style="margin: 0 0 20px 0; font-size: 18px;"><i class="fas fa-book"></i> Мои предметы</h3>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-            {% for item in my_subjects %}
-                <span class="badge badge-active" style="padding: 8px 15px;">
-                    {{ item.subject.name }}
-                    <form method="post" style="display: inline; margin-left: 5px;">
-                        {% csrf_token %}
-                        <input type="hidden" name="delete_subject" value="1">
-                        <input type="hidden" name="subject_id" value="{{ item.subject.id }}">
-                        <button type="submit" style="border:none; background:none; cursor:pointer; opacity: 0.5;">&times;</button>
-                    </form>
-                </span>
-            {% endfor %}
-        </div>
-        <form method="post" style="display: flex; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px dashed var(--border);">
-            {% csrf_token %}
-            <input type="hidden" name="add_subject" value="1">
-            <input type="text" name="subject_name" placeholder="Новый предмет" required style="margin: 0; flex: 1;">
-            <button type="submit" class="btn btn-primary btn-sm">Добавить</button>
-        </form>
-    </div>
-    {% endif %}
+
+
 
     <div id="lessonModal" class="modal-overlay">
     <div class="modal-window" style="max-width: 550px;">
@@ -521,19 +438,53 @@
     <script>
         // ЛОГИКА ТАБЛИЦЫ И ВЫДЕЛЕНИЯ
         document.addEventListener('DOMContentLoaded', function() {
-            const selectAll = document.getElementById('selectAll');
-            const checkboxes = document.querySelectorAll('.lesson-checkbox');
-            const bulkBar = document.getElementById('bulk-actions-bar');
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.lesson-checkbox');
+    const hiddenIdsInput = document.getElementById('hidden-ids');
 
-            function updateBulk() {
-                const checked = document.querySelectorAll('.lesson-checkbox:checked');
-                document.getElementById('selected-count').innerText = checked.length;
-                checked.length > 0 ? bulkBar.classList.add('active') : bulkBar.classList.remove('active');
-            }
+    // 1. ФУНКЦИЯ ОБНОВЛЕНИЯ ПАНЕЛИ
+    function updateBulk() {
+        const checkedCount = document.querySelectorAll('.lesson-checkbox:checked');
+        const bulkBar = document.getElementById('bulk-actions-bar');
+        const selectedCount = document.getElementById('selected-count');
 
-            if(selectAll) selectAll.onchange = () => { checkboxes.forEach(cb => cb.checked = selectAll.checked); updateBulk(); };
-            checkboxes.forEach(cb => cb.onchange = updateBulk);
+        // Собираем ID всех выбранных уроков
+        const selectedIds = Array.from(checkedCount).map(cb => cb.value);
+
+        // Записываем ID в скрытое поле для формы (чтобы улетело на сервер)
+        if (hiddenIdsInput) {
+            hiddenIdsInput.value = selectedIds.join(',');
+        }
+
+        // Обновляем текст счетчика
+        if (selectedCount) {
+            selectedCount.innerText = checkedCount.length;
+        }
+
+        // Показываем или скрываем черную панель
+        if (checkedCount.length > 0) {
+            bulkBar.classList.add('active');
+        } else {
+            bulkBar.classList.remove('active');
+        }
+    }
+
+    // 2. СЛУШАЕМ КЛИКИ ПО КАЖДОМУ ЧЕКБОКСУ
+    // Без этого этапа твоя функция updateBulk никогда не запустится
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateBulk);
+    });
+
+    // 3. ЛОГИКА "ВЫБРАТЬ ВСЕ"
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll.checked; // Ставим всем такой же статус, как у главной галки
+            });
+            updateBulk(); // Запускаем обновление панели
         });
+    }
+});
 
         // МАТЕРИАЛЫ
         function toggleAllMaterials(source) {
@@ -576,10 +527,14 @@
         }
 
         function applyMassEdit() {
+            const timeVal = document.getElementById('m-time-select').value;
+            const dateVal = document.getElementById('m-date-select').value;
             document.getElementById('m-subject-input').value = document.getElementById('m-subject-select').value;
             document.getElementById('m-date-input').value = document.getElementById('m-date-select').value;
             document.getElementById('m-time-input').value = document.getElementById('m-time-select').value;
             document.getElementById('m-price-input').value = document.getElementById('m-price-select').value;
+            console.log("JS DEBUG - Date:", dateVal);
+            console.log("JS DEBUG - Time:", timeVal);
 
             const container = document.getElementById('m-materials-container');
             container.innerHTML = '';
@@ -594,7 +549,7 @@
         }
 
         function openDeleteModal(id) {
-            document.getElementById('deleteForm').action = `/lesson/delete/${id}/`;
+            document.getElementById('deleteForm').action = "/lesson/delete/" + id + "/";
             openModal('deleteModal');
         }
 

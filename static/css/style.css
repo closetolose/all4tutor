@@ -12,6 +12,21 @@
     --sidebar-width: 260px;
 }
 
+@media (max-width: 768px) {
+    :root {
+        --tg-bg: #1c1c1c !important;          /* Основной фон */
+        --tg-secondary-bg: #242424 !important; /* Поля поиска, блоки */
+        --tg-text: #ffffff !important;         /* Текст */
+        --tg-hint: #aaaaaa !important;         /* Серый текст */
+        --tg-link: #50a8eb !important;         /* Голубой ТГ */
+    }
+
+    body {
+        background-color: var(--tg-bg) !important;
+        color: var(--tg-text) !important;
+    }
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -1157,4 +1172,80 @@ input[type="radio"] {
         border: 2px solid #f1f5f9;
         font-size: 14px;
     }
+
+@media (max-width: 768px) {
+    .sidebar {
+        display: none !important; /* Прячем старый сайдбар */
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+        padding: 10px !important;
+        width: 100% !important;
+        margin-bottom: 70px !important; /* Место под нижнее меню */
+    }
+
+    /* Делаем карточки учеников как «чаты» */
+    .card, .student-item {
+        background: transparent !important;
+        border: none !important;
+        border-bottom: 1px solid #000 !important; /* Разделитель как в ТГ */
+        border-radius: 0 !important;
+        margin: 0 -10px !important; /* Растягиваем до краев */
+        padding: 12px 15px !important;
+    }
+}
+
+.mobile-bottom-nav {
+    display: none; /* По умолчанию скрыто для ПК */
+}
+
+@media (max-width: 768px) {
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: #242424;
+        border-top: 1px solid #000;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .nav-link {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: #aaaaaa;
+        font-size: 10px;
+        text-decoration: none;
+    }
+
+    .nav-link.active {
+        color: #50a8eb;
+    }
+
+    .nav-link i {
+        font-size: 20px;
+        margin-bottom: 4px;
+    }
+}
+
+@media (max-width: 768px) {
+    .avatar, .mini-avatar {
+        width: 54px !important;
+        height: 54px !important;
+        border-radius: 50% !important; /* Идеальный круг */
+        margin-right: 15px !important;
+    }
+
+    .item-title {
+        font-weight: 600 !important;
+        font-size: 16px !important;
+        color: white !important;
+    }
+}
 </style>

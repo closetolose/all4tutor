@@ -71,12 +71,17 @@
                 <div class="flex-between">
                     <div>
                         <div class="hover-info-container">
-                            <h4 style="margin:0; color:var(--primary); cursor: help;">{{ group.name }}</h4>
+                            <a href="{% url 'group_card' group.id %}" style="text-decoration: none;">
+                                <h4 style="margin:0; color:var(--primary); cursor: pointer;">{{ group.name }}</h4>
+                            </a>
                             <div class="hover-tooltip-content">
                                 <span class="tooltip-title">Участники группы</span>
                                 <ul style="margin: 0; padding-left: 18px; font-size: 13px;">
                                     {% for student in group.students.all %}
-                                        <li style="margin-bottom: 4px;"><i class="fas fa-user-circle" style="font-size: 10px; color: var(--primary); margin-right: 5px;"></i>{{ student.first_name }} {{ student.last_name }}</li>
+                                        <li style="margin-bottom: 4px;">
+                                            <i class="fas fa-user-circle" style="font-size: 10px; color: var(--primary); margin-right: 5px;"></i>
+                                            {{ student.first_name }} {{ student.last_name }}
+                                        </li>
                                     {% endfor %}
                                 </ul>
                                 <hr class="tooltip-divider">

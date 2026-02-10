@@ -71,16 +71,16 @@ def index(request):
                 lessons_list = lessons_list.filter(group_id=target[2:])
 
         # 2. Фильтр по диапазону ДАТ
-        start_date = request.GET.get('start_date')
-        end_date = request.GET.get('end_date')
+        start_date = request.GET.get('date_from')
+        end_date = request.GET.get('date_to')
         if start_date:
             lessons_list = lessons_list.filter(start_time__date__gte=start_date)
         if end_date:
             lessons_list = lessons_list.filter(start_time__date__lte=end_date)
 
         # 3. Фильтр по диапазону ВРЕМЕНИ
-        s_time = request.GET.get('start_time')
-        e_time = request.GET.get('end_time')
+        s_time = request.GET.get('time_from')
+        e_time = request.GET.get('time_to')
         if s_time:
             lessons_list = lessons_list.filter(start_time__time__gte=s_time)
         if e_time:
@@ -364,6 +364,7 @@ def add_student(request):
 
 @login_required
 def add_lesson(request):
+    print(f"DEBUG RAW POST: {request.POST.get('start_time')}")
     if request.user.profile.role != 'tutor':
         return redirect('index')
 
@@ -371,6 +372,7 @@ def add_lesson(request):
         form = AddLessonForm(request.POST, tutor=request.user.profile)
         if form.is_valid():
             base_start_time = form.cleaned_data.get('start_time')
+            print(f"DEBUG CLEANED DATA: {base_start_time}")
             duration = form.cleaned_data.get('duration')
             is_recurring = form.cleaned_data.get('is_recurring')
             new_series_id = uuid.uuid4() if is_recurring else None
@@ -404,13 +406,19 @@ def add_lesson(request):
                     lesson.tutor = request.user.profile
                     lesson.series_id = new_series_id
 
-
-
-                    new_start = base_start_time.replace(
-                        year=current_date.year, month=current_date.month, day=current_date.day
+                    naive_start = timezone.make_naive(base_start_time)  # делаем "наивным"
+                    new_naive = naive_start.replace(
+                        year=current_date.year,
+                        month=current_date.month,
+                        day=current_date.day,
+                        second=0,
+                        microsecond=0
                     )
+                    new_start = timezone.make_aware(new_naive)
+                    print(f"DEBUG FINAL START: {new_start} (Seconds: {new_start.second})")
                     lesson.start_time = new_start
                     lesson.end_time = new_start + timedelta(minutes=duration)
+
 
                     if form.cleaned_data.get('lesson_type') == 'individual':
                         lesson.group = None
@@ -441,7 +449,9 @@ def add_lesson(request):
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"Ошибка в поле {field}: {error}")
-    return smart_render(request, 'core/add_lesson.html', {'form': form})
+    else:
+        form = AddLessonForm()
+    return redirect('index')
 
 
 # --- УПРАВЛЕНИЕ УРОКАМИ ---
@@ -460,12 +470,11 @@ def edit_lesson(request, lesson_id):
         # Загружаем форму с уже заполненными данными (instance=lesson)
         form = AddLessonForm(instance=lesson, tutor=request.user.profile)
 
-    return smart_render(request, 'core/edit_lesson.html', {'form': form, 'lesson': lesson})
+    return redirect('index')
 
 
 @login_required
 def delete_lesson(request, lesson_id):
-    # Исправлено: Lessons вместо Lesson
     lesson = get_object_or_404(Lessons, id=lesson_id, tutor=request.user.profile)
     mode = request.POST.get('delete_mode', 'single')
 
@@ -513,7 +522,6 @@ def delete_group(request, group_id):
 # --- УПРАВЛЕНИЕ СТУДЕНТАМИ (Разрыв связи) ---
 @login_required
 def remove_student(request, connection_id):
-    # Удаляем запись о связи (ConnectionRequest)
     connection = get_object_or_404(ConnectionRequest, id=connection_id, tutor=request.user.profile)
     if request.method == 'POST':
         student_name = connection.student.user.get_full_name()
@@ -559,59 +567,97 @@ def bulk_action_lessons(request):
             elif action == 'unpaid':
                 LessonAttendance.objects.filter(lesson__in=queryset).update(is_paid=False)
 
+
+
+
             elif action == 'mass_edit':
+
+                # Читаем дату и время из запроса
+
+                new_date = request.POST.get('mass_date')
+
+                new_time = request.POST.get('mass_time')
+
                 new_student = request.POST.get('mass_student')
+
                 new_group = request.POST.get('mass_group')
+
                 new_subject = request.POST.get('mass_subject')
+
                 new_duration = request.POST.get('mass_duration')
+
                 new_price = request.POST.get('mass_price')
-                # НОВОЕ: Получаем список материалов
+
                 selected_materials = request.POST.getlist('materials')
 
-                updates = {}
-                if new_student:
-                    updates['student_id'] = new_student
-                    updates['group_id'] = None  # Используем _id для консистентности
-                elif new_group:
-                    updates['group_id'] = new_group
-                    updates['student_id'] = None
+                # Мы обновляем в цикле, чтобы корректно склеить дату и время
 
-                if new_subject: updates['subject_id'] = new_subject
-                if new_duration: updates['duration'] = new_duration
-                if new_price: updates['price'] = new_price
-
-                if updates:
-                    queryset.update(**updates)
-
-                # Обработка Many-to-Many и пересоздание посещаемости
-                # update() не работает с M2M и не вызывает сигналы, поэтому нужен цикл
                 for lesson in queryset:
-                    # 1. ОБНОВЛЯЕМ МАТЕРИАЛЫ (ManyToMany)
+
+                    # ОБНОВЛЕНИЕ ВРЕМЕНИ
+
+                    if new_date or new_time:
+                        d = new_date if new_date else lesson.start_time.strftime('%Y-%m-%d')
+
+                        t = new_time if new_time else lesson.start_time.strftime('%H:%M')
+
+                        # Собираем новую дату начала
+
+                        naive_dt = datetime.strptime(f"{d} {t}", '%Y-%m-%d %H:%M')
+
+                        lesson.start_time = timezone.make_aware(naive_dt).replace(second=0, microsecond=0)
+
+                        # Сразу пересчитываем время окончания
+
+                        dur = int(new_duration) if new_duration else lesson.duration
+
+                        lesson.end_time = lesson.start_time + timedelta(minutes=dur)
+
+                    # Остальные поля
+
+                    if new_student:
+
+                        lesson.student_id = new_student
+
+                        lesson.group = None
+
+                    elif new_group:
+
+                        lesson.group_id = new_group
+
+                        lesson.student = None
+
+                    if new_subject: lesson.subject_id = new_subject
+
+                    if new_duration: lesson.duration = int(new_duration)
+
+                    if new_price: lesson.price = Decimal(new_price)
+
+                    lesson.save()  # Сохраняем объект
+
+                    # Обновляем материалы и посещаемость (как в твоем коде)
+
                     if 'materials' in request.POST:
                         lesson.materials.set(selected_materials)
 
-                    # 2. ПЕРЕСОЗДАЕМ ПОСЕЩАЕМОСТЬ (если сменился ученик/группа)
-                    if new_student or new_group:
-                        lesson.attendances.all().delete()
+                        # 2. ПЕРЕСОЗДАЕМ ПОСЕЩАЕМОСТЬ (если сменился ученик/группа)
 
-                        # Собираем список учеников для новых точек
-                        if lesson.student:
-                            students_to_add = [lesson.student]
-                        elif lesson.group:
-                            students_to_add = lesson.group.students.all()
-                        else:
-                            students_to_add = []
+                        if new_student or new_group:
 
-                        # Массовое создание точек (более эффективно)
-                        attendances = [
-                            LessonAttendance(lesson=lesson, student=s)
-                            for s in students_to_add
-                        ]
-                        LessonAttendance.objects.bulk_create(attendances)
+                            lesson.attendances.all().delete()
 
-                messages.success(request, f"Обновлено занятий: {queryset.count()}")
+                            students_to_add = [lesson.student] if lesson.student else []
 
-    return redirect('index')
+                            if lesson.group:
+                                students_to_add = lesson.group.students.all()
+
+                            attendances = [LessonAttendance(lesson=lesson, student=s) for s in students_to_add]
+
+                            LessonAttendance.objects.bulk_create(attendances)
+
+                    messages.success(request, f"Обновлено занятий: {queryset.count()}")
+
+        return redirect('index')
 
 
 @login_required
@@ -719,7 +765,7 @@ def student_card(request, student_id):
         'transactions': student.transactions.filter(tutor=tutor).order_by('-date'),
         'performance': student.performance.all().order_by('-date')[:10]
     }
-    return render(request, 'core/student_card.html', context)
+    return smart_render(request, 'core/student_card.html', context)
 
 
 @login_required
@@ -1068,3 +1114,49 @@ def activate(request, uidb64, token):
     else:
         # Если ссылка битая или токен старый
         return render(request, 'core/activation_invalid.html')
+
+
+
+
+@login_required
+def group_card(request, group_id):
+    tutor = request.user.profile
+    group = get_object_or_404(StudyGroups, id=group_id, tutor=tutor)
+    now = timezone.now()
+
+    # ЛОГИКА ГРУППОВОГО ДЗ (POST запрос)
+    if request.method == 'POST' and 'assign_group_homework' in request.POST:
+        description = request.POST.get('description')
+        deadline = request.POST.get('deadline')
+        file_ids = request.POST.getlist('files')
+
+        for student in group.students.all():
+            hw = Homework.objects.create(
+                tutor=tutor,
+                student=student,
+                subject=group.subject,
+                description=description,
+                deadline=deadline if deadline else None
+            )
+            if file_ids:
+                hw.files.set(file_ids)
+
+        messages.success(request, f"Задание отправлено всей группе")
+        return redirect('group_card', group_id=group.id)
+
+    # ДАННЫЕ ДЛЯ КАРТОЧКИ
+    attendances = LessonAttendance.objects.filter(
+        lesson__group=group,
+        lesson__tutor=tutor
+    ).select_related('lesson', 'lesson__subject', 'student').order_by('-lesson__start_time')
+
+
+    tutor_files = FilesLibrary.objects.filter(tutor=tutor).order_by('-upload_date')
+
+    context = {
+        'group': group,
+        'attendances': attendances,
+        'members': group.students.all(),  # Список учеников
+        'tutor_files': tutor_files,  # Список файлов
+    }
+    return smart_render(request, 'core/group_card.html', context)

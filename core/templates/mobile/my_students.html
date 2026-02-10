@@ -1,0 +1,108 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="search-container">
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Поиск ученика..." id="studentSearch">
+    </div>
+</div>
+
+<div class="student-list">
+    {% for student in students %}
+    <a href="{% url 'student_card' student.id %}" class="student-card">
+        <div class="student-avatar" style="background: hsla({{ forloop.counter0|add:160 }}, 70%, 50%, 1);">
+            {{ student.first_name|first }}{{ student.last_name|first }}
+        </div>
+
+        <div class="student-info">
+            <div class="info-main">
+                <span class="name">{{ student.first_name }} {{ student.last_name }}</span>
+                <span class="grade-tag">{{ student.grade|default:"—" }} класс</span>
+            </div>
+            <div class="info-sub">
+                <span class="subject">{{ student.subject_names|default:"Предмет не указан" }}</span>
+            </div>
+        </div>
+
+        <div class="card-action">
+            <i class="fas fa-chevron-right"></i>
+        </div>
+    </a>
+    {% empty %}
+    <div class="empty-state">
+        <div class="empty-icon"><i class="fas fa-user-friends"></i></div>
+        <p>У вас пока нет учеников</p>
+        <button class="m-btn-primary" style="margin-top: 20px;">Добавить первого</button>
+    </div>
+    {% endfor %}
+</div>
+
+<a href="{% url 'add_student' %}" class="fab-btn">
+    <i class="fas fa-user-plus"></i>
+</a>
+
+<style>
+    /* --- SEARCH --- */
+    .search-container { padding: 15px; background: var(--tg-bg); position: sticky; top: 56px; z-index: 900; }
+    .search-box {
+        background: var(--tg-sidebar); border-radius: 12px;
+        padding: 10px 15px; display: flex; align-items: center; gap: 10px;
+        border: 1px solid var(--tg-separator);
+    }
+    .search-box i { color: var(--tg-hint); font-size: 14px; }
+    .search-box input {
+        background: transparent; border: none; color: white;
+        width: 100%; outline: none; font-size: 15px;
+    }
+
+    /* --- LIST --- */
+    .student-list { padding: 0 0 100px; }
+    
+    .student-card {
+        display: flex; align-items: center; gap: 15px;
+        padding: 12px 15px; text-decoration: none;
+        border-bottom: 0.5px solid var(--tg-separator);
+        transition: background 0.2s;
+    }
+    .student-card:active { background: var(--tg-sidebar); }
+
+    .student-avatar {
+        width: 48px; height: 48px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        color: white; font-weight: 700; font-size: 16px; flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .student-info { flex-grow: 1; min-width: 0; }
+    .info-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+    .name { font-size: 16px; font-weight: 700; color: white; }
+    .grade-tag { font-size: 11px; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 6px; color: var(--tg-hint); }
+    
+    .info-sub { font-size: 13px; color: var(--tg-hint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .card-action { color: var(--tg-separator); font-size: 12px; }
+
+    .m-btn-primary {
+        background: var(--tg-active); color: white; border: none;
+        padding: 12px 25px; border-radius: 12px; font-weight: 700;
+    }
+</style>
+
+<script>
+    // Простой живой поиск
+    document.getElementById('studentSearch').addEventListener('input', function(e) {
+        let val = e.target.value.toLowerCase();
+        document.querySelectorAll('.student-card').forEach(card => {
+            let name = card.querySelector('.name').textContent.toLowerCase();
+            card.style.display = name.includes(val) ? 'flex' : 'none';
+        });
+    });
+</script>
+{% endblock %}

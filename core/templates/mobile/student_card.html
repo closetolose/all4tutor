@@ -1,0 +1,111 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+
+<div class="s-profile-header">
+    <div class="s-big-avatar">{{ student.first_name|first }}{{ student.last_name|first }}</div>
+    <h2>{{ student.first_name }} {{ student.last_name }}</h2>
+    <div class="s-phone">{{ student.phone|default:"+7 (___) ___-__-__" }}</div>
+
+    <div class="s-quick-stats">
+        <div class="s-stat"><span>Класс</span><strong>{{ student.grade }}</strong></div>
+        <div class="s-stat"><span>Родитель</span><strong>{{ student.parent_name|default:"—" }}</strong></div>
+    </div>
+</div>
+
+<div class="s-section">
+    <div class="b-card positive">
+        <span class="b-label">ТЕКУЩИЙ БАЛАНС</span>
+        <div class="b-value">{{ student.balance }} ₽</div>
+    </div>
+    <div class="b-card negative">
+        <span class="b-label">К ОПЛАТЕ</span>
+        <div class="b-value">0 ₽</div>
+    </div>
+    <div class="s-actions">
+        <button class="s-btn primary"><i class="fas fa-plus"></i> Пополнить</button>
+        <button class="s-btn secondary">История транзакций</button>
+    </div>
+</div>
+
+<div class="s-section">
+    <h3 class="section-title">Журнал занятий</h3>
+    <div class="m-table-wrap">
+        <table class="m-simple-table">
+            <thead>
+                <tr><th>Дата</th><th>Предмет</th><th>Стоимость</th></tr>
+            </thead>
+            <tbody>
+                {% for lesson in finished_lessons %}
+                <tr>
+                    <td>{{ lesson.start_time|date:"d.m" }}</td>
+                    <td>{{ lesson.subject }}</td>
+                    <td>{{ lesson.price }} ₽</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="s-section">
+    <h3 class="section-title">Домашние задания</h3>
+    <div class="hw-list">
+        {% for hw in homeworks %}
+        <div class="hw-card">
+            <div class="hw-info">
+                <strong>{{ hw.subject }}</strong>
+                <p>{{ hw.task_text|truncatechars:50 }}</p>
+                <span class="hw-deadline">Дедлайн: {{ hw.deadline|date:"d M" }}</span>
+            </div>
+            {% if hw.file %}
+            <a href="{{ hw.file.url }}" class="hw-file">
+                <i class="fas fa-file-excel"></i>
+                <span>{{ hw.file_name }}</span>
+            </a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .s-profile-header { text-align: center; padding: 25px 15px; background: var(--tg-sidebar); border-bottom: 1px solid var(--tg-separator); }
+    .s-big-avatar { width: 80px; height: 80px; border-radius: 50%; background: #334155; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; color: white; }
+    .s-phone { color: var(--tg-hint); font-size: 14px; margin-top: 5px; }
+
+    .s-quick-stats { display: flex; justify-content: center; gap: 30px; margin-top: 20px; }
+    .s-stat span { display: block; font-size: 11px; color: var(--tg-hint); text-transform: uppercase; }
+    .s-stat strong { font-size: 16px; color: white; }
+
+    .s-section { padding: 20px 15px; }
+    .section-title { font-size: 18px; font-weight: 800; margin-bottom: 15px; color: white; }
+
+    /* Финансовые карточки */
+    .b-card { padding: 15px; border-radius: 16px; text-align: center; margin-bottom: 10px; }
+    .b-card.positive { background: #ecfdf5; color: #059669; }
+    .b-card.negative { background: #fff1f2; color: #e11d48; }
+    .b-label { font-size: 11px; font-weight: 800; }
+    .b-value { font-size: 28px; font-weight: 900; }
+
+    .s-actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 15px; }
+    .s-btn { padding: 14px; border-radius: 12px; border: none; font-weight: 700; font-size: 15px; }
+    .s-btn.primary { background: var(--tg-active); color: white; }
+    .s-btn.secondary { background: white; color: #1e293b; }
+
+    /* Таблица журнала */
+    .m-table-wrap { background: var(--tg-sidebar); border-radius: 12px; overflow: hidden; }
+    .m-simple-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .m-simple-table th { background: rgba(255,255,255,0.05); padding: 10px; text-align: left; color: var(--tg-hint); }
+    .m-simple-table td { padding: 12px 10px; border-top: 1px solid var(--tg-separator); }
+
+    /* Домашка */
+    .hw-card { background: var(--tg-sidebar); padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid var(--tg-separator); }
+    .hw-deadline { display: block; margin-top: 8px; font-size: 12px; color: var(--tg-red); font-weight: 600; }
+    .hw-file { display: flex; align-items: center; gap: 8px; background: var(--tg-green-bg); color: var(--tg-green); padding: 8px; border-radius: 8px; text-decoration: none; margin-top: 10px; font-size: 13px; }
+</style>
+{% endblock %}

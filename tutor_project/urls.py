@@ -67,6 +67,8 @@ urlpatterns = [
     path('subjects/', views.my_subjects, name='my_subjects'),
     path('subjects/delete/<int:subject_id>/', views.delete_subject, name='delete_subject'),
     path('activate/<uidb64>/<token>/', views.activate, name='activate'),
+    path('bulk-action/', views.bulk_action_lessons, name='bulk_action'),
+    path('group-card/<int:group_id>/', views.group_card, name='group_card'),
 
     path('password-reset/',
          auth_views.PasswordResetView.as_view(
