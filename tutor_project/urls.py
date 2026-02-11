@@ -70,6 +70,7 @@ urlpatterns = [
     path('bulk-action/', views.bulk_action_lessons, name='bulk_action'),
     path('group-card/<int:group_id>/', views.group_card, name='group_card'),
 
+
     path('password-reset/',
          auth_views.PasswordResetView.as_view(
              template_name='core/registration/password_reset_form.html',

@@ -1,7 +1,8 @@
 import pytz
 from django.utils import timezone
 import re
-
+from django.shortcuts import redirect
+from django.urls import reverse
 
 class TimezoneMiddleware:
     def __init__(self, get_response):
@@ -34,3 +35,23 @@ class MobileDiscoveryMiddleware:
         request.is_mobile = bool(mobile_re.match(user_agent))
 
         return self.get_response(request)
+
+class ProfileCompletionMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+
+        if request.user.is_authenticated:
+
+            allowed_urls = [
+                reverse('edit_profile'),
+                reverse('logout'),
+                '/admin/',
+            ]
+
+            if not request.user.first_name and request.path not in allowed_urls:
+                return redirect('edit_profile')
+
+        response = self.get_response(request)
+        return response

@@ -67,7 +67,8 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'core.middleware.TimezoneMiddleware',
-    'core.middleware.MobileDiscoveryMiddleware'
+    'core.middleware.MobileDiscoveryMiddleware',
+    'core.middleware.ProfileCompletionMiddleware'
 
 ]
 
