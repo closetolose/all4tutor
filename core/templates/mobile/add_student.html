@@ -1,0 +1,78 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'my_students' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .add-student-page { padding: 20px 15px; }
+    .add-student-header { text-align: center; margin-bottom: 25px; }
+    .add-student-icon {
+        width: 70px; height: 70px; border-radius: 50%;
+        background: rgba(99, 102, 241, 0.15); color: var(--tg-active);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 15px; font-size: 28px;
+    }
+    .add-student-header h2 { font-size: 20px; font-weight: 800; color: white; margin: 0 0 5px; }
+    .add-student-header p { font-size: 14px; color: var(--tg-hint); margin: 0; }
+    .msg-box {
+        padding: 12px; border-radius: 12px; margin-bottom: 20px;
+        font-size: 14px; text-align: center; font-weight: 600;
+    }
+    .msg-success { background: var(--tg-green-bg); color: var(--tg-green); }
+    .msg-error { background: rgba(248, 113, 113, 0.1); color: var(--tg-red); }
+    .add-student-form {
+        background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
+        border-radius: 16px; padding: 20px;
+    }
+    .form-label { display: block; font-size: 13px; font-weight: 700; color: var(--tg-hint); margin-bottom: 8px; text-transform: uppercase; }
+    .form-input {
+        background: transparent; border: 1px solid var(--tg-separator);
+        color: white; padding: 14px; border-radius: 10px; font-size: 15px;
+        width: 100%; outline: none; box-sizing: border-box; margin-bottom: 15px;
+    }
+    .form-input::placeholder { color: var(--tg-hint); }
+    .submit-btn {
+        background: var(--tg-active); color: white; border: none;
+        padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px;
+        width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .submit-btn:active { opacity: 0.8; }
+    .back-link {
+        display: block; text-align: center; margin-top: 20px;
+        color: var(--tg-hint); font-size: 14px; text-decoration: none;
+    }
+</style>
+
+<div class="add-student-page">
+    <div class="add-student-header">
+        <div class="add-student-icon"><i class="fas fa-search"></i></div>
+        <h2>Найти ученика</h2>
+        <p>Введите логин, чтобы отправить приглашение</p>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="msg-box {% if message.tags == 'success' %}msg-success{% else %}msg-error{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="add-student-form">
+        <form method="post">
+            {% csrf_token %}
+            <label class="form-label">Логин ученика</label>
+            <input type="text" name="username" placeholder="Например: student123" required class="form-input">
+            <button type="submit" class="submit-btn">
+                <i class="fas fa-paper-plane"></i> Отправить заявку
+            </button>
+        </form>
+    </div>
+
+    <a href="{% url 'my_students' %}" class="back-link">
+        <i class="fas fa-arrow-left"></i> Вернуться к списку
+    </a>
+</div>
+{% endblock %}

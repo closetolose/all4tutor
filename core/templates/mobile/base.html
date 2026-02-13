@@ -187,33 +187,41 @@
             </a>
 
             {% if user.profile.role == 'tutor' %}
-                <a href="{% url 'my_students' %}" class="nav-item {% if request.resolver_match.url_name == 'my_subjects' %}active{% endif %}">
+                <a href="{% url 'my_students' %}" class="nav-item {% if request.resolver_match.url_name == 'my_students' %}active{% endif %}">
                     <i class="fas fa-user-graduate"></i> Мои ученики
                 </a>
 
-                <a href="{% url 'my_subjects' %}" class="nav-item">
+                <a href="{% url 'my_subjects' %}" class="nav-item {% if request.resolver_match.url_name == 'my_subjects' %}active{% endif %}">
                     <i class="fas fa-book"></i> Мои предметы
                 </a>
 
-                <a href="#" class="nav-item">
+                <a href="{% url 'finances' %}" class="nav-item {% if request.resolver_match.url_name == 'finances' %}active{% endif %}">
                     <i class="fas fa-wallet"></i> Финансы
                 </a>
 
             {% else %}
-                <a href="#" class="nav-item">
+                <a href="{% url 'confirmations' %}" class="nav-item {% if request.resolver_match.url_name == 'confirmations' %}active{% endif %}">
                     <i class="fas fa-user-check"></i> Подтверждение
                 </a>
 
-                <a href="#" class="nav-item">
+                <a href="{% url 'my_assignments' %}" class="nav-item {% if request.resolver_match.url_name == 'my_assignments' %}active{% endif %}">
                     <i class="fas fa-tasks"></i> Мои задания
+                </a>
+
+                <a href="{% url 'my_tutors' %}" class="nav-item {% if request.resolver_match.url_name == 'my_tutors' %}active{% endif %}">
+                    <i class="fas fa-chalkboard-teacher"></i> Мои репетиторы
                 </a>
             {% endif %}
 
         </nav>
 
         <div class="drawer-footer">
-            <a href="#" class="footer-link">
+            <a href="{% url 'faq' %}" class="footer-link">
                 <i class="far fa-question-circle"></i> Помощь и FAQ
+            </a>
+
+            <a href="{% url 'edit_profile' %}" class="footer-link">
+                <i class="fas fa-cog"></i> Настройки профиля
             </a>
 
             <div class="bot-status">

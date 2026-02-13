@@ -5,13 +5,13 @@
 {% endblock %}
 
 {% block header_right %}
-    <button type="submit" form="lessonForm" style="background:none; border:none; color: var(--tg-blue); font-weight:600; font-size: 16px;">
+    <button type="submit" form="lessonForm" style="background:none; border:none; color: var(--tg-blue); font-weight:600; font-size: 16px; padding: 10px 15px;">
         Готово
     </button>
 {% endblock %}
 
 {% block content %}
-<form method="post" id="lessonForm" class="tg-form-container">
+<form method="post" action="{% url 'add_lesson' %}" id="lessonForm" class="tg-form-container">
     {% csrf_token %}
 
     <div class="segment-control">
@@ -73,7 +73,26 @@
             </div>
         </div>
     </div>
-
+    <div class="tg-section">
+        <div class="tg-input-row">
+            <div class="tg-label">Формат</div>
+            <div class="tg-field-wrap">
+                {{ form.format }}
+            </div>
+        </div>
+        <div class="tg-input-row">
+            <div class="tg-label">Место / Ссылка</div>
+            <div class="tg-field-wrap">
+                {{ form.location }}
+            </div>
+        </div>
+        <div class="tg-input-row notes-row">
+            <div class="tg-label">Заметки</div>
+            <div class="tg-field-wrap">
+                {{ form.notes }}
+            </div>
+        </div>
+    </div>
     <div class="tg-section">
         <div class="tg-input-row">
             <div class="tg-label">Повторять</div>
@@ -98,15 +117,29 @@
                 </div>
             </div>
 
-            <div class="tg-input-row no-border">
+            <div class="tg-input-row">
                 <div class="tg-label">Кол-во недель</div>
                 <div class="tg-field-wrap">
                     {{ form.repeat_count }}
                 </div>
             </div>
+        <div class="recurring-divider">
+                <span>или</span>
+            </div>
+            <div class="tg-input-row no-border">
+                <div class="tg-label">До даты</div>
+                <div class="tg-field-wrap">
+                    <input type="date" name="repeat_until" class="tg-native-input"
+                           value="{{ form.repeat_until.value|default:'' }}">
+                </div>
+            </div>
         </div>
     </div>
-
+    <div style="padding: 20px 15px;">
+        <button type="submit" class="mobile-submit-btn">
+            <i class="fas fa-check"></i> Создать занятие
+        </button>
+    </div>
 </form>
 
 <style>
@@ -134,14 +167,14 @@
         transition: 0.2s;
     }
     .segment-option.active {
-        background: #3a3a3c; /* Светлее черного */
+        background: #3a3a3c;
         color: white;
         font-weight: 600;
     }
 
     /* Секции */
     .tg-section {
-        background: var(--tg-header); /* #212121 */
+        background: var(--tg-sidebar);
         margin-bottom: 30px;
         border-top: 1px solid var(--tg-separator);
         border-bottom: 1px solid var(--tg-separator);
@@ -158,34 +191,56 @@
     .tg-input-row:last-child { border-bottom: none; }
     .tg-input-row.no-border { border-bottom: none; margin-left: 0; padding-left: 15px; }
 
-    .tg-label { width: 110px; color: white; font-size: 16px; }
+    .tg-label { width: 110px; color: white; font-size: 16px; flex-shrink: 0; }
 
     .tg-field-wrap { flex-grow: 1; display: flex; justify-content: flex-end; }
 
-    /* Стилизация Django инпутов внутри враппера */
+    .tg-field-wrap textarea {
+        background: transparent; border: none;
+        color: var(--tg-blue, #6366f1); font-size: 14px;
+        text-align: right; width: 100%; outline: none;
+        resize: none; font-family: inherit;
+        min-height: 40px;
+    }
+    .notes-row { align-items: flex-start; padding-top: 12px; padding-bottom: 12px; }
+    .notes-row .tg-label { padding-top: 2px; }
+
+
     .tg-field-wrap input, .tg-field-wrap select {
         background: transparent; border: none;
-        color: var(--tg-blue); font-size: 16px;
+        color: var(--tg-blue, #6366f1); font-size: 16px;
         text-align: right; width: 100%; outline: none;
-        appearance: none; /* Убираем стандартные стрелки */
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
     }
+    .tg-field-wrap select {
+        color: #c4b5fd;
+        background: transparent;
+    }
+    .tg-field-wrap select option {
+        background: #1e293b;
+        color: #e2e8f0;
+    }
+    .tg-native-input { color: var(--tg-blue, #6366f1) !important; font-family: inherit; }
 
-    .tg-native-input { color: var(--tg-blue); font-family: inherit; }
+
+
 
     .tg-arrow { color: #555; font-size: 12px; margin-left: 10px; }
 
-    /* iOS Toggle Switch */
+
     .tg-switch { position: relative; display: inline-block; width: 50px; height: 30px; }
     .tg-switch input { opacity: 0; width: 0; height: 0; }
     .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3a3a3c; transition: .4s; border-radius: 34px; }
     .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
-    input:checked + .slider { background-color: var(--tg-green); } /* Зеленый iOS */
+    input:checked + .slider { background-color: var(--tg-green); }
     input:checked + .slider:before { transform: translateX(20px); }
 
     /* Блок повторения */
     .recurring-box {
-        display: none; /* Скрыто по умолчанию */
-        background: #1c1c1c; /* Чуть темнее секции */
+        display: none;
+        background: #1c1c1c;
         border-top: 1px solid var(--tg-separator);
         padding-bottom: 10px;
     }
@@ -195,7 +250,7 @@
 
     .days-grid { display: flex; justify-content: space-between; gap: 5px; }
 
-    /* Дни недели как пузыри */
+
     .day-checkbox input { display: none; }
     .day-bubble {
         display: flex; align-items: center; justify-content: center;
@@ -206,22 +261,36 @@
     }
 
     .day-checkbox input:checked + .day-bubble {
-        background: var(--tg-blue); border-color: var(--tg-blue);
+         background: var(--tg-blue, #6366f1); border-color: var(--tg-blue, #6366f1);
     }
+    .recurring-divider {
+        text-align: center; padding: 8px 0;
+        color: var(--tg-hint); font-size: 13px; font-weight: 600;
+    }
+    .recurring-divider span {
+        background: #1c1c1c; padding: 0 12px;
+        position: relative;
+    }
+    .mobile-submit-btn {
+        background: var(--tg-active); color: white; border: none;
+        padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px;
+        width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .mobile-submit-btn:active { opacity: 0.8; }
 
 </style>
 
 <script>
-    // 1. Логика переключения Индивидуально / Группа
+
     function setLessonType(type, element) {
-        // Меняем стили табов
+
         document.querySelectorAll('.segment-option').forEach(el => el.classList.remove('active'));
         element.classList.add('active');
 
-        // Меняем значение скрытого инпута (если он нужен бэкенду)
+
         document.getElementById('lesson_type_input').value = type;
 
-        // Показываем нужные поля
+
         const studentRow = document.getElementById('field-student');
         const groupRow = document.getElementById('field-group');
 
@@ -240,27 +309,13 @@
 
     if (recurringSwitch) {
         recurringSwitch.addEventListener('change', function() {
-            if (this.checked) {
-                // Эффект слайда вниз (простой вариант через display)
-                recurringBox.style.display = 'block';
-            } else {
-                recurringBox.style.display = 'none';
-            }
+           recurringBox.style.display = this.checked ? 'block' : 'none';
         });
 
-        // Проверка при загрузке (если редактируем урок)
         if (recurringSwitch.checked) {
             recurringBox.style.display = 'block';
         }
     }
 
-    // 3. Маленький хак: добавляем класс всем инпутам Django, чтобы CSS их подцепил
-    document.addEventListener('DOMContentLoaded', function() {
-        const inputs = document.querySelectorAll('#lessonForm input:not([type="checkbox"]):not([type="radio"]), #lessonForm select');
-        inputs.forEach(input => {
-            // Если у инпута еще нет стилей, можно добавить (хотя CSS выше и так справляется через селекторы)
-            input.style.textAlign = 'right';
-        });
-    });
 </script>
 {% endblock %}

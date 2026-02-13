@@ -1,0 +1,203 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'my_students' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .gc-header {
+        text-align: center; padding: 25px 15px;
+        background: var(--tg-sidebar); border-bottom: 1px solid var(--tg-separator);
+    }
+    .gc-avatar {
+        width: 80px; height: 80px; border-radius: 50%;
+        background: rgba(99, 102, 241, 0.15); color: var(--tg-active);
+        margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;
+        font-size: 28px; font-weight: 800;
+    }
+    .gc-header h2 { font-size: 22px; font-weight: 800; color: white; margin: 0 0 5px; }
+    .gc-header .gc-subject { color: var(--tg-hint); font-size: 14px; }
+    .gc-section { padding: 20px 15px; }
+    .gc-section-title { font-size: 18px; font-weight: 800; color: white; margin-bottom: 12px; }
+    .gc-members-card {
+        background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
+        border-radius: 16px; padding: 15px;
+    }
+    .gc-member-label {
+        font-size: 11px; font-weight: 700; color: var(--tg-hint);
+        text-transform: uppercase; margin-bottom: 12px;
+    }
+    .gc-member {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 0; text-decoration: none;
+        border-bottom: 1px solid var(--tg-separator);
+    }
+    .gc-member:last-child { border-bottom: none; }
+    .gc-member-avatar {
+        width: 32px; height: 32px; border-radius: 50%;
+        background: #334155; color: white;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .gc-member-name { font-size: 15px; font-weight: 600; color: white; }
+    .gc-hw-btn {
+        background: var(--tg-active); color: white; border: none;
+        padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px;
+        width: 100%; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .gc-hw-btn:active { opacity: 0.8; }
+    .gc-table-wrap {
+        background: var(--tg-sidebar); border-radius: 16px;
+        overflow: hidden; border: 1px solid var(--tg-separator);
+    }
+    .gc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .gc-table th {
+        background: rgba(255,255,255,0.05); padding: 12px 10px;
+        text-align: left; color: var(--tg-hint); font-size: 11px;
+        text-transform: uppercase; font-weight: 700;
+    }
+    .gc-table td { padding: 12px 10px; border-top: 1px solid var(--tg-separator); color: white; }
+    .att-dots { display: flex; gap: 4px; flex-wrap: wrap; }
+    .att-dot {
+        width: 24px; height: 24px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 9px; font-weight: 700;
+    }
+    .att-dot.present { background: var(--tg-green-bg); color: var(--tg-green); }
+    .att-dot.absent { background: rgba(248, 113, 113, 0.1); color: var(--tg-red); }
+    .modal-overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7); z-index: 3000;
+        align-items: flex-end; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-sheet {
+        background: var(--tg-sidebar); width: 100%; max-height: 85vh;
+        border-radius: 20px 20px 0 0; padding: 20px 15px 40px;
+        overflow-y: auto; animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-handle {
+        width: 36px; height: 4px; background: var(--tg-separator);
+        border-radius: 2px; margin: 0 auto 15px;
+    }
+    .modal-title { font-size: 18px; font-weight: 800; color: white; margin-bottom: 20px; text-align: center; }
+    .modal-label { display: block; font-size: 13px; font-weight: 700; color: var(--tg-hint); margin-bottom: 6px; text-transform: uppercase; }
+    .modal-textarea {
+        background: transparent; border: 1px solid var(--tg-separator);
+        color: white; padding: 12px; border-radius: 10px; font-size: 15px;
+        width: 100%; min-height: 80px; outline: none; resize: vertical;
+        box-sizing: border-box; font-family: inherit; margin-bottom: 15px;
+    }
+    .modal-input {
+        background: transparent; border: 1px solid var(--tg-separator);
+        color: white; padding: 12px; border-radius: 10px; font-size: 15px;
+        width: 100%; outline: none; box-sizing: border-box; margin-bottom: 15px;
+    }
+    .modal-files {
+        max-height: 120px; overflow-y: auto; border: 1px solid var(--tg-separator);
+        border-radius: 10px; padding: 10px; margin-bottom: 20px;
+    }
+    .modal-file-item {
+        display: flex; align-items: center; gap: 10px;
+        margin-bottom: 8px; font-size: 13px; color: white;
+    }
+    .modal-file-item:last-child { margin-bottom: 0; }
+    .modal-file-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--tg-active); }
+    .modal-submit {
+        background: var(--tg-active); color: white; border: none;
+        padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px; width: 100%;
+    }
+    .modal-submit:active { opacity: 0.8; }
+    .modal-close-btn {
+        background: none; border: none; color: var(--tg-hint);
+        font-size: 14px; font-weight: 600; width: 100%; padding: 12px; margin-top: 10px;
+    }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--tg-hint); }
+    .empty-state p { font-size: 14px; color: var(--tg-hint); margin: 0; }
+</style>
+
+<div class="gc-header">
+    <div class="gc-avatar">{{ group.name|slice:":2"|upper }}</div>
+    <h2>{{ group.name }}</h2>
+    <div class="gc-subject">Предмет: {{ group.subject.name }}</div>
+</div>
+
+<div class="gc-section">
+    <div class="gc-members-card">
+        <div class="gc-member-label">Состав группы ({{ members.count }})</div>
+        {% for student in members %}
+            <a href="{% url 'student_card' student.id %}" class="gc-member">
+                <div class="gc-member-avatar">{{ student.first_name|slice:":1" }}</div>
+                <div class="gc-member-name">{{ student.first_name }} {{ student.last_name }}</div>
+            </a>
+        {% empty %}
+            <div class="empty-state"><p>В группе пока нет учеников</p></div>
+        {% endfor %}
+    </div>
+
+    <button class="gc-hw-btn" onclick="document.getElementById('hwModal').classList.add('active')">
+        <i class="fas fa-plus-circle"></i> Задать ДЗ группе
+    </button>
+</div>
+
+<div class="gc-section">
+    <div class="gc-section-title">Журнал группы</div>
+    <div class="gc-table-wrap">
+        <table class="gc-table">
+            <thead>
+                <tr><th>Дата</th><th>Цена</th><th>Посещаемость</th></tr>
+            </thead>
+            <tbody>
+                {% regroup attendances by lesson as lesson_list %}
+                {% for item in lesson_list %}
+                <tr>
+                    <td>{{ item.grouper.start_time|date:"d.m.Y H:i" }}</td>
+                    <td>{{ item.grouper.price }} ₽</td>
+                    <td>
+                        <div class="att-dots">
+                            {% for att in item.list %}
+                                <span class="att-dot {% if att.was_present %}present{% else %}absent{% endif %}" title="{{ att.student.first_name }}">
+                                    {{ att.student.first_name|slice:":1" }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" style="text-align: center; color: var(--tg-hint); padding: 20px;">Занятий пока не было</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="hwModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title">ДЗ для всей группы</div>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="assign_group_homework" value="1">
+            <label class="modal-label">Описание задания</label>
+            <textarea name="description" class="modal-textarea" required placeholder="Опишите задание..."></textarea>
+            <label class="modal-label">Срок сдачи</label>
+            <input type="datetime-local" name="deadline" class="modal-input">
+            <label class="modal-label">Прикрепить файлы</label>
+            <div class="modal-files">
+                {% for f in tutor_files %}
+                    <label class="modal-file-item">
+                        <input type="checkbox" name="files" value="{{ f.id }}">
+                        <span>{{ f.file_name }}</span>
+                    </label>
+                {% empty %}
+                    <div style="text-align: center; color: var(--tg-hint); font-size: 12px; padding: 10px;">В библиотеке нет файлов</div>
+                {% endfor %}
+            </div>
+            <button type="submit" class="modal-submit">Разослать всем ученикам</button>
+        </form>
+        <button class="modal-close-btn" onclick="document.getElementById('hwModal').classList.remove('active')">Отмена</button>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .subjects-page { padding: 20px 15px; }
+    .subjects-title { font-size: 20px; font-weight: 800; color: white; margin-bottom: 20px; }
+    .subjects-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; }
+    .subject-pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
+        padding: 10px 16px; border-radius: 20px;
+        color: white; font-size: 14px; font-weight: 600;
+    }
+    .subject-delete {
+        color: var(--tg-hint); text-decoration: none; font-size: 16px;
+        line-height: 1; transition: 0.2s;
+    }
+    .subject-delete:active { color: var(--tg-red); }
+    .add-form {
+        background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
+        border-radius: 16px; padding: 15px;
+    }
+    .add-form-row { display: flex; gap: 10px; }
+    .add-input {
+        flex-grow: 1; background: transparent; border: 1px solid var(--tg-separator);
+        color: white; padding: 12px; border-radius: 10px; font-size: 15px; outline: none;
+    }
+    .add-input::placeholder { color: var(--tg-hint); }
+    .add-btn {
+        background: var(--tg-active); color: white; border: none;
+        padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: 15px;
+        white-space: nowrap;
+    }
+    .add-btn:active { opacity: 0.8; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--tg-hint); }
+    .empty-icon { font-size: 40px; margin-bottom: 15px; opacity: 0.3; }
+    .empty-state p { font-size: 16px; font-weight: 600; margin: 0 0 5px; color: white; }
+    .empty-state span { font-size: 13px; }
+</style>
+
+<div class="subjects-page">
+    <div class="subjects-title">Мои предметы</div>
+
+    {% if subjects %}
+        <div class="subjects-list">
+            {% for subject in subjects %}
+                <div class="subject-pill">
+                    {{ subject.name }}
+                    <a href="{% url 'delete_subject' subject.id %}" class="subject-delete">&times;</a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-book-open"></i></div>
+            <p>Предметы ещё не добавлены</p>
+            <span>Добавьте первый предмет ниже</span>
+        </div>
+    {% endif %}
+
+    <div class="add-form">
+        <form action="{% url 'my_subjects' %}" method="post">
+            {% csrf_token %}
+            <div class="add-form-row">
+                <input type="text" name="name" placeholder="Новый предмет" required class="add-input">
+                <button type="submit" class="add-btn">Добавить</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

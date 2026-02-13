@@ -1,0 +1,297 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+
+<div class="ep-container">
+    <div class="ep-header">
+        <div class="ep-avatar">{{ request.user.first_name|first }}</div>
+        <h2>Ваш профиль</h2>
+        <p>Обновите контактную информацию</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="ep-section">
+            <div class="ep-form-group">
+                <label class="ep-label">Имя</label>
+                {{ form.first_name }}
+            </div>
+
+            <div class="ep-form-group">
+                <label class="ep-label">Фамилия</label>
+                {{ form.last_name }}
+            </div>
+
+            <div class="ep-form-group">
+                <label class="ep-label">Отчество</label>
+                {{ form.patronymic }}
+            </div>
+
+            <div class="ep-form-group">
+                <label class="ep-label">Контакты (Email/Телефон)</label>
+                {{ form.contact }}
+            </div>
+
+            <div class="ep-form-group">
+                <label class="ep-label"><i class="fab fa-telegram"></i> Telegram ID</label>
+                {{ form.telegram_id }}
+                {% if form.telegram_id.errors %}
+                    <div class="ep-error">{{ form.telegram_id.errors }}</div>
+                {% endif %}
+                <div class="ep-tg-hint">
+                    Узнать свой ID можно у бота
+                    <a href="https://t.me/All4tutors_bot" target="_blank">@All4tutors</a>
+                </div>
+            </div>
+        </div>
+
+        {% if request.user.profile.role == 'student' %}
+        <div class="ep-section ep-student-section">
+            <h3 class="ep-section-title">Информация для репетитора</h3>
+
+            <div class="ep-form-group">
+                <label class="ep-label">Ваш класс</label>
+                {{ form.school_class }}
+            </div>
+
+            <div class="ep-form-group">
+                <label class="ep-label">ФИО родителя</label>
+                {{ form.parent_name }}
+            </div>
+
+            <div class="ep-form-group">
+                <label class="ep-label">Телефон родителя</label>
+                {{ form.parent_phone }}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="ep-section">
+            <div class="ep-form-group">
+                <label class="ep-label"><i class="fas fa-globe-americas"></i> Часовой пояс</label>
+                <div class="ep-tz-row">
+                    <div class="ep-tz-select">{{ form.timezone }}</div>
+                    <button type="button" onclick="detectTimezone()" class="ep-detect-btn" title="Определить автоматически">
+                        <i class="fas fa-crosshairs"></i>
+                    </button>
+                </div>
+                <div class="ep-tz-hint">Время занятий будет отображаться с учетом этого пояса.</div>
+            </div>
+        </div>
+
+        <div class="ep-submit-wrap">
+            <button type="submit" class="ep-submit-btn">
+                <i class="fas fa-save"></i> Сохранить изменения
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function detectTimezone() {
+        const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const selector = document.getElementById('tz-selector');
+
+        if (detectedTz) {
+            for (let i = 0; i < selector.options.length; i++) {
+                if (selector.options[i].value === detectedTz) {
+                    selector.selectedIndex = i;
+                    selector.style.borderColor = 'var(--tg-green)';
+                    setTimeout(() => selector.style.borderColor = 'var(--tg-separator)', 2000);
+                    return;
+                }
+            }
+            alert('Ваш пояс ' + detectedTz + ' найден, но его нужно выбрать вручную в списке.');
+        }
+    }
+</script>
+
+<style>
+    .ep-container {
+        padding-bottom: 40px;
+    }
+
+    .ep-header {
+        text-align: center;
+        padding: 25px 15px 20px;
+        background: var(--tg-sidebar);
+        border-bottom: 1px solid var(--tg-separator);
+    }
+    .ep-avatar {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: var(--tg-active);
+        margin: 0 auto 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: 800;
+        color: white;
+    }
+    .ep-header h2 {
+        font-size: 20px;
+        font-weight: 800;
+        color: white;
+        margin: 0 0 4px;
+    }
+    .ep-header p {
+        font-size: 13px;
+        color: var(--tg-hint);
+        margin: 0;
+    }
+
+    .ep-section {
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 16px;
+        padding: 20px 15px;
+        margin: 15px 15px 0;
+    }
+
+    .ep-student-section {
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+    .ep-section-title {
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--tg-active);
+        margin: 0 0 16px;
+    }
+
+    .ep-form-group {
+        margin-bottom: 16px;
+    }
+    .ep-form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .ep-label {
+        font-size: 13px;
+        color: var(--tg-hint);
+        font-weight: 600;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .ep-label i {
+        margin-right: 4px;
+    }
+
+    .ep-section input[type="text"],
+    .ep-section input[type="email"],
+    .ep-section input[type="tel"],
+    .ep-section input[type="number"],
+    .ep-section select,
+    .ep-section textarea {
+        background: transparent;
+        border: 1px solid var(--tg-separator);
+        color: white;
+        padding: 12px;
+        border-radius: 10px;
+        width: 100%;
+        font-size: 15px;
+        box-sizing: border-box;
+        -webkit-appearance: none;
+    }
+    .ep-section input::placeholder {
+        color: var(--tg-hint);
+        opacity: 0.6;
+    }
+    .ep-section select {
+        color: white;
+    }
+    .ep-section select option {
+        background: var(--tg-sidebar);
+        color: white;
+    }
+
+    .ep-error {
+        color: var(--tg-red);
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .ep-tg-hint {
+        font-size: 12px;
+        color: var(--tg-hint);
+        margin-top: 6px;
+    }
+    .ep-tg-hint a {
+        color: var(--tg-active);
+        text-decoration: none;
+    }
+
+    .ep-tz-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .ep-tz-select {
+        flex: 1;
+    }
+    .ep-tz-select select {
+        background: transparent;
+        border: 1px solid var(--tg-separator);
+        color: white;
+        padding: 12px;
+        border-radius: 10px;
+        width: 100%;
+        font-size: 15px;
+        box-sizing: border-box;
+    }
+    .ep-tz-select select option {
+        background: var(--tg-sidebar);
+        color: white;
+    }
+    .ep-detect-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: rgba(99, 102, 241, 0.15);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        color: var(--tg-active);
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .ep-detect-btn:active {
+        background: rgba(99, 102, 241, 0.3);
+    }
+
+    .ep-tz-hint {
+        font-size: 11px;
+        color: var(--tg-hint);
+        margin-top: 6px;
+    }
+
+    .ep-submit-wrap {
+        padding: 20px 15px;
+    }
+    .ep-submit-btn {
+        background: var(--tg-active);
+        color: white;
+        border: none;
+        padding: 14px;
+        border-radius: 12px;
+        font-weight: 700;
+        width: 100%;
+        font-size: 15px;
+        cursor: pointer;
+    }
+    .ep-submit-btn:active {
+        opacity: 0.9;
+    }
+    .ep-submit-btn i {
+        margin-right: 6px;
+    }
+</style>
+{% endblock %}

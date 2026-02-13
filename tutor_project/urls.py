@@ -94,5 +94,5 @@ urlpatterns = [
          auth_views.PasswordResetCompleteView.as_view(template_name='core/registration/password_reset_complete.html'),
          name='password_reset_complete'),
 
-    path('faq/', TemplateView.as_view(template_name='core/faq.html'), name='faq'),
+    path('faq/', views.faq, name='faq'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

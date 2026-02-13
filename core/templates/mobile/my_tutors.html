@@ -1,0 +1,102 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-section">
+    <div class="page-title">
+        <i class="fas fa-chalkboard-teacher" style="color: var(--tg-active);"></i> Мои репетиторы
+    </div>
+</div>
+
+<div class="tutors-list">
+    {% for conn in connections %}
+    <div class="tutor-card">
+        <div class="tutor-top">
+            <div class="tutor-avatar">
+                {{ conn.tutor.first_name|first }}
+            </div>
+            <div class="tutor-main">
+                <span class="tutor-name">{{ conn.tutor.first_name }} {{ conn.tutor.last_name }}</span>
+                <span class="tutor-badge">ВАШ РЕПЕТИТОР</span>
+            </div>
+        </div>
+
+        <div class="tutor-contacts">
+            <div class="contact-row">
+                <i class="fas fa-at"></i>
+                <span>{{ conn.tutor.user.email }}</span>
+            </div>
+            <div class="contact-row">
+                <i class="fas fa-phone-alt"></i>
+                {% if conn.tutor.contact %}
+                    <span>{{ conn.tutor.contact }}</span>
+                {% else %}
+                    <span class="no-data">Нет доп. контактов</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <div class="empty-icon"><i class="fas fa-user-friends"></i></div>
+        <p>У вас пока нет преподавателей</p>
+        <span>Попросите репетитора добавить вас по логину: <strong style="color: white;">{{ request.user.username }}</strong></span>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+    .page-section { padding: 20px 15px 5px; }
+    .page-title { font-size: 20px; font-weight: 800; color: white; display: flex; align-items: center; gap: 10px; }
+
+    .tutors-list { padding: 10px 15px 50px; }
+
+    .tutor-card {
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 16px;
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+
+    .tutor-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+
+    .tutor-avatar {
+        width: 48px; height: 48px; border-radius: 50%;
+        background: var(--tg-active); color: white;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 20px; flex-shrink: 0;
+    }
+
+    .tutor-main { display: flex; flex-direction: column; gap: 4px; }
+    .tutor-name { font-size: 16px; font-weight: 700; color: white; }
+
+    .tutor-badge {
+        display: inline-block; font-size: 10px; font-weight: 800;
+        background: var(--tg-green-bg); color: var(--tg-green);
+        padding: 3px 8px; border-radius: 6px;
+        text-transform: uppercase; width: fit-content;
+    }
+
+    .tutor-contacts {
+        background: rgba(255,255,255,0.03);
+        border-radius: 12px; padding: 10px 12px;
+    }
+
+    .contact-row {
+        display: flex; align-items: center; gap: 10px;
+        font-size: 14px; color: white; padding: 6px 0;
+    }
+    .contact-row i { color: var(--tg-hint); width: 18px; text-align: center; font-size: 13px; }
+    .contact-row .no-data { color: var(--tg-hint); font-style: italic; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--tg-hint); }
+    .empty-icon { font-size: 40px; margin-bottom: 15px; opacity: 0.3; }
+    .empty-state p { font-size: 16px; font-weight: 600; margin: 0 0 5px; color: white; }
+    .empty-state span { font-size: 13px; line-height: 1.6; }
+</style>
+{% endblock %}

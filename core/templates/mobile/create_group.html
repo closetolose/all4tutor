@@ -1,0 +1,84 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'my_students' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .cg-page { padding: 20px 15px; }
+    .cg-title { font-size: 20px; font-weight: 800; color: white; margin-bottom: 20px; }
+    .cg-card {
+        background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
+        border-radius: 16px; padding: 20px;
+    }
+    .cg-field { margin-bottom: 20px; }
+    .cg-label { display: block; font-size: 13px; font-weight: 700; color: var(--tg-hint); margin-bottom: 6px; text-transform: uppercase; }
+    .cg-card input[type="text"],
+    .cg-card select {
+        background: transparent; border: 1px solid var(--tg-separator);
+        color: white; padding: 12px; border-radius: 10px; width: 100%;
+        font-size: 15px; outline: none; box-sizing: border-box;
+        -webkit-appearance: none; appearance: none;
+    }
+    .cg-card select option { background: var(--tg-sidebar); color: white; }
+    .cg-students-list {
+        max-height: 250px; overflow-y: auto;
+        border: 1px solid var(--tg-separator); border-radius: 10px; padding: 10px;
+    }
+    .cg-student-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px; margin-bottom: 5px;
+        background: rgba(255,255,255,0.03); border-radius: 8px;
+    }
+    .cg-student-item:last-child { margin-bottom: 0; }
+    .cg-student-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--tg-active); flex-shrink: 0; }
+    .cg-student-item label { color: white; font-size: 14px; margin: 0; cursor: pointer; flex: 1; }
+    .cg-submit {
+        background: var(--tg-active); color: white; border: none;
+        padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px; width: 100%;
+    }
+    .cg-submit:active { opacity: 0.8; }
+    .cg-empty { color: var(--tg-hint); font-size: 13px; text-align: center; padding: 20px; }
+    .cg-warn { margin-top: 5px; font-size: 12px; color: var(--tg-red); }
+</style>
+
+<div class="cg-page">
+    <div class="cg-title">Создать группу</div>
+
+    <div class="cg-card">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="cg-field">
+                <label class="cg-label">Название группы</label>
+                {{ form.name }}
+            </div>
+
+            <div class="cg-field">
+                <label class="cg-label">Предмет</label>
+                {{ form.subject }}
+                {% if not form.subject.field.queryset %}
+                    <div class="cg-warn"><i class="fas fa-exclamation-circle"></i> Сначала добавьте предметы.</div>
+                {% endif %}
+            </div>
+
+            <div class="cg-field">
+                <label class="cg-label">Выберите учеников</label>
+                <div class="cg-students-list">
+                    {% for checkbox in form.students %}
+                        <div class="cg-student-item">
+                            {{ checkbox.tag }}
+                            <label for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                        </div>
+                    {% empty %}
+                        <div class="cg-empty">Нет доступных учеников</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" class="cg-submit">Сохранить группу</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -32,7 +32,9 @@ from django.utils.dateparse import parse_datetime
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
-
+from django.template.loader import get_template
+from django.template import TemplateDoesNotExist
+from django.db import transaction
 @login_required
 def index(request):
 
@@ -233,7 +235,7 @@ def edit_profile(request):
     else:
         form = ProfileUpdateForm(instance=profile)
 
-    return render(request, 'core/edit_profile.html', {'form': form})
+    return smart_render(request, 'core/edit_profile.html', {'form': form})
 
 
 # --- ВХОД (LOGIN) ---
@@ -265,7 +267,7 @@ def confirmations(request):
         student__user=request.user,  # Было student__id=request.user.id (это ошибка)
         status='pending'
     )
-    return render(request, 'core/confirmations.html', {'requests': incoming_requests})
+    return smart_render(request, 'core/confirmations.html', {'requests': incoming_requests})
 
 @login_required
 def accept_request(request, request_id):
@@ -311,7 +313,7 @@ def my_students(request):
     # Передаем предметы репетитора
     my_subjects = TutorSubjects.objects.filter(tutor=user_profile).select_related('subject')
 
-    return render(request, 'core/my_students.html', {
+    return smart_render(request, 'core/my_students.html', {
         'connections': connections, 'groups': groups, 'my_subjects': my_subjects
     })
 @login_required
@@ -321,7 +323,7 @@ def my_tutors(request):
         student__user=request.user.id,
         status='confirmed'
     )
-    return render(request, 'core/my_tutors.html', {'connections': confirmed_connections})
+    return smart_render(request, 'core/my_tutors.html', {'connections': confirmed_connections})
 
 
 @login_required
@@ -359,7 +361,7 @@ def add_student(request):
         except AuthUser.DoesNotExist:
             messages.error(request, f"Пользователь с логином '{target_username}' не найден.")
 
-    return render(request, 'core/add_student.html')
+    return smart_render(request, 'core/add_student.html')
 
 
 @login_required
@@ -450,7 +452,9 @@ def add_lesson(request):
                 for error in errors:
                     messages.error(request, f"Ошибка в поле {field}: {error}")
     else:
-        form = AddLessonForm()
+        form = AddLessonForm(tutor=request.user.profile)
+    if getattr(request, 'is_mobile', False):
+        return smart_render(request, 'core/add_lesson.html', {'form': form})
     return redirect('index')
 
 
@@ -469,7 +473,8 @@ def edit_lesson(request, lesson_id):
     else:
         # Загружаем форму с уже заполненными данными (instance=lesson)
         form = AddLessonForm(instance=lesson, tutor=request.user.profile)
-
+    if getattr(request, 'is_mobile', False):
+        return smart_render(request, 'core/edit_lesson.html', {'form': form, 'lesson': lesson})
     return redirect('index')
 
 
@@ -477,6 +482,9 @@ def edit_lesson(request, lesson_id):
 def delete_lesson(request, lesson_id):
     lesson = get_object_or_404(Lessons, id=lesson_id, tutor=request.user.profile)
     mode = request.POST.get('delete_mode', 'single')
+
+    if request.method == 'GET' and getattr(request, 'is_mobile', False):
+        return smart_render(request, 'core/lesson_confirm_delete.html', {'lesson': lesson})
 
     if lesson.series_id and mode != 'single':
         query = Lessons.objects.filter(series_id=lesson.series_id)
@@ -507,7 +515,7 @@ def edit_group(request, group_id):
     else:
         form = StudyGroupForm(instance=group, tutor=request.user.profile)
 
-    return render(request, 'core/edit_group.html', {'form': form, 'group': group})
+    return smart_render(request, 'core/edit_group.html', {'form': form, 'group': group})
 
 
 @login_required
@@ -544,7 +552,7 @@ def add_group(request):
     else:
         form = StudyGroupForm(tutor=request.user.profile)
 
-    return render(request, 'core/create_group.html', {'form': form})
+    return smart_render(request, 'core/create_group.html', {'form': form})
 
 
 @login_required
@@ -553,111 +561,71 @@ def bulk_action_lessons(request):
         ids_str = request.POST.get('lesson_ids', '')
         action = request.POST.get('action_type')
 
-        if ids_str:
-            id_list = [i for i in ids_str.split(',') if i.strip()]
-            queryset = Lessons.objects.filter(id__in=id_list, tutor=request.user.profile)
+        if not ids_str:
+            return redirect('index')
 
-            if action == 'delete':
-                queryset.delete()
+        id_list = [i for i in ids_str.split(',') if i.strip()]
+        queryset = Lessons.objects.filter(id__in=id_list, tutor=request.user.profile)
 
-            elif action == 'pay':
-                # Помечаем оплату только в посещаемости (т.к. в Lessons поля нет)
-                LessonAttendance.objects.filter(lesson__in=queryset).update(is_paid=True)
+        if action == 'delete':
+            count = queryset.count()
+            queryset.delete()
+            messages.success(request, f"Удалено занятий: {count}")
 
-            elif action == 'unpaid':
-                LessonAttendance.objects.filter(lesson__in=queryset).update(is_paid=False)
+        elif action == 'mass_edit':
+            # Собираем данные один раз
+            new_date = request.POST.get('mass_date')
+            new_time = request.POST.get('mass_time')
+            new_student = request.POST.get('mass_student')
+            new_group = request.POST.get('mass_group')
+            new_subject = request.POST.get('mass_subject')
+            new_duration = request.POST.get('mass_duration')
+            new_price = request.POST.get('mass_price')
+            selected_materials = request.POST.getlist('materials')
 
-
-
-
-            elif action == 'mass_edit':
-
-                # Читаем дату и время из запроса
-
-                new_date = request.POST.get('mass_date')
-
-                new_time = request.POST.get('mass_time')
-
-                new_student = request.POST.get('mass_student')
-
-                new_group = request.POST.get('mass_group')
-
-                new_subject = request.POST.get('mass_subject')
-
-                new_duration = request.POST.get('mass_duration')
-
-                new_price = request.POST.get('mass_price')
-
-                selected_materials = request.POST.getlist('materials')
-
-                # Мы обновляем в цикле, чтобы корректно склеить дату и время
-
+            with transaction.atomic():
                 for lesson in queryset:
-
-                    # ОБНОВЛЕНИЕ ВРЕМЕНИ
-
+                    # Обновление времени
                     if new_date or new_time:
                         d = new_date if new_date else lesson.start_time.strftime('%Y-%m-%d')
-
                         t = new_time if new_time else lesson.start_time.strftime('%H:%M')
-
-                        # Собираем новую дату начала
-
                         naive_dt = datetime.strptime(f"{d} {t}", '%Y-%m-%d %H:%M')
-
                         lesson.start_time = timezone.make_aware(naive_dt).replace(second=0, microsecond=0)
 
-                        # Сразу пересчитываем время окончания
-
                         dur = int(new_duration) if new_duration else lesson.duration
-
                         lesson.end_time = lesson.start_time + timedelta(minutes=dur)
 
-                    # Остальные поля
-
+                    # Смена ученика/группы
                     if new_student:
-
                         lesson.student_id = new_student
-
                         lesson.group = None
-
                     elif new_group:
-
                         lesson.group_id = new_group
-
                         lesson.student = None
 
                     if new_subject: lesson.subject_id = new_subject
-
                     if new_duration: lesson.duration = int(new_duration)
-
                     if new_price: lesson.price = Decimal(new_price)
 
-                    lesson.save()  # Сохраняем объект
+                    lesson.save()
 
-                    # Обновляем материалы и посещаемость (как в твоем коде)
-
+                    # Материалы
                     if 'materials' in request.POST:
                         lesson.materials.set(selected_materials)
 
-                        # 2. ПЕРЕСОЗДАЕМ ПОСЕЩАЕМОСТЬ (если сменился ученик/группа)
+                    # Пересоздаем посещаемость, если сменился состав
+                    if new_student or new_group:
+                        lesson.attendances.all().delete()
+                        students_to_add = [lesson.student] if lesson.student else []
+                        if lesson.group:
+                            students_to_add = lesson.group.students.all()
 
-                        if new_student or new_group:
+                        attendances = [LessonAttendance(lesson=lesson, student=s) for s in students_to_add]
+                        LessonAttendance.objects.bulk_create(attendances)
 
-                            lesson.attendances.all().delete()
+            messages.success(request, f"Обновлено занятий: {queryset.count()}")
 
-                            students_to_add = [lesson.student] if lesson.student else []
-
-                            if lesson.group:
-                                students_to_add = lesson.group.students.all()
-
-                            attendances = [LessonAttendance(lesson=lesson, student=s) for s in students_to_add]
-
-                            LessonAttendance.objects.bulk_create(attendances)
-
-                    messages.success(request, f"Обновлено занятий: {queryset.count()}")
-
-        return redirect('index')
+    return redirect('index')
 
 
 @login_required
@@ -844,7 +812,7 @@ def files_library(request):
 
     # Получаем все файлы репетитора
     files = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
-    return render(request, 'core/files_library.html', {'files': files})
+    return smart_render(request, 'core/files_library.html', {'files': files})
 
 
 @login_required
@@ -1001,7 +969,7 @@ def finances(request):
         'date_from': date_from,
         'date_to': date_to,
     }
-    return render(request, 'core/finances.html', context)
+    return smart_render(request, 'core/finances.html', context)
 
 
 @login_required
@@ -1052,7 +1020,7 @@ def my_assignments(request):
         'homeworks': homeworks,
         'profile': profile,
     }
-    return render(request, 'core/my_assignments.html', context)
+    return smart_render(request, 'core/my_assignments.html', context)
 
 
 @login_required
@@ -1076,7 +1044,7 @@ def my_subjects(request):
         return redirect('my_subjects')
 
     subjects = Subjects.objects.filter(tutor=tutor)
-    return render(request, 'core/my_subjects.html', {'subjects': subjects})
+    return smart_render(request, 'core/my_subjects.html', {'subjects': subjects})
 
 
 # Функция для удаления предмета
@@ -1088,13 +1056,15 @@ def delete_subject(request, subject_id):
 
 
 def smart_render(request, template_name, context=None):
-    # Если зашли с мобилки
-    if getattr(request, 'is_mobile', False):
-        # Меняем 'core/index.html' -> 'mobile/index.html'
-        mobile_template = template_name.replace('core/', 'mobile/')
-        return render(request, mobile_template, context)
 
-    # Иначе отдаем обычный десктопный вариант
+    if getattr(request, 'is_mobile', False):
+        mobile_template = template_name.replace('core/', 'mobile/')
+        try:
+            get_template(mobile_template)
+            return render(request, mobile_template, context)
+        except TemplateDoesNotExist:
+            pass
+
     return render(request, template_name, context)
 
 def activate(request, uidb64, token):
@@ -1161,3 +1131,7 @@ def group_card(request, group_id):
         'tutor_files': tutor_files,  # Список файлов
     }
     return smart_render(request, 'core/group_card.html', context)
+
+@login_required
+def faq(request):
+    return smart_render(request, 'core/faq.html')

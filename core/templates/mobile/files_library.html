@@ -1,0 +1,337 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+
+<div class="fl-page-title">
+    <h2><i class="fas fa-folder-open"></i> Мои материалы</h2>
+</div>
+
+<div class="fl-file-list">
+    {% for f in files %}
+    <div class="fl-file-card">
+        <div class="fl-file-icon">
+            {% if f.get_extension == '.pdf' %}<i class="fas fa-file-pdf" style="color: #ef4444;"></i>
+            {% elif f.get_extension in '.doc,.docx' %}<i class="fas fa-file-word" style="color: #3b82f6;"></i>
+            {% elif f.get_extension in '.xls,.xlsx' %}<i class="fas fa-file-excel" style="color: #10b981;"></i>
+            {% elif f.get_extension in '.mp4,.mov' %}<i class="fas fa-file-video" style="color: #8b5cf6;"></i>
+            {% elif f.get_extension in '.jpg,.png,.jpeg' %}<i class="fas fa-file-image" style="color: #f59e0b;"></i>
+            {% else %}<i class="fas fa-file-alt" style="color: #64748b;"></i>{% endif %}
+        </div>
+        <div class="fl-file-info">
+            <div class="fl-file-name">{{ f.file_name }}</div>
+            <div class="fl-file-date">{{ f.upload_date|date:"d.m.Y" }}</div>
+        </div>
+        <div class="fl-file-actions">
+            <a href="{{ f.file.url }}" target="_blank" class="fl-action-btn"><i class="fas fa-download"></i></a>
+            <button onclick="prepareEditModal('{{ f.id }}', '{{ f.file_name|escapejs }}')" class="fl-action-btn"><i class="fas fa-edit"></i></button>
+            <a href="{% url 'delete_file' f.id %}" class="fl-action-btn fl-delete" onclick="return confirm('Удалить файл навсегда?')"><i class="fas fa-trash"></i></a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="fl-empty-state">
+        <div class="fl-empty-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        <p>Библиотека пуста</p>
+        <span>Загрузите свои методички, книги или тесты</span>
+    </div>
+    {% endfor %}
+</div>
+
+<a href="javascript:void(0)" onclick="openModal('uploadFileModal')" class="fab-btn">
+    <i class="fas fa-plus"></i>
+</a>
+
+<div id="uploadFileModal" class="fl-modal-overlay">
+    <div class="fl-modal-window">
+        <div class="fl-modal-header">
+            <h3>Загрузить файл</h3>
+            <button class="fl-modal-close" onclick="closeModal('uploadFileModal')">&times;</button>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="fl-form-group">
+                <label class="fl-label">Название (видят ученики)</label>
+                <input type="text" name="file_name" class="fl-input" placeholder="Например: ЕГЭ 2024 Вариант 1">
+            </div>
+            <div class="fl-form-group">
+                <label class="fl-label">Выберите файл</label>
+                <input type="file" name="file" required class="fl-input fl-file-input">
+            </div>
+            <button type="submit" class="fl-submit-btn">Загрузить</button>
+        </form>
+    </div>
+</div>
+
+<div id="editFileModal" class="fl-modal-overlay">
+    <div class="fl-modal-window">
+        <div class="fl-modal-header">
+            <h3>Редактировать файл</h3>
+            <button class="fl-modal-close" onclick="closeModal('editFileModal')">&times;</button>
+        </div>
+        <form id="editFileForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="fl-form-group">
+                <label class="fl-label">Название</label>
+                <input type="text" name="file_name" id="editFileNameInput" class="fl-input" required>
+            </div>
+            <div class="fl-form-group">
+                <label class="fl-label">Заменить файл (опционально)</label>
+                <div class="fl-hint">Если хотите оставить старый файл, не выбирайте ничего.</div>
+                <input type="file" name="file" class="fl-input fl-file-input">
+            </div>
+            <button type="submit" class="fl-submit-btn">Сохранить изменения</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal(id) {
+        document.getElementById(id).classList.add('active');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('active');
+    }
+
+    function prepareEditModal(id, currentName) {
+        const form = document.getElementById('editFileForm');
+        const nameInput = document.getElementById('editFileNameInput');
+        nameInput.value = currentName;
+        form.action = `/files/edit/${id}/`;
+        openModal('editFileModal');
+    }
+</script>
+
+<style>
+    .fl-page-title {
+        padding: 20px 15px 10px;
+    }
+    .fl-page-title h2 {
+        font-size: 20px;
+        font-weight: 800;
+        color: white;
+        margin: 0;
+    }
+    .fl-page-title h2 i {
+        color: var(--tg-active);
+        margin-right: 8px;
+    }
+
+    .fl-file-list {
+        padding: 10px 15px 100px;
+    }
+
+    .fl-file-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 16px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: transform 0.1s;
+    }
+    .fl-file-card:active {
+        transform: scale(0.98);
+    }
+
+    .fl-file-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+
+    .fl-file-info {
+        flex-grow: 1;
+        min-width: 0;
+    }
+    .fl-file-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .fl-file-date {
+        font-size: 12px;
+        color: var(--tg-hint);
+        margin-top: 3px;
+    }
+
+    .fl-file-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .fl-action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--tg-separator);
+        color: var(--tg-hint);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: 0.2s;
+    }
+    .fl-action-btn:active {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    .fl-action-btn.fl-delete {
+        color: var(--tg-red);
+        border-color: rgba(248, 113, 113, 0.2);
+    }
+
+    .fl-empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--tg-hint);
+    }
+    .fl-empty-icon {
+        font-size: 40px;
+        margin-bottom: 15px;
+        opacity: 0.3;
+    }
+    .fl-empty-state p {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 5px;
+        color: white;
+    }
+    .fl-empty-state span {
+        font-size: 13px;
+    }
+
+    .fab-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 25px;
+        width: 60px;
+        height: 60px;
+        background: var(--tg-active);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+        text-decoration: none;
+        z-index: 2000;
+        transition: transform 0.2s;
+    }
+    .fab-btn:active {
+        transform: scale(0.9);
+    }
+
+    .fl-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+    }
+    .fl-modal-overlay.active {
+        display: flex !important;
+    }
+
+    .fl-modal-window {
+        background: var(--tg-sidebar);
+        border-radius: 20px;
+        padding: 25px;
+        width: 90%;
+        max-width: 400px;
+    }
+
+    .fl-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .fl-modal-header h3 {
+        font-size: 18px;
+        font-weight: 800;
+        color: white;
+        margin: 0;
+    }
+    .fl-modal-close {
+        background: none;
+        border: none;
+        color: var(--tg-hint);
+        font-size: 28px;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .fl-form-group {
+        margin-bottom: 16px;
+    }
+    .fl-label {
+        font-size: 13px;
+        color: var(--tg-hint);
+        font-weight: 600;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .fl-input {
+        background: transparent;
+        border: 1px solid var(--tg-separator);
+        color: white;
+        padding: 12px;
+        border-radius: 10px;
+        width: 100%;
+        font-size: 15px;
+        box-sizing: border-box;
+    }
+    .fl-input::placeholder {
+        color: var(--tg-hint);
+        opacity: 0.6;
+    }
+    .fl-file-input {
+        border-style: dashed;
+    }
+    .fl-hint {
+        font-size: 11px;
+        color: var(--tg-hint);
+        margin-bottom: 8px;
+    }
+
+    .fl-submit-btn {
+        background: var(--tg-active);
+        color: white;
+        border: none;
+        padding: 14px;
+        border-radius: 12px;
+        font-weight: 700;
+        width: 100%;
+        font-size: 15px;
+        cursor: pointer;
+        margin-top: 5px;
+    }
+    .fl-submit-btn:active {
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}

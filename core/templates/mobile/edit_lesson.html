@@ -73,6 +73,26 @@
             </div>
         </div>
     </div>
+    <div class="tg-section">
+        <div class="tg-input-row">
+            <div class="tg-label">Формат</div>
+            <div class="tg-field-wrap">
+                {{ form.format }}
+            </div>
+        </div>
+        <div class="tg-input-row">
+            <div class="tg-label">Место / Ссылка</div>
+            <div class="tg-field-wrap">
+                {{ form.location }}
+            </div>
+        </div>
+        <div class="tg-input-row notes-row">
+            <div class="tg-label">Заметки</div>
+            <div class="tg-field-wrap">
+                {{ form.notes }}
+            </div>
+        </div>
+    </div>
 
     <div class="tg-section">
         <div class="tg-input-row">
@@ -171,6 +191,16 @@
         appearance: none; /* Убираем стандартные стрелки */
     }
 
+    .tg-field-wrap textarea {
+        background: transparent; border: none;
+        color: var(--tg-blue, #6366f1); font-size: 14px;
+        text-align: right; width: 100%; outline: none;
+        resize: none; font-family: inherit;
+        min-height: 40px;
+    }
+
+    .notes-row { align-items: flex-start; padding-top: 12px; padding-bottom: 12px; }
+    .notes-row .tg-label { padding-top: 2px; }
     .tg-native-input { color: var(--tg-blue); font-family: inherit; }
 
     .tg-arrow { color: #555; font-size: 12px; margin-left: 10px; }

@@ -1,0 +1,88 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+
+<div class="faq-container">
+    <div class="faq-card">
+        <div class="faq-icon">
+            <i class="fas fa-question-circle"></i>
+        </div>
+        <h2 class="faq-title">Помощь и поддержка</h2>
+
+        <div class="faq-body">
+            <p class="faq-text">
+                Если у вас возникли трудности с использованием платформы или есть предложения по улучшению:
+            </p>
+
+            <p class="faq-contact-label">По всем вопросам обращаться к Никите</p>
+
+            <a href="https://t.me/closetolose" target="_blank" class="tg-link-btn">
+                <i class="fab fa-telegram-plane"></i> @closetolose
+            </a>
+        </div>
+
+        <a href="{% url 'index' %}" class="back-link">
+            <i class="fas fa-arrow-left"></i> Вернуться на главную
+        </a>
+    </div>
+</div>
+
+<style>
+    .faq-container {
+        display: flex; justify-content: center; align-items: center;
+        min-height: calc(100vh - 56px); padding: 20px 15px;
+    }
+
+    .faq-card {
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 20px;
+        padding: 30px 20px;
+        text-align: center;
+        max-width: 400px; width: 100%;
+        animation: slideUp 0.5s ease-out;
+    }
+
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .faq-icon {
+        width: 64px; height: 64px; border-radius: 18px;
+        background: rgba(99,102,241,0.15); color: var(--tg-active);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 15px; font-size: 28px;
+    }
+
+    .faq-title { font-size: 20px; font-weight: 900; color: white; margin: 0 0 20px; }
+
+    .faq-body {
+        background: rgba(255,255,255,0.03);
+        padding: 20px; border-radius: 16px;
+        border: 1px solid var(--tg-separator);
+    }
+
+    .faq-text { color: var(--tg-hint); font-size: 14px; line-height: 1.6; margin: 0 0 15px; }
+    .faq-contact-label { font-weight: 700; color: white; margin: 0 0 12px; font-size: 15px; }
+
+    .tg-link-btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        background: var(--tg-active); color: white;
+        border: none; padding: 12px 20px; border-radius: 12px;
+        font-weight: 700; font-size: 15px; text-decoration: none;
+        width: auto; margin: 0 auto;
+        box-sizing: border-box;
+    }
+    .faq-body { text-align: center; }
+    .back-link {
+        display: inline-block; margin-top: 20px;
+        color: var(--tg-hint); text-decoration: none;
+        font-size: 13px; font-weight: 600;
+    }
+</style>
+{% endblock %}

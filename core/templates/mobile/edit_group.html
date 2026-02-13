@@ -1,0 +1,89 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'my_students' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .eg-page { padding: 20px 15px; }
+    .eg-title { font-size: 20px; font-weight: 800; color: white; margin-bottom: 20px; }
+    .eg-card {
+        background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
+        border-radius: 16px; padding: 20px;
+    }
+    .eg-field { margin-bottom: 20px; }
+    .eg-label { display: block; font-size: 13px; font-weight: 700; color: var(--tg-hint); margin-bottom: 6px; text-transform: uppercase; }
+    .eg-card input[type="text"],
+    .eg-card select {
+        background: transparent; border: 1px solid var(--tg-separator);
+        color: white; padding: 12px; border-radius: 10px; width: 100%;
+        font-size: 15px; outline: none; box-sizing: border-box;
+        -webkit-appearance: none; appearance: none;
+    }
+    .eg-card select option { background: var(--tg-sidebar); color: white; }
+    .eg-students-list {
+        max-height: 250px; overflow-y: auto;
+        border: 1px solid var(--tg-separator); border-radius: 10px; padding: 10px;
+    }
+    .eg-student-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px; margin-bottom: 5px;
+        background: rgba(255,255,255,0.03); border-radius: 8px;
+    }
+    .eg-student-item:last-child { margin-bottom: 0; }
+    .eg-student-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--tg-active); flex-shrink: 0; }
+    .eg-student-item label { color: white; font-size: 14px; margin: 0; cursor: pointer; flex: 1; }
+    .eg-actions { display: flex; flex-direction: column; gap: 10px; }
+    .eg-submit {
+        background: var(--tg-active); color: white; border: none;
+        padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px; width: 100%;
+    }
+    .eg-submit:active { opacity: 0.8; }
+    .eg-cancel {
+        background: var(--tg-separator); color: white; border: none;
+        padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px;
+        width: 100%; text-align: center; text-decoration: none; display: block;
+    }
+    .eg-cancel:active { opacity: 0.8; }
+</style>
+
+<div class="eg-page">
+    <div class="eg-title">Редактировать: {{ group.name }}</div>
+
+    <div class="eg-card">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="eg-field">
+                <label class="eg-label">Название</label>
+                {{ form.name }}
+            </div>
+
+            <div class="eg-field">
+                <label class="eg-label">Предмет</label>
+                {{ form.subject }}
+            </div>
+
+            <div class="eg-field">
+                <label class="eg-label">Ученики</label>
+                <div class="eg-students-list">
+                    {% for checkbox in form.students %}
+                        <div class="eg-student-item">
+                            {{ checkbox.tag }}
+                            <label for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                        </div>
+                    {% empty %}
+                        <div style="color: var(--tg-hint); font-size: 13px; text-align: center; padding: 20px;">Нет доступных учеников</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="eg-actions">
+                <button type="submit" class="eg-submit">Сохранить</button>
+                <a href="{% url 'my_students' %}" class="eg-cancel">Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

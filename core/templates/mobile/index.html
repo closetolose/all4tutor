@@ -7,7 +7,6 @@
 {% endblock %}
 
 {% block content %}
-
 <div class="filter-bar-container">
     <div class="filter-scroll">
         <a href="?filter=all" class="filter-chip active">Все</a>
@@ -18,22 +17,44 @@
     </div>
 </div>
 
+<div id="selection-bar" class="selection-toolbar">
+    <div class="selection-info">
+        <button onclick="cancelSelection()" class="close-selection"><i class="fas fa-times"></i></button>
+        <span id="selected-count">Выбрано: 0</span>
+    </div>
+    <div class="selection-actions">
+        <button onclick="submitBulkAction('delete')" class="btn-bulk-delete"><i class="fas fa-trash"></i></button>
+        <button onclick="openMassEdit()" class="btn-bulk-edit"><i class="fas fa-pen"></i></button>
+    </div>
+</div>
+
+<form id="bulk-action-form" method="POST" action="{% url 'bulk_action' %}" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="lesson_ids" id="lesson_ids_input">
+    <input type="hidden" name="action_type" id="action_type_input">
+</form>
+
 <div class="lesson-list">
     {% for lesson in lessons %}
-
         {% ifchanged lesson.start_time.date %}
         <div class="date-separator">
             <span>
-                {% if lesson.start_time.date == now.date %}
-                    Сегодня
-                {% else %}
-                    {{ lesson.start_time|date:"d E, l" }}
-                {% endif %}
+                {% if lesson.start_time.date == now.date %}Сегодня{% else %}{{ lesson.start_time|date:"d E, l" }}{% endif %}
             </span>
         </div>
         {% endifchanged %}
 
-        <a href="{% url 'edit_lesson' lesson.id %}" class="lesson-card">
+        <div class="lesson-card"
+             data-id="{{ lesson.id }}"
+             oncontextmenu="return false;"
+             ontouchstart="handleTouchStart(event, this)"
+             ontouchend="handleTouchEnd(this)"
+             onclick="handleCardClick(event, this)">
+
+            <div class="selection-indicator">
+                <i class="fas fa-check-circle"></i>
+            </div>
+
             <div class="card-time">
                 <span class="time-main">{{ lesson.start_time|date:"H:i" }}</span>
                 <span class="time-dur">{{ lesson.duration }} мин</span>
@@ -48,143 +69,157 @@
                         <span class="price-tag">{{ lesson.price|floatformat:0 }} ₽</span>
                     {% endif %}
                 </div>
-
                 <div class="card-row-bot">
-                    <span class="subject-name">
-                        {{ lesson.subject.name|default:lesson.subject }}
-                    </span>
-                    <span class="lesson-type">
-                        {% if lesson.group %}
-                            • Группа
-                        {% else %}
-                            • Индив.
-                        {% endif %}
-                    </span>
+                    <span class="subject-name">{{ lesson.subject.name|default:lesson.subject }}</span>
+                    <span class="lesson-type">{% if lesson.group %}• Группа{% else %}• Индив.{% endif %}</span>
                 </div>
             </div>
 
             <div class="card-arrow">
                 <i class="fas fa-chevron-right"></i>
             </div>
-        </a>
-
+        </div>
     {% empty %}
         <div class="empty-state">
             <div class="empty-icon"><i class="fas fa-mug-hot"></i></div>
             <p>На сегодня уроков нет</p>
-            <span>Можно отдохнуть или добавить новый</span>
         </div>
     {% endfor %}
 </div>
+
 {% if user.profile.role == 'tutor' %}
 <a href="{% url 'add_lesson' %}" class="fab-btn">
     <i class="fas fa-plus"></i>
 </a>
 {% endif %}
 
+<div id="mass-edit-modal" class="tg-modal">
+    <div class="tg-modal-content">
+        <div class="tg-modal-header">
+            <h3>Массовое редактирование</h3>
+            <button onclick="closeMassEditModal()" class="close-modal">&times;</button>
+        </div>
+        <div class="tg-modal-body">
+            <div class="tg-input-group">
+                <label>Новая дата</label>
+                <input type="date" id="m_date" class="tg-modal-input">
+            </div>
+            <div class="tg-input-group">
+                <label>Новое время</label>
+                <input type="time" id="m_time" class="tg-modal-input">
+            </div>
+            <div class="tg-input-group">
+                <label>Цена (₽)</label>
+                <input type="number" id="m_price" class="tg-modal-input" placeholder="Оставьте пустым, если не меняется">
+            </div>
+            <div class="tg-input-group">
+                <label>Длительность (мин)</label>
+                <input type="number" id="m_duration" class="tg-modal-input" placeholder="Напр: 60">
+            </div>
+            <p class="tg-hint">Будут изменены только заполненные поля</p>
+            <button onclick="confirmMassEdit()" class="tg-modal-btn">Применить к выбранным</button>
+        </div>
+    </div>
+</div>
+
 <style>
-    /* --- FILTER BAR --- */
-    .filter-bar-container {
-        background: rgba(15, 23, 42, 0.95); /* Цвет фона как у body */
-        padding: 10px 0;
-        position: sticky; top: 56px; /* Высота хедера */
-        z-index: 900;
-        border-bottom: 1px solid var(--tg-separator);
-        backdrop-filter: blur(5px);
-    }
+    /* Базовые стили */
+    .filter-bar-container { background: rgba(15, 23, 42, 0.95); padding: 10px 0; position: sticky; top: 56px; z-index: 900; border-bottom: 1px solid var(--tg-separator); backdrop-filter: blur(5px); }
+    .filter-scroll { display: flex; gap: 8px; padding: 0 15px; overflow-x: auto; scrollbar-width: none; }
+    .filter-chip { display: inline-block; padding: 6px 14px; background-color: var(--tg-sidebar); color: var(--tg-hint); border: 1px solid var(--tg-separator); border-radius: 20px; font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+    .filter-chip.active { background-color: var(--tg-active); color: white; border-color: var(--tg-active); }
 
-    .filter-scroll {
-        display: flex; gap: 8px; padding: 0 15px;
-        overflow-x: auto; scrollbar-width: none;
-    }
-    .filter-scroll::-webkit-scrollbar { display: none; }
+    .lesson-list { padding-bottom: 100px; }
+    .date-separator { position: sticky; top: 105px; z-index: 800; text-align: center; margin: 15px 0 10px; pointer-events: none; }
+    .date-separator span { background: rgba(30, 41, 59, 0.85); color: var(--tg-hint); padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; border: 1px solid var(--tg-separator); }
 
-    .filter-chip {
-        display: inline-block; padding: 6px 14px;
-        background-color: var(--tg-sidebar);
-        color: var(--tg-hint);
-        border: 1px solid var(--tg-separator);
-        border-radius: 20px; font-size: 13px; font-weight: 600;
-        text-decoration: none; white-space: nowrap;
-        transition: 0.2s;
-    }
-    .filter-chip.active {
-        background-color: var(--tg-active);
-        color: white; border-color: var(--tg-active);
-        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
-    }
+    .lesson-card { display: flex; align-items: center; gap: 15px; background: var(--tg-sidebar); margin: 0 15px 10px; padding: 15px; border-radius: 16px; border: 1px solid var(--tg-separator); position: relative; cursor: pointer; user-select: none; -webkit-user-select: none; transition: transform 0.1s; }
+    .lesson-card:active { transform: scale(0.98); }
 
-    /* --- СПИСОК УРОКОВ --- */
-    .lesson-list { padding-bottom: 100px; /* Место под кнопку FAB */ }
+    /* Состояния выделения */
+    .selection-indicator { display: none; position: absolute; top: -8px; right: -8px; color: var(--tg-active); background: white; border-radius: 50%; font-size: 22px; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .lesson-card.selected { border-color: var(--tg-active); background: rgba(99, 102, 241, 0.1) !important; }
+    .lesson-card.selected .selection-indicator { display: block; }
+    .lesson-card.long-pressing { transform: scale(0.96); }
 
-    /* Sticky Date */
-    .date-separator {
-        position: sticky; top: 105px; /* Header(56) + Filters(49) */
-        z-index: 800;
-        text-align: center; margin: 15px 0 10px;
-        pointer-events: none; /* Чтобы можно было кликать сквозь плашку */
-    }
-    .date-separator span {
-        background: rgba(30, 41, 59, 0.85);
-        color: var(--tg-hint);
-        padding: 4px 12px; border-radius: 12px;
-        font-size: 11px; font-weight: 700; text-transform: uppercase;
-        backdrop-filter: blur(4px); border: 1px solid var(--tg-separator);
-    }
-
-    /* CARD STYLES */
-    .lesson-card {
-        display: flex; align-items: center; gap: 15px;
-        background: var(--tg-sidebar); /* Темный фон карточки #1e293b */
-        margin: 0 15px 10px; padding: 15px;
-        border-radius: 16px; border: 1px solid var(--tg-separator);
-        text-decoration: none; transition: transform 0.1s;
-    }
-    .lesson-card:active { transform: scale(0.98); background: #28364d; }
-
-    /* Время (синий кружок) */
-    .card-time {
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        width: 50px; height: 50px; border-radius: 14px;
-        background: rgba(99, 102, 241, 0.1); color: var(--tg-active);
-        border: 1px solid rgba(99, 102, 241, 0.2);
-        flex-shrink: 0;
-    }
-    .time-main { font-weight: 800; font-size: 15px; line-height: 1; }
-    .time-dur { font-size: 10px; opacity: 0.8; margin-top: 2px; }
-
-    /* Инфо */
+    .card-time { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 14px; background: rgba(99, 102, 241, 0.1); color: var(--tg-active); border: 1px solid rgba(99, 102, 241, 0.2); flex-shrink: 0; }
+    .time-main { font-weight: 800; font-size: 15px; }
+    .time-dur { font-size: 10px; opacity: 0.8; }
     .card-info { flex-grow: 1; min-width: 0; }
+    .student-name { font-size: 16px; font-weight: 700; color: white; display: block; }
+    .subject-name { color: var(--tg-hint); font-size: 13px; }
+    .status-paid { color: var(--tg-green); }
+    .price-tag { font-size: 14px; font-weight: 700; color: white; }
 
-    .card-row-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-    .student-name { font-size: 16px; font-weight: 700; color: white; }
+    .selection-toolbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--tg-sidebar); height: 70px; display: none; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 3000; border-top: 2px solid var(--tg-active); }
+    .selection-info { display: flex; align-items: center; gap: 15px; color: white; font-weight: 700; }
+    .close-selection { background: none; border: none; color: var(--tg-hint); font-size: 20px; }
+    .selection-actions { display: flex; gap: 15px; }
+    .selection-actions button { width: 44px; height: 44px; border-radius: 12px; border: none; color: white; font-size: 18px; }
+    .btn-bulk-delete { background: var(--tg-red); }
+    .btn-bulk-edit { background: var(--tg-active); }
 
-    .price-tag { font-size: 14px; font-weight: 700; color: var(--tg-text); }
-    .status-paid { color: var(--tg-green); font-size: 14px; }
+    .fab-btn { position: fixed; bottom: 30px; right: 25px; width: 60px; height: 60px; background: var(--tg-active); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); z-index: 2000; }
 
-    .card-row-bot { display: flex; align-items: center; font-size: 13px; color: var(--tg-hint); }
-    .subject-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-    .lesson-type { margin-left: 5px; opacity: 0.7; }
-
-    .card-arrow { color: var(--tg-separator); font-size: 12px; }
-
-    /* FAB BUTTON */
-    .fab-btn {
-        position: fixed; bottom: 30px; right: 25px;
-        width: 60px; height: 60px;
-        background: var(--tg-active); /* Фиолетовый */
-        color: white; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 24px; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
-        text-decoration: none; z-index: 2000;
-        transition: transform 0.2s;
+    .tg-modal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 4000;
     }
-    .fab-btn:active { transform: scale(0.9); }
-
-    /* Empty State */
-    .empty-state { text-align: center; padding: 60px 20px; color: var(--tg-hint); }
-    .empty-icon { font-size: 40px; margin-bottom: 15px; opacity: 0.3; }
-    .empty-state p { font-size: 16px; font-weight: 600; margin: 0 0 5px; color: white; }
-    .empty-state span { font-size: 13px; }
+    .tg-modal-content {
+        background: var(--tg-sidebar); width: 90%; max-width: 400px; border-radius: 20px; padding: 20px;
+    }
+    .tg-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .tg-modal-header h3 { margin: 0; color: white; font-size: 18px; }
+    .tg-input-group { margin-bottom: 15px; }
+    .tg-input-group label { display: block; color: var(--tg-hint); font-size: 12px; margin-bottom: 5px; }
+    .tg-modal-input {
+        width: 100%; background: #0f172a; border: 1px solid var(--tg-separator);
+        color: white; padding: 12px; border-radius: 10px; outline: none; box-sizing: border-box;
+    }
+    .tg-modal-btn {
+        width: 100%; background: var(--tg-active); color: white; border: none;
+        padding: 15px; border-radius: 12px; font-weight: 700; margin-top: 10px;
+    }
+    .tg-hint { font-size: 11px; color: var(--tg-hint); text-align: center; }
 </style>
+
+<script>
+   function openMassEdit() {
+    if (selectedLessons.size === 0) return;
+    document.getElementById('mass-edit-modal').style.display = 'flex';
+}
+
+function closeMassEditModal() {
+    document.getElementById('mass-edit-modal').style.display = 'none';
+}
+
+// Отправить форму
+function confirmMassEdit() {
+    const form = document.getElementById('bulk-action-form');
+
+    // Привязываем данные из модалки к скрытой форме
+    document.getElementById('lesson_ids_input').value = Array.from(selectedLessons).join(',');
+    document.getElementById('action_type_input').value = 'mass_edit';
+
+    // Создаем временные скрытые инпуты для передачи данных
+    const fields = {
+        'mass_date': document.getElementById('m_date').value,
+        'mass_time': document.getElementById('m_time').value,
+        'mass_price': document.getElementById('m_price').value,
+        'mass_duration': document.getElementById('m_duration').value
+    };
+
+    for (let key in fields) {
+        if (fields[key]) {
+            let input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = fields[key];
+            form.appendChild(input);
+        }
+    }
+
+    form.submit();
+}
+</script>
 {% endblock %}

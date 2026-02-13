@@ -44,50 +44,47 @@
                     <i class="fas fa-wallet"></i> Финансы
                 </a>
             {% endif %}
-
-
-                </form>
-            </div>
         </nav>
         <div class="sidebar-footer">
-    <a href="{% url 'faq' %}" class="sidebar-faq-link">
-        <i class="far fa-question-circle"></i> Помощь и FAQ
-    </a>
+            <a href="{% url 'faq' %}" class="sidebar-faq-link">
+                <i class="far fa-question-circle"></i> Помощь и FAQ
+            </a>
 
-    {% if next_lesson %}
-    <div class="next-lesson-card">
-        <div class="lesson-header">СЛЕДУЮЩИЙ УРОК</div>
-        <div class="lesson-time">
-            <i class="far fa-clock"></i> {{ next_lesson.start_time|date:"H:i" }}
-        </div>
-        <div class="lesson-subject">{{ next_lesson.subject.name }}</div>
-    </div>
-    {% endif %}
-
-    <div class="tg-status {% if request.user.profile.telegram_id %}connected{% else %}disconnected{% endif %}">
-        <i class="fab fa-telegram"></i>
-        <span>{% if request.user.profile.telegram_id %}Бот активен{% else %}Бот не привязан{% endif %}</span>
-    </div>
-
-    <hr class="sidebar-divider">
-
-    <div class="user-profile-mini">
-        <a href="{% url 'edit_profile' %}" class="user-info-link">
-            <div class="user-info">
-                <img src="https://ui-avatars.com/api/?name={{ request.user.profile.first_name|default:request.user.username }}&background=6366f1&color=fff" alt="Avatar" class="mini-avatar">
-                <div class="user-text">
-                    <span class="user-name">{{ request.user.profile.first_name|default:request.user.username }}</span>
-                    <span class="user-role">{{ request.user.profile.get_role_display }}</span>
+            {% if next_lesson %}
+            <div class="next-lesson-card">
+                <div class="lesson-header">СЛЕДУЮЩИЙ УРОК</div>
+                <div class="lesson-time">
+                    <i class="far fa-clock"></i> {{ next_lesson.start_time|date:"H:i" }}
                 </div>
+                <div class="lesson-subject">{{ next_lesson.subject.name }}</div>
             </div>
-        </a> <form action="{% url 'logout' %}" method="post" class="logout-form">
-            {% csrf_token %}
-            <button type="submit" class="logout-icon-btn" title="Выйти">
-                <i class="fas fa-sign-out-alt"></i>
-            </button>
-        </form>
-    </div>
-</div>
+            {% endif %}
+
+            <div class="tg-status {% if request.user.profile.telegram_id %}connected{% else %}disconnected{% endif %}">
+                <i class="fab fa-telegram"></i>
+                <span>{% if request.user.profile.telegram_id %}Бот активен{% else %}Бот не привязан{% endif %}</span>
+            </div>
+
+            <hr class="sidebar-divider">
+
+            <div class="user-profile-mini">
+                <a href="{% url 'edit_profile' %}" class="user-info-link">
+                    <div class="user-info">
+                        <img src="https://ui-avatars.com/api/?name={{ request.user.profile.first_name|default:request.user.username }}&background=6366f1&color=fff" alt="Avatar" class="mini-avatar">
+                        <div class="user-text">
+                            <span class="user-name">{{ request.user.profile.first_name|default:request.user.username }}</span>
+                            <span class="user-role">{{ request.user.profile.get_role_display }}</span>
+                        </div>
+                    </div>
+                </a>
+                <form action="{% url 'logout' %}" method="post" class="logout-form">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-icon-btn" title="Выйти">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
     </aside>
     {% endif %}
 

@@ -50,7 +50,7 @@ class ProfileCompletionMiddleware:
                 '/admin/',
             ]
 
-            if not request.user.first_name and request.path not in allowed_urls:
+            if not request.user.profile.first_name and request.path not in allowed_urls:
                 return redirect('edit_profile')
 
         response = self.get_response(request)

@@ -1,0 +1,194 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-section">
+    <div class="page-title">
+        <i class="fas fa-tasks" style="color: var(--tg-active);"></i> Мои задания
+    </div>
+</div>
+
+<div class="hw-list">
+    {% for hw in homeworks %}
+    <div class="hw-card">
+        <div class="hw-header">
+            <span class="hw-subject">{{ hw.subject.name }}</span>
+            <span class="hw-badge status-{{ hw.status }}">{{ hw.get_status_display }}</span>
+        </div>
+
+        <div class="hw-description">{{ hw.description }}</div>
+
+        {% if hw.files.all %}
+        <div class="hw-files">
+            {% for f in hw.files.all %}
+            <a href="{{ f.file.url }}" class="file-pill" target="_blank">
+                <i class="fas fa-file-alt"></i>
+                <span>{{ f.file_name }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="hw-footer">
+            <span class="hw-deadline">
+                <i class="fas fa-clock"></i> {{ hw.deadline|date:"d.m.Y H:i" }}
+            </span>
+            <button onclick="openSubmitModal({{ hw.id }})" class="hw-submit-btn">
+                <i class="fas fa-paper-plane"></i> Отправить
+            </button>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <div class="empty-icon"><i class="fas fa-clipboard-check"></i></div>
+        <p>Заданий пока нет</p>
+        <span>У вас пока нет назначенных заданий.</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div id="submitHWModal" class="modal-overlay">
+    <div class="modal-window">
+        <div class="modal-close" onclick="closeModal('submitHWModal')">&times;</div>
+
+        <div class="modal-header-icon">
+            <i class="fas fa-cloud-upload-alt"></i>
+        </div>
+        <h3 class="modal-title">Сдать задание</h3>
+        <p class="modal-subtitle">Прикрепите файлы с вашим решением</p>
+
+        <form id="submitHWForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="upload-area">
+                <input type="file" name="response_files" multiple required
+                       style="width: 100%; font-size: 14px; color: var(--tg-hint);">
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" onclick="closeModal('submitHWModal')" class="modal-btn cancel">
+                    Отмена
+                </button>
+                <button type="submit" class="modal-btn submit">
+                    Отправить работу
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .page-section { padding: 20px 15px 5px; }
+    .page-title { font-size: 20px; font-weight: 800; color: white; display: flex; align-items: center; gap: 10px; }
+
+    .hw-list { padding: 10px 15px 50px; }
+
+    .hw-card {
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 16px;
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+
+    .hw-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .hw-subject { font-size: 16px; font-weight: 700; color: white; }
+
+    .hw-badge {
+        font-size: 11px; font-weight: 700; padding: 3px 10px;
+        border-radius: 8px; text-transform: uppercase;
+    }
+    .status-pending { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .status-submitted { background: rgba(99,102,241,0.15); color: var(--tg-active); }
+    .status-completed { background: var(--tg-green-bg); color: var(--tg-green); }
+
+    .hw-description { font-size: 14px; color: var(--tg-hint); line-height: 1.5; margin-bottom: 10px; }
+
+    .hw-files { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .file-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--tg-green-bg); color: var(--tg-green);
+        padding: 6px 12px; border-radius: 8px;
+        text-decoration: none; font-size: 12px; font-weight: 600;
+    }
+
+    .hw-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
+    .hw-deadline { font-size: 12px; color: var(--tg-red); font-weight: 600; display: flex; align-items: center; gap: 5px; }
+
+    .hw-submit-btn {
+        background: var(--tg-active); color: white; border: none;
+        padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700;
+        display: flex; align-items: center; gap: 6px; cursor: pointer;
+    }
+
+    .modal-overlay {
+        display: none; position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+        z-index: 10000; align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex !important; }
+
+    .modal-window {
+        background: var(--tg-sidebar);
+        padding: 25px; border-radius: 20px;
+        width: 90%; max-width: 400px; position: relative;
+        border: 1px solid var(--tg-separator);
+    }
+
+    .modal-close {
+        position: absolute; top: 15px; right: 18px;
+        font-size: 28px; color: var(--tg-hint); cursor: pointer; line-height: 1;
+    }
+
+    .modal-header-icon {
+        width: 56px; height: 56px; border-radius: 50%;
+        background: rgba(99,102,241,0.15); color: var(--tg-active);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 12px; font-size: 22px;
+    }
+    .modal-title { text-align: center; font-size: 18px; font-weight: 800; color: white; margin: 0 0 5px; }
+    .modal-subtitle { text-align: center; font-size: 13px; color: var(--tg-hint); margin: 0 0 20px; }
+
+    .upload-area {
+        background: rgba(255,255,255,0.03); padding: 18px;
+        border-radius: 12px; border: 2px dashed var(--tg-separator);
+        margin-bottom: 20px;
+    }
+
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-btn {
+        flex: 1; padding: 12px; border-radius: 12px; border: none;
+        font-weight: 700; font-size: 14px; cursor: pointer;
+    }
+    .modal-btn.cancel { background: rgba(255,255,255,0.05); color: var(--tg-hint); }
+    .modal-btn.submit { flex: 2; background: var(--tg-active); color: white; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--tg-hint); }
+    .empty-icon { font-size: 40px; margin-bottom: 15px; opacity: 0.3; }
+    .empty-state p { font-size: 16px; font-weight: 600; margin: 0 0 5px; color: white; }
+    .empty-state span { font-size: 13px; }
+</style>
+
+<script>
+    function openSubmitModal(hwId) {
+        const modal = document.getElementById('submitHWModal');
+        const form = document.getElementById('submitHWForm');
+        form.action = `/homework/submit/${hwId}/`;
+        modal.classList.add('active');
+    }
+
+    function closeModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.remove('active');
+    }
+
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('submitHWModal');
+        if (event.target === modal) closeModal('submitHWModal');
+    });
+</script>
+{% endblock %}
