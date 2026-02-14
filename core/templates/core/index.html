@@ -4,6 +4,15 @@
 
 {% block content %}
     <style>
+        .lesson-note-preview {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.lesson-note-preview i { color: #f59e0b; } /* Оранжевая иконка */
         /* Выбор дней недели */
         .weekdays-selector { display: flex; gap: 5px; flex-wrap: wrap; }
         .weekday-btn input { display: none !important; }
@@ -187,6 +196,11 @@
                                             <i class="fas fa-copy"></i>
                                         </button>
                                         {% endif %}
+                                        {% if lesson.description %}
+                                        <div class="lesson-note-preview" title="{{ lesson.description }}">
+                                            <i class="far fa-sticky-note"></i> {{ lesson.description|truncatechars:40 }}
+                                        </div>
+                                        {% endif %}
                                     </div>
                                 </div>
 
@@ -259,6 +273,7 @@
                                             time:'{{ lesson.start_time|date:'H:i' }}',
                                             dur:'{{ lesson.duration }}',
                                             price:'{{ lesson.price }}',
+                                            notes:'{{ lesson.notes|escapejs }}',
                                             materials: [{% for m in lesson.materials.all %}{{ m.id }}{% if not forloop.last %},{% endif %}{% endfor %}]
                                         })"
                                         style="border:none; background:none; color: #4f46e5; cursor:pointer;"><i class="fas fa-edit"></i></button>
@@ -381,6 +396,13 @@
                     </div>
                 </div>
                 <div class="mb-15">
+                    <label class="form-label"><i class="far fa-sticky-note"></i> Заметки (notes)</label>
+                    <textarea id="m-notes-input" class="filter-select"
+                              style="height: 80px; resize: none; width: 100%;"
+                              placeholder="Заметки для репетитора..."></textarea>
+                </div>
+
+                <div class="mb-15">
                     <label class="form-label"><i class="fas fa-paperclip"></i> Материалы</label>
                     <div class="materials-selector-container">
                         <table class="materials-table">
@@ -496,20 +518,31 @@
 
         // РЕДАКТИРОВАНИЕ
         function openUniversalEdit(mode, id, data) {
-            const idsInput = document.getElementById('hidden-ids');
-            const title = document.getElementById('edit-modal-title');
+        const idsInput = document.getElementById('hidden-ids');
+        const title = document.getElementById('edit-modal-title');
 
-            // Сброс галочек
-            document.querySelectorAll('.material-checkbox').forEach(cb => cb.checked = false);
-            if(document.getElementById('selectAllMaterials')) document.getElementById('selectAllMaterials').checked = false;
+        // Сброс всех полей
+        document.querySelectorAll('.material-checkbox').forEach(cb => cb.checked = false);
+        if(document.getElementById('selectAllMaterials')) document.getElementById('selectAllMaterials').checked = false;
+        document.getElementById('m-notes-input').value = ""; // Очищаем заметки
 
-            if (mode === 'single') {
-                title.innerText = "Редактировать";
-                idsInput.value = id;
-                document.getElementById('m-date-select').value = data.date;
-                document.getElementById('m-time-select').value = data.time;
-                document.getElementById('m-subject-select').value = data.subject;
-                document.getElementById('m-price-select').value = data.price;
+        // Сбрасываем остальные поля
+        document.getElementById('m-date-select').value = "";
+        document.getElementById('m-time-select').value = "";
+        document.getElementById('m-subject-select').value = "";
+        document.getElementById('m-price-select').value = "";
+
+        if (mode === 'single') {
+            title.innerText = "Редактировать занятие";
+            idsInput.value = id;
+
+            // Заполняем данными
+            if (data) {
+                document.getElementById('m-date-select').value = data.date || "";
+                document.getElementById('m-time-select').value = data.time || "";
+                document.getElementById('m-subject-select').value = data.subject || "";
+                document.getElementById('m-price-select').value = data.price || "";
+                document.getElementById('m-notes-input').value = data.notes || ""; // Подтягиваем notes
 
                 if (data.materials) {
                     data.materials.forEach(mId => {
@@ -517,36 +550,44 @@
                         if(cb) cb.checked = true;
                     });
                 }
-            } else {
-                title.innerText = "Массовая правка";
-                const checkedIds = Array.from(document.querySelectorAll('.lesson-checkbox:checked')).map(cb => cb.value);
-                idsInput.value = checkedIds.join(',');
-                document.querySelectorAll('#universalEditModal input:not([type="checkbox"]), #universalEditModal select').forEach(el => el.value = "");
             }
-            openModal('universalEditModal');
+        } else {
+            title.innerText = "Массовая правка";
+            const checkedIds = Array.from(document.querySelectorAll('.lesson-checkbox:checked')).map(cb => cb.value);
+            idsInput.value = checkedIds.join(',');
         }
+        openModal('universalEditModal');
+    }
 
         function applyMassEdit() {
-            const timeVal = document.getElementById('m-time-select').value;
-            const dateVal = document.getElementById('m-date-select').value;
-            document.getElementById('m-subject-input').value = document.getElementById('m-subject-select').value;
-            document.getElementById('m-date-input').value = document.getElementById('m-date-select').value;
-            document.getElementById('m-time-input').value = document.getElementById('m-time-select').value;
-            document.getElementById('m-price-input').value = document.getElementById('m-price-select').value;
-            console.log("JS DEBUG - Date:", dateVal);
-            console.log("JS DEBUG - Time:", timeVal);
+        // Синхронизируем значения из модалки в скрытую форму отправки
+        document.getElementById('m-subject-input').value = document.getElementById('m-subject-select').value;
+        document.getElementById('m-date-input').value = document.getElementById('m-date-select').value;
+        document.getElementById('m-time-input').value = document.getElementById('m-time-select').value;
+        document.getElementById('m-price-input').value = document.getElementById('m-price-select').value;
 
-            const container = document.getElementById('m-materials-container');
-            container.innerHTML = '';
-            document.querySelectorAll('#universalEditModal .material-checkbox:checked').forEach(cb => {
-                const hidden = document.createElement('input');
-                hidden.type = 'hidden'; hidden.name = 'materials'; hidden.value = cb.value;
-                container.appendChild(hidden);
-            });
+        const notesValue = document.getElementById('m-notes-input').value;
 
-            document.getElementById('action-type').value = 'mass_edit';
-            document.getElementById('bulk-form').submit();
+        const container = document.getElementById('m-materials-container');
+        container.innerHTML = '';
+
+        // Добавляем материалы
+        document.querySelectorAll('#universalEditModal .material-checkbox:checked').forEach(cb => {
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden'; hidden.name = 'materials'; hidden.value = cb.value;
+            container.appendChild(hidden);
+        });
+
+        // Добавляем заметки (notes) как скрытое поле
+        if (notesValue) {
+            const hiddenNotes = document.createElement('input');
+            hiddenNotes.type = 'hidden'; hiddenNotes.name = 'notes'; hiddenNotes.value = notesValue;
+            container.appendChild(hiddenNotes);
         }
+
+        document.getElementById('action-type').value = 'mass_edit';
+        document.getElementById('bulk-form').submit();
+    }
 
         function openDeleteModal(id) {
             document.getElementById('deleteForm').action = "/lesson/delete/" + id + "/";

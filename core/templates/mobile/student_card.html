@@ -1,51 +1,83 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'my_students' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
-
 <div class="s-profile-header">
     <div class="s-big-avatar">{{ student.first_name|first }}{{ student.last_name|first }}</div>
-    <h2>{{ student.first_name }} {{ student.last_name }}</h2>
+    <h2 class="s-name">{{ student.first_name }} {{ student.last_name }}</h2>
     <div class="s-phone">{{ student.phone|default:"+7 (___) ___-__-__" }}</div>
 
     <div class="s-quick-stats">
-        <div class="s-stat"><span>Класс</span><strong>{{ student.grade }}</strong></div>
+        <div class="s-stat"><span>Класс</span><strong>{{ student.school_class|default:"—"}}</strong></div>
         <div class="s-stat"><span>Родитель</span><strong>{{ student.parent_name|default:"—" }}</strong></div>
     </div>
 </div>
 
-<div class="s-section">
-    <div class="b-card positive">
-        <span class="b-label">ТЕКУЩИЙ БАЛАНС</span>
-        <div class="b-value">{{ student.balance }} ₽</div>
+<div class="s-container">
+    <div class="b-cards-row">
+        <div class="b-card positive">
+            <span class="b-label">БАЛАНС</span>
+            <div class="b-value">{{ student.balance }} ₽</div>
+        </div>
+        <div class="b-card negative">
+            <span class="b-label">ДОЛГ</span>
+            <div class="b-value">{{ total_debt }} ₽</div>
+        </div>
     </div>
-    <div class="b-card negative">
-        <span class="b-label">К ОПЛАТЕ</span>
-        <div class="b-value">0 ₽</div>
+
+    <div class="s-actions-list">
+        <button class="s-action-btn" onclick="openModal('balance-modal')">
+            <i class="fas fa-plus"></i> Пополнить баланс
+        </button>
+        <button class="s-action-btn" onclick="openModal('tx-modal')">
+            <i class="fas fa-history"></i> История транзакций
+        </button>
+        <button class="s-action-btn warning" onclick="openModal('hw-modal')">
+            <i class="fas fa-book"></i> Задать ДЗ
+        </button>
     </div>
-    <div class="s-actions">
-        <button class="s-btn primary"><i class="fas fa-plus"></i> Пополнить</button>
-        <button class="s-btn secondary">История транзакций</button>
+    <div class="mobile-note-section">
+    <div class="mobile-card-header">
+        <span><i class="fas fa-sticky-note"></i> Личная заметка</span>
+        <button type="submit" form="mobileNoteForm" class="save-note-btn">Сохранить</button>
     </div>
+
+    <form id="mobileNoteForm" method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="save_tutor_note" value="1">
+        <textarea name="tutor_note_text"
+                  class="mobile-note-input"
+                  placeholder="Особенности ученика, которые видите только вы..."
+        >{{ tutor_note|default:"" }}</textarea>
+    </form>
 </div>
 
-<div class="s-section">
+    <div class="s-section">
     <h3 class="section-title">Журнал занятий</h3>
     <div class="m-table-wrap">
         <table class="m-simple-table">
             <thead>
-                <tr><th>Дата</th><th>Предмет</th><th>Стоимость</th></tr>
+                <tr><th>Дата</th><th>Предмет</th><th>Цена и Оплата</th></tr>
             </thead>
             <tbody>
-                {% for lesson in finished_lessons %}
+                {% for att in attendances %}
                 <tr>
-                    <td>{{ lesson.start_time|date:"d.m" }}</td>
-                    <td>{{ lesson.subject }}</td>
-                    <td>{{ lesson.price }} ₽</td>
+                    <td>{{ att.lesson.start_time|date:"d.m" }}</td>
+                    <td>{{ att.lesson.subject.name }}</td>
+                    <td class="{% if not att.is_paid %}txt-red{% endif %}">
+                        <div class="price-cell">
+                            <span>{{ att.lesson.price|floatformat:0 }} ₽</span>
+                            <button onclick="togglePayMobile(this, '{{ att.id }}')" class="btn-pay-mini {% if att.is_paid %}paid{% endif %}">
+                                <i class="fas {% if att.is_paid %}fa-check-circle{% else %}fa-wallet{% endif %}"></i>
+                            </button>
+                        </div>
+                    </td>
                 </tr>
+                {% empty %}
+                <tr><td colspan="3" class="empty-row">Нет проведенных уроков</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -54,58 +86,398 @@
 
 <div class="s-section">
     <h3 class="section-title">Домашние задания</h3>
-    <div class="hw-list">
-        {% for hw in homeworks %}
-        <div class="hw-card">
-            <div class="hw-info">
-                <strong>{{ hw.subject }}</strong>
-                <p>{{ hw.task_text|truncatechars:50 }}</p>
-                <span class="hw-deadline">Дедлайн: {{ hw.deadline|date:"d M" }}</span>
-            </div>
-            {% if hw.file %}
-            <a href="{{ hw.file.url }}" class="hw-file">
-                <i class="fas fa-file-excel"></i>
-                <span>{{ hw.file_name }}</span>
+   {% for hw in homeworks %}
+<div class="hw-card">
+    <div class="hw-header">
+        <span class="hw-subject">{{ hw.subject.name }}</span>
+        <span class="hw-status-badge {{ hw.status }}">{{ hw.get_status_display }}</span>
+    </div>
+    <div class="hw-body" style="padding: 5px 0;">
+        <p class="hw-desc">{{ hw.description }}</p>
+
+        {% if hw.files.all %}
+        <div class="hw-files-chips" style="display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0;">
+            {% for f in hw.files.all %}
+            <a href="{{ f.file.url }}" target="_blank" class="hw-file-chip">
+                <i class="fas fa-paperclip"></i> {{ f.file_name|truncatechars:15 }}
             </a>
-            {% endif %}
+            {% endfor %}
         </div>
-        {% endfor %}
+
+        <div class="hw-zip-wrap">
+            <a href="{% url 'download_homework_all' hw.id %}" class="btn-download-zip">
+                <i class="fas fa-file-archive"></i> Скачать архивом (.zip)
+            </a>
+        </div>
+        {% endif %}
+
+        {% if hw.responses.exists %}
+        <div class="hw-responses-section">
+            <div class="hw-responses-label"><i class="fas fa-reply"></i> Ответы ученика:</div>
+            <div class="hw-files-chips" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;">
+                {% for resp in hw.responses.all %}
+                <a href="{{ resp.file.url }}" target="_blank" class="hw-response-chip">
+                    <i class="fas fa-file-alt"></i> {{ resp.file_name|truncatechars:15 }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if hw.tutor_comment %}
+            <div class="hw-feedback"><i class="fas fa-comment-dots"></i> {{ hw.tutor_comment }}</div>
+        {% endif %}
+    </div>
+    <div class="hw-footer">
+        <span class="hw-deadline"><i class="far fa-clock"></i> {{ hw.deadline|date:"d M, H:i" }}</span>
+        <div class="hw-btn-group">
+            <button class="hw-mini-btn edit" onclick="openEditHW('{{ hw.id }}', '{{ hw.subject.id }}', '{{ hw.description|escapejs }}', '{{ hw.deadline|date:'Y-m-d\TH:i' }}')"><i class="fas fa-pen"></i></button>
+            <button class="hw-mini-btn check" onclick="openCheckHW('{{ hw.id }}', '{{ hw.status }}', '{{ hw.tutor_comment|escapejs }}')">
+                <i class="fas fa-check-double"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% empty %}
+    <div class="empty-msg">Заданий пока нет</div>
+{% endfor %}
+</div>
+
+</div>
+
+<div id="edit-hw-modal" class="tg-modal">
+    <div class="tg-modal-content">
+        <div class="tg-modal-header">
+            <h3>Редактировать ДЗ</h3>
+            <button onclick="closeModal('edit-hw-modal')" class="close-modal">&times;</button>
+        </div>
+        <form id="edit-hw-form" method="POST">
+            {% csrf_token %}
+            <div class="tg-input-group">
+                <label>Предмет</label>
+                <select name="subject" id="edit_hw_subject" class="tg-modal-input">
+                    {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="tg-input-group">
+                <label>Задание</label>
+                <textarea name="description" id="edit_hw_desc" class="tg-modal-input" style="height:100px;"></textarea>
+            </div>
+            <div class="tg-input-group">
+                <label>Срок</label>
+                <input type="datetime-local" name="deadline" id="edit_hw_deadline" class="tg-modal-input">
+            </div>
+            <button type="submit" class="tg-modal-btn">Сохранить</button>
+        </form>
+    </div>
+</div>
+
+<div id="check-hw-modal" class="tg-modal">
+    <div class="tg-modal-content">
+        <div class="tg-modal-header"><h3>Проверить работу</h3><button onclick="closeModal('check-hw-modal')" class="close-modal">&times;</button></div>
+        <form id="check-hw-form" method="POST">
+            {% csrf_token %}
+            <div class="tg-input-group">
+                <label>Статус</label>
+                <select name="status" id="check_status" class="tg-modal-input">
+                    <option value="pending">Задано</option>
+                    <option value="submitted">На проверке</option>
+                    <option value="completed">Выполнено</option>
+                </select>
+            </div>
+            <div class="tg-input-group"><label>Комментарий</label><textarea name="tutor_comment" id="check_comment" class="tg-modal-input" style="height:80px;"></textarea></div>
+            <button type="submit" class="tg-modal-btn">Сохранить результат</button>
+        </form>
+    </div>
+</div>
+
+<div id="balance-modal" class="tg-modal">
+    <div class="tg-modal-content">
+        <div class="tg-modal-header">
+            <h3>Пополнить баланс</h3>
+            <button onclick="closeModal('balance-modal')" class="close-modal">&times;</button>
+        </div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="update_balance" value="1">
+            <div class="tg-input-group">
+                <label>Сумма (₽)</label>
+                <input type="number" name="amount" class="tg-modal-input" required>
+            </div>
+            <div class="tg-input-group">
+                <label>Дата пополнения</label>
+                <input type="datetime-local" name="date" class="tg-modal-input">
+            </div>
+            <div class="tg-input-group">
+                <label>Комментарий</label>
+                <input type="text" name="description" class="tg-modal-input" placeholder="Напр: Оплата за февраль">
+            </div>
+            <button type="submit" class="tg-modal-btn">Зачислить</button>
+        </form>
+    </div>
+</div>
+
+<div id="tx-modal" class="tg-modal">
+    <div class="tg-modal-content">
+        <div class="tg-modal-header">
+            <h3>История транзакций</h3>
+            <button onclick="closeModal('tx-modal')" class="close-modal">&times;</button>
+        </div>
+        <div class="tx-scroll-area">
+            {% for tx in transactions %}
+            <div class="tx-item">
+                <div class="tx-info">
+                    <strong>{{ tx.get_type_display }}</strong>
+                    <span>{{ tx.date|date:"d.m.Y" }} • {{ tx.description|default:"-" }}</span>
+                </div>
+                <div class="tx-amount {% if tx.type == 'deposit' %}txt-green{% else %}txt-red{% endif %}">
+                    {% if tx.type == 'deposit' %}+{% else %}-{% endif %}{{ tx.amount }} ₽
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-msg">Транзакций пока нет</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div id="hw-modal" class="tg-modal">
+    <div class="tg-modal-content">
+        <div class="tg-modal-header">
+            <h3>Новое задание</h3>
+            <button onclick="closeModal('hw-modal')" class="close-modal">&times;</button>
+        </div>
+        <form method="POST" action="{% url 'add_homework' student.id %}">
+            {% csrf_token %}
+            <div class="tg-input-group">
+                <label>Предмет</label>
+                <select name="subject" class="tg-modal-input" required>
+                    {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="tg-input-group">
+                <label>Текст задания</label>
+                <textarea name="description" class="tg-modal-input" style="height:80px;" required></textarea>
+            </div>
+            <div class="tg-input-group">
+                <label>Дедлайн</label>
+                <input type="datetime-local" name="deadline" class="tg-modal-input">
+            </div>
+            <div class="tg-input-group">
+                <label>Файлы из библиотеки</label>
+                <div class="modal-files-list">
+                    {% for f in tutor_files %}
+                    <label class="file-check"><input type="checkbox" name="files" value="{{ f.id }}"> {{ f.file_name }}</label>
+                    {% empty %}
+                    <span class="empty-msg" style="font-size: 12px;">Нет файлов в библиотеке</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <button type="submit" class="tg-modal-btn">Задать задание</button>
+        </form>
     </div>
 </div>
 
 <style>
     .s-profile-header { text-align: center; padding: 25px 15px; background: var(--tg-sidebar); border-bottom: 1px solid var(--tg-separator); }
-    .s-big-avatar { width: 80px; height: 80px; border-radius: 50%; background: #334155; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; color: white; }
+    .s-big-avatar { width: 70px; height: 70px; border-radius: 50%; background: var(--tg-active); margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: white; }
+    .s-name { font-size: 20px; font-weight: 800; color: white; margin: 0; }
     .s-phone { color: var(--tg-hint); font-size: 14px; margin-top: 5px; }
+    .s-quick-stats { display: flex; justify-content: center; gap: 30px; margin-top: 15px; }
+    .s-stat span { display: block; font-size: 11px; color: var(--tg-hint); text-transform: uppercase; font-weight: 700; }
+    .s-stat strong { font-size: 15px; color: white; }
 
-    .s-quick-stats { display: flex; justify-content: center; gap: 30px; margin-top: 20px; }
-    .s-stat span { display: block; font-size: 11px; color: var(--tg-hint); text-transform: uppercase; }
-    .s-stat strong { font-size: 16px; color: white; }
+    .s-container { padding: 15px; }
+    .b-cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+    .b-card { padding: 15px; border-radius: 16px; text-align: center; border: 1px solid var(--tg-separator); }
+    .b-card.positive { background: rgba(34, 197, 94, 0.1); color: var(--tg-green); }
+    .b-card.negative { background: rgba(248, 113, 113, 0.1); color: var(--tg-red); }
+    .b-label { font-size: 10px; font-weight: 800; opacity: 0.8; }
+    .b-value { font-size: 20px; font-weight: 900; margin-top: 4px; }
 
-    .s-section { padding: 20px 15px; }
-    .section-title { font-size: 18px; font-weight: 800; margin-bottom: 15px; color: white; }
+    .s-actions-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 25px; }
+    .s-action-btn { background: var(--tg-sidebar); color: white; border: 1px solid var(--tg-separator); padding: 14px; border-radius: 12px; font-weight: 700; font-size: 14px; text-align: left; display: flex; align-items: center; gap: 12px; }
+    .s-action-btn i { color: var(--tg-active); width: 20px; text-align: center; }
+    .s-action-btn.warning i { color: #f59e0b; }
 
-    /* Финансовые карточки */
-    .b-card { padding: 15px; border-radius: 16px; text-align: center; margin-bottom: 10px; }
-    .b-card.positive { background: #ecfdf5; color: #059669; }
-    .b-card.negative { background: #fff1f2; color: #e11d48; }
-    .b-label { font-size: 11px; font-weight: 800; }
-    .b-value { font-size: 28px; font-weight: 900; }
-
-    .s-actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 15px; }
-    .s-btn { padding: 14px; border-radius: 12px; border: none; font-weight: 700; font-size: 15px; }
-    .s-btn.primary { background: var(--tg-active); color: white; }
-    .s-btn.secondary { background: white; color: #1e293b; }
-
-    /* Таблица журнала */
-    .m-table-wrap { background: var(--tg-sidebar); border-radius: 12px; overflow: hidden; }
+    .s-section { margin-bottom: 20px; }
+    .section-title { font-size: 17px; font-weight: 800; margin: 0 0 12px; color: white; }
+    .m-table-wrap { background: var(--tg-sidebar); border-radius: 14px; border: 1px solid var(--tg-separator); overflow: hidden; }
     .m-simple-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .m-simple-table th { background: rgba(255,255,255,0.05); padding: 10px; text-align: left; color: var(--tg-hint); }
+    .m-simple-table th { background: rgba(255,255,255,0.03); padding: 10px; text-align: left; color: var(--tg-hint); font-size: 11px; text-transform: uppercase; }
     .m-simple-table td { padding: 12px 10px; border-top: 1px solid var(--tg-separator); }
+    .empty-row { text-align: center; color: var(--tg-hint); padding: 20px !important; }
+    .empty-msg { text-align: center; color: var(--tg-hint); padding: 20px; font-size: 14px; }
+    .txt-red { color: var(--tg-red); font-weight: 700; }
+    .txt-green { color: var(--tg-green); font-weight: 700; }
 
-    /* Домашка */
-    .hw-card { background: var(--tg-sidebar); padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid var(--tg-separator); }
-    .hw-deadline { display: block; margin-top: 8px; font-size: 12px; color: var(--tg-red); font-weight: 600; }
-    .hw-file { display: flex; align-items: center; gap: 8px; background: var(--tg-green-bg); color: var(--tg-green); padding: 8px; border-radius: 8px; text-decoration: none; margin-top: 10px; font-size: 13px; }
+    .price-cell { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+    .btn-pay-mini {
+        background: #0f172a; border: 1px solid var(--tg-separator);
+        color: var(--tg-active); width: 32px; height: 32px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+    .btn-pay-mini.paid { color: var(--tg-green); border-color: var(--tg-green); background: rgba(34, 197, 94, 0.05); }
+    .btn-pay-mini:active { transform: scale(0.9); }
+    .txt-red span { color: var(--tg-red); font-weight: 800; }
+
+    .hw-card { background: var(--tg-sidebar); border: 1px solid var(--tg-separator); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+    .hw-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .hw-subject { font-size: 15px; font-weight: 800; color: white; }
+    .hw-status-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 8px; text-transform: uppercase; }
+    .hw-status-badge.pending { background: rgba(99, 102, 241, 0.2); color: var(--tg-active); }
+    .hw-status-badge.submitted { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+    .hw-status-badge.completed { background: rgba(34, 197, 94, 0.2); color: var(--tg-green); }
+    .hw-desc { margin: 0; font-size: 14px; color: #e2e8f0; line-height: 1.5; word-wrap: break-word; }
+    .hw-feedback { margin-top: 10px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 13px; color: var(--tg-hint); border-left: 3px solid var(--tg-active); }
+
+    .hw-files-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .hw-file-chip {
+        font-size: 11px; background: #0f172a; border: 1px solid var(--tg-separator);
+        padding: 5px 10px; border-radius: 8px; color: var(--tg-active);
+        text-decoration: none; display: flex; align-items: center; gap: 6px;
+    }
+    .hw-file-chip:active { background: rgba(99, 102, 241, 0.1); }
+
+    .hw-responses-section { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--tg-separator); }
+    .hw-responses-label { font-size: 11px; color: var(--tg-hint); text-transform: uppercase; font-weight: 700; }
+    .hw-response-chip {
+        font-size: 11px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3);
+        padding: 6px 12px; border-radius: 8px; color: var(--tg-green) !important;
+        text-decoration: none; display: flex; align-items: center; gap: 6px; font-weight: 600;
+    }
+    .hw-response-chip:active { background: rgba(34, 197, 94, 0.2); }
+
+    .hw-zip-wrap { margin-top: 12px; }
+    .btn-download-zip {
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        background: rgba(99, 102, 241, 0.1); color: var(--tg-active);
+        border: 1px solid var(--tg-active); padding: 10px; border-radius: 12px;
+        text-decoration: none; font-size: 13px; font-weight: 700; width: 100%; box-sizing: border-box;
+    }
+
+    .hw-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--tg-separator); padding-top: 10px; margin-top: 5px; }
+    .hw-deadline { font-size: 12px; color: var(--tg-hint); font-weight: 600; }
+    .hw-deadline i { margin-right: 4px; color: var(--tg-red); }
+    .hw-btn-group { display: flex; gap: 8px; }
+    .hw-mini-btn { background: #0f172a; border: 1px solid var(--tg-separator); color: white; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .hw-mini-btn.edit { color: var(--tg-active); }
+    .hw-mini-btn.check { color: var(--tg-green); }
+    .hw-mini-btn:active { transform: scale(0.9); }
+
+    .tg-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; align-items: flex-end; z-index: 4000; }
+    .tg-modal-content { background: var(--tg-sidebar); width: 100%; border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box; max-height: 85vh; overflow-y: auto; }
+    .tg-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .tg-modal-header h3 { margin: 0; color: white; font-size: 18px; }
+    .close-modal { background: none; border: none; color: var(--tg-hint); font-size: 24px; }
+    .tg-input-group { margin-bottom: 15px; }
+    .tg-input-group label { display: block; color: var(--tg-hint); font-size: 12px; margin-bottom: 5px; font-weight: 700; }
+    .tg-modal-input { width: 100%; background: #0f172a; border: 1px solid var(--tg-separator); color: white; padding: 12px; border-radius: 10px; box-sizing: border-box; outline: none; font-size: 15px; }
+    .tg-modal-btn { width: 100%; background: var(--tg-active); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: 700; font-size: 16px; margin-top: 10px; }
+    .modal-files-list { max-height: 150px; overflow-y: auto; background: #0f172a; border-radius: 10px; padding: 10px; }
+    .file-check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; color: #e2e8f0; }
+    .tx-scroll-area { max-height: 60vh; overflow-y: auto; }
+    .tx-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--tg-separator); }
+    .tx-info strong { display: block; font-size: 14px; color: white; }
+    .tx-info span { font-size: 11px; color: var(--tg-hint); }
+    .mobile-note-section {
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 16px;
+        margin: 15px;
+        padding: 15px;
+    }
+    .mobile-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--tg-hint);
+        text-transform: uppercase;
+    }
+    .mobile-card-header i { color: #f59e0b; }
+
+    .mobile-note-input {
+        width: 100%;
+        height: 100px;
+        background: rgba(245, 158, 11, 0.05); /* Легкий оранжевый оттенок */
+        border: 1px dashed rgba(245, 158, 11, 0.3);
+        border-radius: 12px;
+        padding: 12px;
+        color: white;
+        font-size: 14px;
+        line-height: 1.4;
+        resize: none;
+        box-sizing: border-box;
+    }
+    .save-note-btn {
+        background: var(--tg-active);
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+    }
 </style>
+
+<script>
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    window.onclick = function(e) { if (e.target.classList.contains('tg-modal')) e.target.style.display = 'none'; }
+
+    function openEditHW(id, subjectId, desc, deadline) {
+        const form = document.getElementById('edit-hw-form');
+        form.action = `/homework/edit/${id}/`;
+        document.getElementById('edit_hw_subject').value = subjectId;
+        document.getElementById('edit_hw_desc').value = desc;
+        document.getElementById('edit_hw_deadline').value = deadline;
+        openModal('edit-hw-modal');
+    }
+
+    function openCheckHW(id, status, comment) {
+        const form = document.getElementById('check-hw-form');
+        form.action = `/homework/edit/${id}/`;
+        document.getElementById('check_status').value = status;
+        document.getElementById('check_comment').value = comment;
+        openModal('check-hw-modal');
+    }
+
+    function togglePayMobile(el, attId) {
+        fetch(`/toggle-pay/${attId}/`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    const balanceVal = document.querySelector('.b-card.positive .b-value');
+                    if (balanceVal) balanceVal.innerText = data.new_balance.toLocaleString() + ' ₽';
+
+                    const debtVal = document.querySelector('.b-card.negative .b-value');
+                    if (debtVal) {
+                        debtVal.innerText = data.new_total_debt.toLocaleString() + ' ₽';
+                        debtVal.closest('.b-card').style.color = data.new_total_debt > 0 ? 'var(--tg-red)' : 'var(--tg-green)';
+                    }
+
+                    const priceCell = el.closest('td');
+                    const icon = el.querySelector('i');
+
+                    if (data.is_paid) {
+                        priceCell.classList.remove('txt-red');
+                        el.classList.add('paid');
+                        icon.className = 'fas fa-check-circle';
+                    } else {
+                        priceCell.classList.add('txt-red');
+                        el.classList.remove('paid');
+                        icon.className = 'fas fa-wallet';
+                    }
+
+                    if (window.navigator.vibrate) window.navigator.vibrate(40);
+                } else if (data.status === 'error') {
+                    alert(data.message);
+                }
+            })
+            .catch(err => console.error("Ошибка оплаты:", err));
+    }
+</script>
 {% endblock %}

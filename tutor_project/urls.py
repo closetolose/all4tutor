@@ -69,6 +69,8 @@ urlpatterns = [
     path('activate/<uidb64>/<token>/', views.activate, name='activate'),
     path('bulk-action/', views.bulk_action_lessons, name='bulk_action'),
     path('group-card/<int:group_id>/', views.group_card, name='group_card'),
+    path('homework/download-all/<int:hw_id>/', views.download_homework_all, name='download_homework_all'),
+    path('homework/delete/<int:hw_id>/', views.delete_homework, name='delete_homework'),
 
 
     path('password-reset/',

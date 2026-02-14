@@ -112,6 +112,7 @@ class Lessons(models.Model):
     materials = models.ManyToManyField('FilesLibrary', blank=True, related_name='lessons_materials')
     reminder_sent = models.BooleanField(default=False)
 
+
     class Meta:
         db_table = 'lessons'
 
@@ -253,6 +254,7 @@ class Homework(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Задано'),
         ('submitted', 'На проверке'),
+        ('revision', 'Доработать'),
         ('completed', 'Выполнено'),
     ]
 
@@ -266,6 +268,7 @@ class Homework(models.Model):
     deadline = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
+    tutor_comment = models.TextField(verbose_name="Комментарий репетитора", null=True, blank=True)
 
     class Meta:
         db_table = 'homework'
@@ -279,5 +282,15 @@ class HomeworkResponse(models.Model):
 
     def __str__(self):
         return f"Ответ от {self.homework.student} на {self.homework.subject}"
+
+
+class TutorStudentNote(models.Model):
+    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='notes_created')
+    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='notes_about_me')
+    text = models.TextField(blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('tutor', 'student')
 
 

@@ -1,19 +1,17 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_right %}
-    <div class="header-icon h-right">
-        <i class="fas fa-search"></i>
-    </div>
+    <div class="header-icon h-right"><i class="fas fa-search"></i></div>
 {% endblock %}
 
 {% block content %}
-<div class="filter-bar-container">
-    <div class="filter-scroll">
-        <a href="?filter=all" class="filter-chip active">Все</a>
-        <a href="?filter=today" class="filter-chip">Сегодня</a>
-        <a href="?filter=tomorrow" class="filter-chip">Завтра</a>
-        <a href="?filter=unpaid" class="filter-chip">Неоплаченные</a>
-        <a href="?filter=groups" class="filter-chip">Группы</a>
+<div class="filter-bar-container" onclick="openModal('filter-modal')">
+    <div class="filter-main-row">
+        <div class="filter-status">
+            <i class="fas fa-sliders-h"></i>
+            <span>Параметры фильтрации</span>
+        </div>
+        <i class="fas fa-chevron-down"></i>
     </div>
 </div>
 
@@ -38,9 +36,7 @@
     {% for lesson in lessons %}
         {% ifchanged lesson.start_time.date %}
         <div class="date-separator">
-            <span>
-                {% if lesson.start_time.date == now.date %}Сегодня{% else %}{{ lesson.start_time|date:"d E, l" }}{% endif %}
-            </span>
+            <span>{% if lesson.start_time.date == now.date %}Сегодня{% else %}{{ lesson.start_time|date:"d E, l" }}{% endif %}</span>
         </div>
         {% endifchanged %}
 
@@ -51,9 +47,7 @@
              ontouchend="handleTouchEnd(this)"
              onclick="handleCardClick(event, this)">
 
-            <div class="selection-indicator">
-                <i class="fas fa-check-circle"></i>
-            </div>
+            <div class="selection-indicator"><i class="fas fa-check-circle"></i></div>
 
             <div class="card-time">
                 <span class="time-main">{{ lesson.start_time|date:"H:i" }}</span>
@@ -63,6 +57,15 @@
             <div class="card-info">
                 <div class="card-row-top">
                     <span class="student-name">{{ lesson.student.first_name }} {{ lesson.student.last_name }}</span>
+                    <div class="attendance-trigger" onclick="openAttendanceModal(event, '{{ lesson.id }}')">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    {% if lesson.materials.exists %}
+                    <a href="{% url 'download_materials' lesson.id %}" class="lesson-file-badge" onclick="event.stopPropagation();">
+                        <i class="fas fa-paperclip"></i>
+                        <span class="file-count">{{ lesson.materials.count }}</span>
+                    </a>
+                    {% endif %}
                     {% if lesson.is_paid %}
                         <i class="fas fa-check-circle status-paid"></i>
                     {% else %}
@@ -74,152 +77,724 @@
                     <span class="lesson-type">{% if lesson.group %}• Группа{% else %}• Индив.{% endif %}</span>
                 </div>
             </div>
-
-            <div class="card-arrow">
-                <i class="fas fa-chevron-right"></i>
-            </div>
+            <div class="card-arrow"><i class="fas fa-chevron-right"></i></div>
         </div>
     {% empty %}
         <div class="empty-state">
             <div class="empty-icon"><i class="fas fa-mug-hot"></i></div>
-            <p>На сегодня уроков нет</p>
+            <p>Уроков пока нет</p>
+            <span>Добавьте первый урок кнопкой ниже</span>
         </div>
     {% endfor %}
 </div>
 
 {% if user.profile.role == 'tutor' %}
-<a href="{% url 'add_lesson' %}" class="fab-btn">
-    <i class="fas fa-plus"></i>
-</a>
+<a href="{% url 'add_lesson' %}" class="fab-btn"><i class="fas fa-plus"></i></a>
 {% endif %}
 
-<div id="mass-edit-modal" class="tg-modal">
+<div id="mass-edit-modal" class="tg-modal" onclick="if(event.target===this)closeMassEditModal()">
     <div class="tg-modal-content">
         <div class="tg-modal-header">
-            <h3>Массовое редактирование</h3>
+            <h3>Массовая правка</h3>
             <button onclick="closeMassEditModal()" class="close-modal">&times;</button>
         </div>
-        <div class="tg-modal-body">
-            <div class="tg-input-group">
-                <label>Новая дата</label>
-                <input type="date" id="m_date" class="tg-modal-input">
+        <div class="tg-modal-scroll">
+            <div class="tg-section-title">Основное</div>
+            <div class="tg-section no-margin">
+                <div class="tg-input-row">
+                    <div class="tg-label">Предмет</div>
+                    <div class="tg-field-wrap">
+                        <select id="m_subject">
+                            <option value="">Не менять</option>
+                            {% for s in my_subjects %}
+                            <option value="{{ s.subject.id }}">{{ s.subject.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="tg-input-row">
+                    <div class="tg-label">Ученик</div>
+                    <div class="tg-field-wrap">
+                        <select id="m_student">
+                            <option value="">Не менять</option>
+                            {% for s in tutor_students %}
+                            <option value="{{ s.id }}">{{ s.first_name }} {{ s.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="tg-input-row last">
+                    <div class="tg-label">Группа</div>
+                    <div class="tg-field-wrap">
+                        <select id="m_group">
+                            <option value="">Не менять</option>
+                            {% for g in tutor_groups %}
+                            <option value="{{ g.id }}">{{ g.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div class="tg-input-group">
-                <label>Новое время</label>
-                <input type="time" id="m_time" class="tg-modal-input">
+
+            <div class="tg-section-title">Расписание и цена</div>
+            <div class="tg-section no-margin">
+                <div class="tg-input-row">
+                    <div class="tg-label">Дата</div>
+                    <div class="tg-field-wrap"><input type="date" id="m_date"></div>
+                </div>
+                <div class="tg-input-row">
+                    <div class="tg-label">Время</div>
+                    <div class="tg-field-wrap"><input type="time" id="m_time"></div>
+                </div>
+                <div class="tg-input-row">
+                    <div class="tg-label">Цена</div>
+                    <div class="tg-field-wrap"><input type="number" id="m_price" placeholder="₽"></div>
+                </div>
+                <div class="tg-input-row last">
+                    <div class="tg-label">Длит.</div>
+                    <div class="tg-field-wrap"><input type="number" id="m_duration" placeholder="мин"></div>
+                </div>
             </div>
-            <div class="tg-input-group">
-                <label>Цена (₽)</label>
-                <input type="number" id="m_price" class="tg-modal-input" placeholder="Оставьте пустым, если не меняется">
+
+            {% if files %}
+            <div class="tg-section-title">Материалы</div>
+            <div class="tg-section no-margin">
+                <div class="materials-grid">
+                    {% for f in files %}
+                    <label class="material-item {% if forloop.last %}last{% endif %}">
+                        <input type="checkbox" name="m_files" value="{{ f.id }}">
+                        <span>{{ f.file_name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
             </div>
-            <div class="tg-input-group">
-                <label>Длительность (мин)</label>
-                <input type="number" id="m_duration" class="tg-modal-input" placeholder="Напр: 60">
-            </div>
-            <p class="tg-hint">Будут изменены только заполненные поля</p>
-            <button onclick="confirmMassEdit()" class="tg-modal-btn">Применить к выбранным</button>
+            {% endif %}
+
+            <button onclick="confirmMassEdit()" class="tg-modal-btn">Применить изменения</button>
         </div>
     </div>
 </div>
 
+<div id="attendance-modal" class="tg-modal" style="display: none;">
+    <div class="tg-modal-content">
+        <div class="tg-modal-header">
+            <h3>Посещаемость</h3>
+            <button onclick="closeAttendanceModal()" class="close-modal">&times;</button>
+        </div>
+        <div id="attendance-list" class="attendance-list-container">
+            </div>
+        <button onclick="closeAttendanceModal()" class="tg-modal-btn">Готово</button>
+    </div>
+</div>
+
+<div id="filter-modal" class="tg-modal">
+    <div class="tg-modal-content">
+        <div class="tg-modal-header">
+            <h3>Фильтры занятий</h3>
+            <button onclick="closeModal('filter-modal')" class="close-modal">&times;</button>
+        </div>
+        <form method="GET" action="{% url 'index' %}" class="tg-modal-scroll">
+
+            <div class="tg-section-title">Кому назначено</div>
+            <div class="tg-section no-margin">
+                <div class="tg-input-row last">
+                    <div class="tg-field-wrap">
+                        <select name="target" style="text-align: left;">
+                            <option value="">Все ученики и группы</option>
+                            <optgroup label="Ученики">
+                                {% for s in tutor_students %}
+                                <option value="s_{{ s.id }}" {% if request.GET.target == 's_'|add:s.id %}selected{% endif %}>
+                                    {{ s.first_name }} {{ s.last_name }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="Группы">
+                                {% for g in tutor_groups %}
+                                <option value="g_{{ g.id }}" {% if request.GET.target == 'g_'|add:g.id %}selected{% endif %}>
+                                    {{ g.name }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tg-section-title">Предмет</div>
+            <div class="tg-section no-margin">
+                <div class="tg-input-row last">
+                    <div class="tg-field-wrap">
+                        <select name="subject" style="text-align: left;">
+                            <option value="">Любой предмет</option>
+                            {% for ms in my_subjects %}
+                            <option value="{{ ms.subject.id }}" {% if request.GET.subject == ms.subject.id|stringformat:"i" %}selected{% endif %}>
+                                {{ ms.subject.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tg-section-title">Период (С - ПО)</div>
+            <div class="tg-section no-margin">
+                <div class="tg-input-row">
+                    <div class="tg-label">С</div>
+                    <div class="tg-field-wrap"><input type="date" name="date_from" value="{{ request.GET.date_from }}"></div>
+                </div>
+                <div class="tg-input-row last">
+                    <div class="tg-label">По</div>
+                    <div class="tg-field-wrap"><input type="date" name="date_to" value="{{ request.GET.date_to }}"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <a href="{% url 'index' %}" class="tg-modal-btn" style="background: var(--tg-sidebar); color: var(--tg-hint); text-decoration: none; text-align: center;">Сбросить</a>
+                <button type="submit" class="tg-modal-btn">Применить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+{{ attendance_map_json|json_script:"attendance-data" }}
+
 <style>
-    /* Базовые стили */
-    .filter-bar-container { background: rgba(15, 23, 42, 0.95); padding: 10px 0; position: sticky; top: 56px; z-index: 900; border-bottom: 1px solid var(--tg-separator); backdrop-filter: blur(5px); }
-    .filter-scroll { display: flex; gap: 8px; padding: 0 15px; overflow-x: auto; scrollbar-width: none; }
-    .filter-chip { display: inline-block; padding: 6px 14px; background-color: var(--tg-sidebar); color: var(--tg-hint); border: 1px solid var(--tg-separator); border-radius: 20px; font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
-    .filter-chip.active { background-color: var(--tg-active); color: white; border-color: var(--tg-active); }
+    .filter-bar-container {
+        background: #000;
+        padding: 10px 0;
+        position: sticky;
+        top: 56px;
+        z-index: 900;
+        border-bottom: 1px solid var(--tg-separator);
+    }
+      .filter-bar-container {
+    background: #000;
+    padding: 12px 16px;
+    position: sticky;
+    top: 56px;
+    z-index: 900;
+    border-bottom: 1px solid var(--tg-separator);
+}
 
-    .lesson-list { padding-bottom: 100px; }
-    .date-separator { position: sticky; top: 105px; z-index: 800; text-align: center; margin: 15px 0 10px; pointer-events: none; }
-    .date-separator span { background: rgba(30, 41, 59, 0.85); color: var(--tg-hint); padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; border: 1px solid var(--tg-separator); }
+.filter-main-row {
+    background: var(--tg-sidebar);
+    border: 1px solid var(--tg-separator);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+}
 
-    .lesson-card { display: flex; align-items: center; gap: 15px; background: var(--tg-sidebar); margin: 0 15px 10px; padding: 15px; border-radius: 16px; border: 1px solid var(--tg-separator); position: relative; cursor: pointer; user-select: none; -webkit-user-select: none; transition: transform 0.1s; }
-    .lesson-card:active { transform: scale(0.98); }
+.filter-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+}
 
-    /* Состояния выделения */
-    .selection-indicator { display: none; position: absolute; top: -8px; right: -8px; color: var(--tg-active); background: white; border-radius: 50%; font-size: 22px; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-    .lesson-card.selected { border-color: var(--tg-active); background: rgba(99, 102, 241, 0.1) !important; }
-    .lesson-card.selected .selection-indicator { display: block; }
-    .lesson-card.long-pressing { transform: scale(0.96); }
+.filter-status i {
+    color: var(--tg-active);
+}
 
-    .card-time { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 14px; background: rgba(99, 102, 241, 0.1); color: var(--tg-active); border: 1px solid rgba(99, 102, 241, 0.2); flex-shrink: 0; }
-    .time-main { font-weight: 800; font-size: 15px; }
-    .time-dur { font-size: 10px; opacity: 0.8; }
+/* Фикс для селектов внутри модалки */
+.tg-input-row select {
+    text-align-last: left;
+    padding-left: 0;
+}
+    .filter-scroll {
+        display: flex; gap: 8px; padding: 0 15px;
+        overflow-x: auto; scrollbar-width: none;
+    }
+    .filter-scroll::-webkit-scrollbar { display: none; }
+    .filter-chip {
+        display: inline-block; padding: 7px 16px;
+        background: var(--tg-sidebar); color: var(--tg-hint);
+        border: 1px solid var(--tg-separator);
+        border-radius: 20px; font-size: 13px; font-weight: 600;
+        text-decoration: none; white-space: nowrap; transition: 0.2s;
+    }
+    .filter-chip.active {
+        background: var(--tg-active); color: white;
+        border-color: var(--tg-active);
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35);
+    }
+        /* Кнопка на карточке */
+    .attendance-btn-trigger {
+        position: absolute;
+        top: 50%;
+        right: 40px; /* Слева от стрелочки */
+        transform: translateY(-50%);
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(99, 102, 241, 0.1);
+        border-radius: 10px;
+        color: var(--tg-active);
+        z-index: 5;
+    }
+
+    /* Кнопка в домашке */
+    .hw-files-section { margin-top: 12px; }
+    .btn-download-zip {
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        background: rgba(99, 102, 241, 0.1); color: var(--tg-active);
+        border: 1px solid var(--tg-active); padding: 12px;
+        border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 700;
+    }
+    .btn-download-zip:active { background: var(--tg-active); color: white; }
+
+    /* Бейдж в списке уроков */
+    .lesson-file-badge {
+        display: flex; align-items: center; gap: 4px;
+        background: #0f172a; border: 1px solid var(--tg-separator);
+        color: var(--tg-active); padding: 6px 10px; border-radius: 8px;
+        text-decoration: none; font-size: 12px; margin-right: 8px;
+    }
+    .file-count { font-weight: 800; font-size: 10px; }
+
+    /* Элементы в модалке */
+    .attendance-item {
+        display: flex; justify-content: space-between; align-items: center;
+        background: #0f172a; padding: 15px; border-radius: 12px;
+        margin-bottom: 10px; border: 1px solid var(--tg-separator);
+    }
+    .status-toggle {
+        width: 32px; height: 32px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(248, 113, 113, 0.1); color: var(--tg-red);
+    }
+    .status-toggle.present {
+        background: rgba(34, 197, 94, 0.1); color: var(--tg-green);
+    }
+    .lesson-list { padding: 5px 0 100px; }
+
+    .date-separator {
+        position: sticky; top: 105px;
+        z-index: 800; text-align: center;
+        margin: 18px 0 10px; pointer-events: none;
+    }
+    .date-separator span {
+        background: rgba(30, 41, 59, 0.9);
+        color: var(--tg-hint);
+        padding: 5px 14px; border-radius: 12px;
+        font-size: 11px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.3px;
+        backdrop-filter: blur(8px); border: 1px solid var(--tg-separator);
+    }
+
+    .lesson-card {
+        position: relative;
+        display: flex; align-items: center; gap: 14px;
+        background: var(--tg-sidebar);
+        margin: 0 12px 8px; padding: 14px 15px;
+        border-radius: 16px; border: 1px solid var(--tg-separator);
+        transition: transform 0.1s, border-color 0.2s, background 0.2s;
+        cursor: pointer;
+        -webkit-user-select: none; user-select: none;
+    }
+    .lesson-card:active { transform: scale(0.97); background: #28364d; }
+    .lesson-card.selected {
+        border-color: var(--tg-active);
+        background: rgba(99, 102, 241, 0.08);
+    }
+
+    .selection-indicator {
+        display: none;
+        position: absolute; top: -6px; right: -6px;
+        color: var(--tg-active); background: #000;
+        border-radius: 50%; font-size: 20px; z-index: 10;
+        width: 24px; height: 24px;
+        align-items: center; justify-content: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
+    .lesson-card.selected .selection-indicator {
+        display: flex;
+        animation: popIn 0.2s ease-out;
+    }
+    @keyframes popIn {
+        from { transform: scale(0); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    .card-time {
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        width: 52px; height: 52px; border-radius: 14px;
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--tg-active);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        flex-shrink: 0;
+    }
+    .time-main { font-weight: 800; font-size: 15px; line-height: 1; }
+    .time-dur { font-size: 10px; opacity: 0.7; margin-top: 2px; }
+
     .card-info { flex-grow: 1; min-width: 0; }
-    .student-name { font-size: 16px; font-weight: 700; color: white; display: block; }
-    .subject-name { color: var(--tg-hint); font-size: 13px; }
-    .status-paid { color: var(--tg-green); }
-    .price-tag { font-size: 14px; font-weight: 700; color: white; }
+    .card-row-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .student-name { font-size: 15px; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+    .price-tag { font-size: 14px; font-weight: 700; color: var(--tg-text); white-space: nowrap; }
+    .status-paid { color: var(--tg-green); font-size: 14px; }
+    .card-row-bot { display: flex; align-items: center; font-size: 13px; color: var(--tg-hint); }
+    .subject-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+    .lesson-type { margin-left: 5px; opacity: 0.7; }
+    .card-arrow { color: var(--tg-separator); font-size: 12px; margin-left: auto; flex-shrink: 0; }
 
-    .selection-toolbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--tg-sidebar); height: 70px; display: none; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 3000; border-top: 2px solid var(--tg-active); }
-    .selection-info { display: flex; align-items: center; gap: 15px; color: white; font-weight: 700; }
-    .close-selection { background: none; border: none; color: var(--tg-hint); font-size: 20px; }
-    .selection-actions { display: flex; gap: 15px; }
-    .selection-actions button { width: 44px; height: 44px; border-radius: 12px; border: none; color: white; font-size: 18px; }
-    .btn-bulk-delete { background: var(--tg-red); }
-    .btn-bulk-edit { background: var(--tg-active); }
+    .fab-btn {
+        position: fixed; bottom: 28px; right: 20px;
+        width: 58px; height: 58px;
+        background: var(--tg-active); color: white; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 22px;
+        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+        text-decoration: none; z-index: 2000;
+        transition: transform 0.2s;
+    }
+    .fab-btn:active { transform: scale(0.88); }
 
-    .fab-btn { position: fixed; bottom: 30px; right: 25px; width: 60px; height: 60px; background: var(--tg-active); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); z-index: 2000; }
+    .empty-state { text-align: center; padding: 80px 20px; color: var(--tg-hint); }
+    .empty-icon { font-size: 44px; margin-bottom: 16px; opacity: 0.25; }
+    .empty-state p { font-size: 16px; font-weight: 700; margin: 0 0 6px; color: white; }
+    .empty-state span { font-size: 13px; }
+
+    .selection-toolbar {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: var(--tg-sidebar);
+        height: 64px;
+        display: none; align-items: center; justify-content: space-between;
+        padding: 0 16px;
+        z-index: 3000;
+        border-top: 1px solid var(--tg-active);
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+        animation: slideUp 0.25s ease-out;
+    }
+    @keyframes slideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+    .selection-info { display: flex; align-items: center; gap: 12px; }
+    .close-selection {
+        background: none; border: none; color: var(--tg-hint);
+        font-size: 18px; padding: 8px; cursor: pointer;
+    }
+    #selected-count { color: white; font-size: 15px; font-weight: 600; }
+    .selection-actions { display: flex; gap: 8px; }
+    .btn-bulk-delete, .btn-bulk-edit {
+        width: 44px; height: 44px; border-radius: 12px;
+        border: none; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px; transition: 0.15s;
+    }
+    .btn-bulk-delete { background: rgba(248,113,113,0.15); color: var(--tg-red); }
+    .btn-bulk-delete:active { background: rgba(248,113,113,0.3); }
+    .btn-bulk-edit { background: rgba(99,102,241,0.15); color: var(--tg-active); }
+    .btn-bulk-edit:active { background: rgba(99,102,241,0.3); }
 
     .tg-modal {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 4000;
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(4px);
+        display: none; align-items: flex-end;
+        z-index: 4000;
     }
     .tg-modal-content {
-        background: var(--tg-sidebar); width: 90%; max-width: 400px; border-radius: 20px; padding: 20px;
+        background: var(--tg-bg);
+        width: 100%; max-height: 85vh;
+        border-radius: 20px 20px 0 0;
+        overflow: hidden;
+        display: flex; flex-direction: column;
+        animation: modalUp 0.3s ease-out;
     }
-    .tg-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .tg-modal-header h3 { margin: 0; color: white; font-size: 18px; }
-    .tg-input-group { margin-bottom: 15px; }
-    .tg-input-group label { display: block; color: var(--tg-hint); font-size: 12px; margin-bottom: 5px; }
-    .tg-modal-input {
-        width: 100%; background: #0f172a; border: 1px solid var(--tg-separator);
-        color: white; padding: 12px; border-radius: 10px; outline: none; box-sizing: border-box;
+    @keyframes modalUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
     }
+    .tg-modal-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 18px 20px 14px;
+        border-bottom: 1px solid var(--tg-separator);
+        flex-shrink: 0;
+    }
+    .tg-modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: white; }
+    .close-modal {
+        background: none; border: none; color: var(--tg-hint);
+        font-size: 26px; cursor: pointer; padding: 0 4px;
+        line-height: 1;
+    }
+    .tg-modal-scroll {
+        overflow-y: auto; padding: 15px 15px 40px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .tg-section-title {
+        font-size: 12px; font-weight: 700; color: var(--tg-hint);
+        text-transform: uppercase; letter-spacing: 0.5px;
+        padding: 12px 4px 6px;
+    }
+    .tg-section.no-margin {
+        margin: 0; border-radius: 14px; overflow: hidden;
+        border: 1px solid var(--tg-separator);
+    }
+    .tg-input-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--tg-separator);
+        background: var(--tg-sidebar);
+    }
+    .tg-input-row.last { border-bottom: none; }
+    .tg-label { font-size: 15px; color: white; font-weight: 500; flex-shrink: 0; }
+    .tg-field-wrap { flex: 1; text-align: right; }
+    .tg-input-row input, .tg-input-row select {
+        background: transparent; border: none;
+        color: var(--tg-active); text-align: right;
+        font-size: 15px; outline: none; width: 100%;
+        font-family: inherit;
+    }
+    .tg-input-row select option { background: var(--tg-sidebar); color: white; }
+
+    .materials-grid {
+        display: grid; grid-template-columns: 1fr;
+        background: var(--tg-sidebar); border-radius: 14px;
+        overflow: hidden; border: 1px solid var(--tg-separator);
+    }
+    .material-item {
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--tg-separator);
+        display: flex; align-items: center; gap: 12px;
+        color: white; font-size: 14px; cursor: pointer;
+    }
+    .material-item.last { border-bottom: none; }
+    .material-item input[type="checkbox"] {
+        width: 18px; height: 18px;
+        accent-color: var(--tg-active);
+        flex-shrink: 0;
+    }
+    .material-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
     .tg-modal-btn {
-        width: 100%; background: var(--tg-active); color: white; border: none;
-        padding: 15px; border-radius: 12px; font-weight: 700; margin-top: 10px;
+        background: var(--tg-active); color: white;
+        border: none; padding: 16px; border-radius: 14px;
+        width: 100%; font-weight: 700; font-size: 15px;
+        margin-top: 20px; cursor: pointer;
+        font-family: inherit;
+        transition: 0.15s;
     }
-    .tg-hint { font-size: 11px; color: var(--tg-hint); text-align: center; }
+    .tg-modal-btn:active { opacity: 0.85; transform: scale(0.98); }
+    .attendance-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: var(--tg-sidebar);
+    border: 1px solid var(--tg-separator);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    transition: background 0.2s;
+}
+.attendance-item:active { background: rgba(255,255,255,0.05); }
+
+.status-checkbox {
+    font-size: 24px;
+    color: var(--tg-hint); /* Серый круг по умолчанию */
+}
+.status-checkbox.is-present {
+    color: var(--tg-green); /* Зеленая галочка при присутствии */
+}
 </style>
 
 <script>
-   function openMassEdit() {
-    if (selectedLessons.size === 0) return;
-    document.getElementById('mass-edit-modal').style.display = 'flex';
-}
+    let pressTimer, isSelectionMode = false, selectedLessons = new Set();
 
-function closeMassEditModal() {
-    document.getElementById('mass-edit-modal').style.display = 'none';
-}
+    function handleTouchStart(e, el) {
+        if (isSelectionMode) return;
+        el.style.transform = "scale(0.97)";
+        pressTimer = window.setTimeout(() => {
+            isSelectionMode = true;
+            if (window.navigator.vibrate) window.navigator.vibrate(50);
+            toggleSelection(el);
+            document.getElementById('selection-bar').style.display = 'flex';
+        }, 600);
+    }
 
-// Отправить форму
-function confirmMassEdit() {
-    const form = document.getElementById('bulk-action-form');
+    function handleTouchEnd(el) {
+        clearTimeout(pressTimer);
+        el.style.transform = "scale(1)";
+    }
 
-    // Привязываем данные из модалки к скрытой форме
-    document.getElementById('lesson_ids_input').value = Array.from(selectedLessons).join(',');
-    document.getElementById('action_type_input').value = 'mass_edit';
+    function toggleSelection(el) {
+        const id = el.getAttribute('data-id');
+        if (selectedLessons.has(id)) {
+            selectedLessons.delete(id);
+            el.classList.remove('selected');
+        } else {
+            selectedLessons.add(id);
+            el.classList.add('selected');
+        }
+        document.getElementById('selected-count').innerText = "Выбрано: " + selectedLessons.size;
+        if (selectedLessons.size === 0) cancelSelection();
+    }
 
-    // Создаем временные скрытые инпуты для передачи данных
-    const fields = {
-        'mass_date': document.getElementById('m_date').value,
-        'mass_time': document.getElementById('m_time').value,
-        'mass_price': document.getElementById('m_price').value,
-        'mass_duration': document.getElementById('m_duration').value
-    };
-
-    for (let key in fields) {
-        if (fields[key]) {
-            let input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = fields[key];
-            form.appendChild(input);
+    function handleCardClick(e, el) {
+        if (isSelectionMode) {
+            toggleSelection(el);
+        } else {
+            window.location.href = "/lesson/edit/" + el.getAttribute('data-id') + "/";
         }
     }
 
-    form.submit();
+    function cancelSelection() {
+        isSelectionMode = false;
+        selectedLessons.clear();
+        document.querySelectorAll('.lesson-card').forEach(c => c.classList.remove('selected'));
+        document.getElementById('selection-bar').style.display = 'none';
+    }
+
+    function openMassEdit() {
+        document.getElementById('mass-edit-modal').style.display = 'flex';
+    }
+
+    function closeMassEditModal() {
+        document.getElementById('mass-edit-modal').style.display = 'none';
+    }
+
+    function confirmMassEdit() {
+        const form = document.getElementById('bulk-action-form');
+        document.getElementById('lesson_ids_input').value = Array.from(selectedLessons).join(',');
+        document.getElementById('action_type_input').value = 'mass_edit';
+
+        const fields = {
+            'mass_subject': document.getElementById('m_subject').value,
+            'mass_student': document.getElementById('m_student').value,
+            'mass_group': document.getElementById('m_group').value,
+            'mass_date': document.getElementById('m_date').value,
+            'mass_time': document.getElementById('m_time').value,
+            'mass_price': document.getElementById('m_price').value,
+            'mass_duration': document.getElementById('m_duration').value
+        };
+
+        for (let key in fields) {
+            if (fields[key]) {
+                let input = document.createElement('input');
+                input.type = 'hidden'; input.name = key; input.value = fields[key];
+                form.appendChild(input);
+            }
+        }
+
+        document.querySelectorAll('input[name="m_files"]:checked').forEach(cb => {
+            let input = document.createElement('input');
+            input.type = 'hidden'; input.name = 'materials'; input.value = cb.value;
+            form.appendChild(input);
+        });
+
+        form.submit();
+    }
+
+    function submitBulkAction(type) {
+        if (type === 'delete' && !confirm('Удалить выбранные уроки?')) return;
+        document.getElementById('lesson_ids_input').value = Array.from(selectedLessons).join(',');
+        document.getElementById('action_type_input').value = type;
+        document.getElementById('bulk-action-form').submit();
+    }
+
+    function openAttendanceModal(e, lessonId) {
+    e.stopPropagation(); // Важно: чтобы не сработал переход по ссылке карточки
+
+    // Получаем данные из безопасного скрипта
+    const allData = JSON.parse(document.getElementById('attendance-data').textContent);
+    const students = allData[lessonId] || [];
+    const container = document.getElementById('attendance-list');
+
+    container.innerHTML = students.length ? students.map(s => `
+        <div class="attendance-item" onclick="toggleStudentPresence(this, '${s.id}')">
+            <span>${s.name}</span>
+            <div class="status-toggle ${s.present ? 'present' : ''}">
+                <i class="fas ${s.present ? 'fa-check' : 'fa-times'}"></i>
+            </div>
+        </div>
+    `).join('') : '<p class="empty-state">Ученики не назначены</p>';
+
+    document.getElementById('attendance-modal').style.display = 'flex';
 }
+
+function handleCardClick(event, element) {
+    if (isSelectionMode) {
+        toggleSelection(element);
+    } else {
+        const lessonId = element.getAttribute('data-id');
+        // ИСПРАВЛЕН ПУТЬ: вместо /edit-lesson/ теперь /lesson/edit/
+        // Это исправит твою ошибку 404 со скриншота
+        window.location.href = `/lesson/edit/${lessonId}/`;
+    }
+}
+    // ФУНКЦИЯ ЗАКРЫТИЯ (для крестика и кнопки Готово)
+    function closeAttendanceModal() {
+        const modal = document.getElementById('attendance-modal');
+        modal.style.display = 'none';
+    }
+
+    // ФУНКЦИЯ ОТКРЫТИЯ
+    function openAttendanceModal(e, lessonId) {
+        if (e) e.stopPropagation(); // Останавливаем клик по карточке
+
+        const dataElement = document.getElementById('attendance-data');
+        if (!dataElement) {
+            console.error("Данные посещаемости не найдены!");
+            return;
+        }
+
+        const allData = JSON.parse(dataElement.textContent);
+        const students = allData[lessonId] || [];
+        const container = document.getElementById('attendance-list');
+
+        // Рисуем список с "галочками"
+        container.innerHTML = students.length ? students.map(s => `
+            <div class="attendance-item" onclick="toggleStudentPresence(this, '${s.id}')">
+                <span class="student-name">${s.name}</span>
+                <div class="status-checkbox ${s.present ? 'is-present' : ''}">
+                    <i class="fas ${s.present ? 'fa-check-circle' : 'fa-circle'}"></i>
+                </div>
+            </div>
+        `).join('') : '<p class="empty-state">Ученики не назначены</p>';
+
+        document.getElementById('attendance-modal').style.display = 'flex';
+    }
+
+    // ЛОГИКА ГАЛОЧКИ (БЕЗ ПЕРЕЗАГРУЗКИ)
+    async function toggleStudentPresence(element, attendanceId) {
+        const checkbox = element.querySelector('.status-checkbox');
+        const icon = checkbox.querySelector('i');
+
+        try {
+            const response = await fetch(`/toggle-presence/${attendanceId}/`);
+            const result = await response.json();
+
+            if (result.status === 'ok') {
+                if (result.was_present) {
+                    checkbox.classList.add('is-present');
+                    icon.className = 'fas fa-check-circle';
+                } else {
+                    checkbox.classList.remove('is-present');
+                    icon.className = 'fas fa-circle';
+                }
+                // Легкая вибрация при нажатии
+                if (window.navigator.vibrate) window.navigator.vibrate(30);
+            }
+        } catch (error) {
+            console.error("Ошибка:", error);
+        }
+    }
+    function openModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.style.display = 'none';
+}
+
 </script>
 {% endblock %}

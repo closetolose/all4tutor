@@ -33,7 +33,23 @@
     }
     @keyframes pulse { 0% { opacity: 1; transform: translateY(-50%) scale(1); } 100% { opacity: 0; transform: translateY(-50%) scale(2.5); } }
 
-    .status-completed { background: #dcfce7; color: #166534; }
+        .status-completed { background: #dcfce7; color: #166534; }
+        .hw-tutor-note {
+        margin-top: 8px;
+        padding: 6px 10px;
+        background: #f8fafc; /* Светло-серый фон */
+        border-left: 3px solid #6366f1; /* Индиго полоска слева */
+        border-radius: 4px;
+        font-size: 0.85rem;
+        color: #475569;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    .hw-tutor-note i {
+        color: #6366f1;
+        margin-top: 2px;
+    }
 </style>
 
 <div style="display: flex; gap: 25px; align-items: flex-start;">
@@ -62,6 +78,20 @@
                     <span class="detail-label">Тел. родителя</span>
                     <span class="detail-value">{{ student.parent_phone|default:"-" }}</span>
                 </div>
+            </div>
+            <div class="card" style="margin-top: 20px; border-top: 4px solid #f59e0b;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="font-size: 14px; font-weight: 800; margin: 0;"><i class="fas fa-sticky-note" style="color: #f59e0b;"></i> ЗАМЕТКИ </h3>
+                    <button type="submit" form="noteForm" class="btn-icon-small" title="Сохранить"><i class="fas fa-save"></i></button>
+                </div>
+
+                <form id="noteForm" method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="save_tutor_note" value="1">
+                    <textarea name="tutor_note_text"
+                              placeholder="Напишите здесь важные особенности ученика..."
+                              style="width: 100%; height: 120px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 13px; resize: none; background: #fffbeb;">{{ tutor_note|default:"" }}</textarea>
+                </form>
             </div>
 
             <div class="info-stat-card balance-box">
@@ -162,14 +192,12 @@
                             </td>
                             <td style="font-size: 13px;">{{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}</td>
                             <td>
-                                <a href="{% url 'toggle_hw_status' hw.id %}" style="text-decoration: none;">
-                                    <span class="badge-hw
-                                        {% if hw.status == 'pending' %}status-pending
-                                        {% elif hw.status == 'submitted' %}status-submitted
-                                        {% else %}status-completed{% endif %}">
-                                        {{ hw.get_status_display }}
-                                    </span>
-                                </a>
+                                <select class="hw-status-select {{ hw.status }}" onchange="updateHwStatus('{{ hw.id }}', this.value)">
+                                    <option value="pending" {% if hw.status == 'pending' %}selected{% endif %}>Задано</option>
+                                    <option value="submitted" {% if hw.status == 'submitted' %}selected{% endif %}>На проверке</option>
+                                    <option value="revision" {% if hw.status == 'revision' %}selected{% endif %}>Доработать</option>
+                                    <option value="completed" {% if hw.status == 'completed' %}selected{% endif %}>Проверено</option>
+                                </select>
                             </td>
                             <td style="text-align: center;">
                                 <div style="display: flex; gap: 12px; justify-content: center;">
@@ -262,6 +290,13 @@
                     </label>
                     {% endfor %}
                 </div>
+                <div class="hw-task-text">{{ hw.description }}</div>
+                    {% if hw.tutor_comment %}
+                    <div class="hw-tutor-note">
+                        <i class="fas fa-comment-dots"></i>
+                        <span>Заметка: {{ hw.tutor_comment }}</span>
+                    </div>
+                    {% endif %}
             </div>
             <button type="submit" class="btn btn-primary" style="width: 100%;">Сохранить изменения</button>
         </form>
@@ -343,5 +378,20 @@
     }
 
     window.onclick = function(event) { if (event.target.classList.contains('modal-overlay')) { event.target.classList.remove('active'); } }
+    function updateHwStatus(hwId, newStatus) {
+    const formData = new FormData();
+    formData.append('status', newStatus);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch(`/homework/edit/${hwId}/`, { // Твой URL для редактирования ДЗ
+        method: 'POST',
+        body: formData
+    }).then(response => {
+        if (response.ok) {
+            // Меняем цвет рамки/фона селекта после выбора
+            event.target.className = `hw-status-select ${newStatus}`;
+        }
+    });
+}
 </script>
 {% endblock %}

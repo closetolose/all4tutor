@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from .models import Lessons, Users, Subjects, TutorSubjects, ConnectionRequest, StudentTariff, LessonAttendance, \
-    Transaction, FilesLibrary, Homework, HomeworkResponse
+    Transaction, FilesLibrary, Homework, HomeworkResponse, TutorStudentNote
 from .forms import AddSubjectForm, RegistrationForm, ProfileUpdateForm, AddLessonForm
 from django.contrib.auth.models import User as AuthUser
 from .models import Users as Profile
@@ -35,6 +35,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.template.loader import get_template
 from django.template import TemplateDoesNotExist
 from django.db import transaction
+from django.http import FileResponse
 @login_required
 def index(request):
 
@@ -48,6 +49,7 @@ def index(request):
     student_debt = 0
     profile = request.user.profile
     homeworks = []
+    attendance_map = []
 
     try:
         user_profile = request.user.profile
@@ -62,7 +64,16 @@ def index(request):
         ))
         for t in tariffs_list: t['price'] = float(t['price'])
         # Базовый запрос: все занятия репетитора
-        lessons_list = Lessons.objects.filter(tutor=user_profile).order_by('start_time')
+        lessons_list = Lessons.objects.filter(tutor=user_profile).prefetch_related('attendances__student').order_by('start_time')
+        attendance_map = {}
+        for lesson in lessons_list:
+            attendance_map[str(lesson.id)] = [
+                {
+                    "id": att.id,
+                    "name": f"{att.student.first_name} {att.student.last_name}",
+                    "present": att.was_present
+                } for att in lesson.attendances.all()
+            ]
 
         # 1. Фильтр по ученику или группе (через префиксы s_ и g_)
         target = request.GET.get('target')
@@ -171,6 +182,7 @@ def index(request):
         'files': files,
         'student_debt': student_debt,
         'homeworks' : homeworks,
+        'attendance_map_json': attendance_map,
 
     }
 
@@ -183,32 +195,36 @@ def register(request):
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
         if form.is_valid():
-            # 1. Создаем пользователя (ДЕАКТИВИРОВАННЫМ)
-            user = form.save(commit=False)
-            user.set_password(form.cleaned_data['password'])
-            user.is_active = False
-            user.save()
-
-            # 2. Создаем Профиль
-            # УБРАЛИ ПОВТОР user=user из image_67be83.png
-            Users.objects.create(
-                user=user,
-                role=form.cleaned_data['role']
-            )
-
-            # 3. Отправка письма (ТЕПЕРЬ ВНУТРИ if form.is_valid)
             try:
-                send_verification_email(request, user)
-                # Если всё ок — перекидываем на страницу ожидания
+                # Все действия ниже будут либо выполнены полностью, либо не выполнены вовсе
+                with transaction.atomic():
+                    # 1. Создаем пользователя (ДЕАКТИВИРОВАННЫМ)
+                    user = form.save(commit=False)
+                    user.set_password(form.cleaned_data['password'])
+                    user.is_active = False # Юзер не активен до подтверждения почты
+                    user.save()
+
+                    # 2. Создаем Профиль (Связываем с созданным юзером)
+                    Users.objects.create(
+                        user=user,
+                        role=form.cleaned_data['role']
+                    )
+
+                    # 3. Отправляем письмо подтверждения
+                    # Если send_verification_email вызовет ошибку, транзакция откатится,
+                    # и User вместе с Profile удалятся из базы автоматически.
+                    send_verification_email(request, user)
+
+                # Если выполнение дошло до этой точки, транзакция успешно "закоммичена"
                 return render(request, 'core/registration_pending.html', {'email': user.email})
+
             except Exception as e:
-                # Если почта не ушла, удаляем юзера, чтобы он мог регаться снова
-                print(f"Ошибка почты: {e}")
-                user.delete()
-                messages.error(request, "Ошибка при отправке письма. Попробуйте позже.")
-                return redirect('register')
+                # Сюда попадем, если упала база или не ушла почта
+                print(f"Ошибка регистрации (транзакция откачена): {e}")
+                messages.error(request, "Произошла ошибка при регистрации. Попробуйте еще раз.")
+                # Оставляем пользователя на странице регистрации, база при этом чиста
         else:
-            # ТУТ САМОЕ ВАЖНОЕ: если форма не валидна, мы увидим почему
+            # Ошибки валидации (например, пароли не совпали)
             print("ОШИБКИ ФОРМЫ:", form.errors)
     else:
         form = RegistrationForm()
@@ -582,6 +598,7 @@ def bulk_action_lessons(request):
             new_duration = request.POST.get('mass_duration')
             new_price = request.POST.get('mass_price')
             selected_materials = request.POST.getlist('materials')
+            new_notes = request.POST.get('notes')
 
             with transaction.atomic():
                 for lesson in queryset:
@@ -606,6 +623,7 @@ def bulk_action_lessons(request):
                     if new_subject: lesson.subject_id = new_subject
                     if new_duration: lesson.duration = int(new_duration)
                     if new_price: lesson.price = Decimal(new_price)
+                    if new_notes: lesson.notes = new_notes
 
                     lesson.save()
 
@@ -623,7 +641,7 @@ def bulk_action_lessons(request):
                         attendances = [LessonAttendance(lesson=lesson, student=s) for s in students_to_add]
                         LessonAttendance.objects.bulk_create(attendances)
 
-            messages.success(request, f"Обновлено занятий: {queryset.count()}")
+        messages.success(request, f"Обновлено занятий: {queryset.count()}")
 
     return redirect('index')
 
@@ -694,6 +712,7 @@ def student_card(request, student_id):
     tutor = request.user.profile
     student = get_object_or_404(Users, id=student_id)
     now = timezone.now()
+    note_obj, created = TutorStudentNote.objects.get_or_create(tutor=tutor, student=student)
 
     # 1. Обработка пополнения баланса (твой существующий код)
     if request.method == 'POST' and 'update_balance' in request.POST:
@@ -708,6 +727,11 @@ def student_card(request, student_id):
         student.save()
         messages.success(request, f"Баланс пополнен")
         return redirect('student_card', student_id=student.id)
+    if request.method == 'POST' and 'save_tutor_note' in request.POST:
+        note_obj.text = request.POST.get('tutor_note_text')
+        note_obj.save()
+        messages.success(request, "Заметка сохранена")
+        return redirect('student_card', student_id=student.id)
 
     # 2. Данные для журнала оплат (твой существующий код)
     attendances = LessonAttendance.objects.filter(
@@ -717,7 +741,7 @@ def student_card(request, student_id):
     total_debt = attendances.filter(is_paid=False).aggregate(total=Sum('lesson__price'))['total'] or 0
 
     # 3. НОВОЕ: Данные для блока ДЗ и материалов
-    homeworks = Homework.objects.filter(student=student, tutor=tutor).order_by('-created_at')
+    homeworks = Homework.objects.filter(student=student, tutor=tutor).prefetch_related('files', 'responses').order_by('-created_at')
     # Файлы репетитора для выбора в модалке задания ДЗ
     tutor_files = FilesLibrary.objects.filter(tutor=tutor).order_by('-upload_date')
     # Предметы, по которым репетитор может задать ДЗ
@@ -731,7 +755,8 @@ def student_card(request, student_id):
         'tutor_files': tutor_files,  # Список файлов для модалки
         'subjects': subjects,  # Список предметов для модалки
         'transactions': student.transactions.filter(tutor=tutor).order_by('-date'),
-        'performance': student.performance.all().order_by('-date')[:10]
+        'performance': student.performance.all().order_by('-date')[:10],
+        'tutor_note': note_obj.text,
     }
     return smart_render(request, 'core/student_card.html', context)
 
@@ -879,16 +904,52 @@ def download_lesson_materials(request, lesson_id):
 
 
 @login_required
+def download_homework_all(request, hw_id):
+    # Используем tutor=request.user.profile для безопасности
+    hw = get_object_or_404(Homework, id=hw_id, tutor=request.user.profile)
+    files = hw.files.all()
+
+    if not files:
+        messages.warning(request, "Файлов для скачивания нет")
+        return redirect(request.META.get('HTTP_REFERER', 'index'))
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w') as zip_f:
+        for f in files:
+            if f.file and os.path.exists(f.file.path):
+                # Сохраняем расширение файла
+                ext = os.path.splitext(f.file.name)[1]
+                name_in_zip = f.file_name if f.file_name.endswith(ext) else f.file_name + ext
+                zip_f.write(f.file.path, name_in_zip)
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="homework_{hw_id}_files.zip"'
+    return response
+
+
+@login_required
 def edit_homework(request, hw_id):
     hw = get_object_or_404(Homework, id=hw_id, tutor=request.user.profile)
     if request.method == 'POST':
-        hw.subject_id = request.POST.get('subject')
-        hw.description = request.POST.get('description')
-        hw.deadline = request.POST.get('deadline') or None
+        # Поля для редактирования (твои старые)
+        if request.POST.get('description'):
+            hw.description = request.POST.get('description')
+        if request.POST.get('subject'):
+            hw.subject_id = request.POST.get('subject')
+        if request.POST.get('deadline'):
+            hw.deadline = request.POST.get('deadline')
 
-        # Обновляем файлы
+        # НОВЫЕ ПОЛЯ для проверки
+        if request.POST.get('status'):
+            hw.status = request.POST.get('status')
+        if 'tutor_comment' in request.POST:
+            hw.tutor_comment = request.POST.get('tutor_comment')
+
+        # Обновляем файлы (твои старые)
         file_ids = request.POST.getlist('files')
-        hw.files.set(file_ids)
+        if file_ids:
+            hw.files.set(file_ids)
 
         hw.save()
         messages.success(request, "Задание обновлено")
@@ -921,51 +982,31 @@ def toggle_homework_status(request, hw_id):
 @login_required
 def finances(request):
     tutor = request.user.profile
-
-    # Получаем даты из фильтра
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
 
-    # Базовая выборка посещаемости (проведенные уроки)
+    # Берем ВСЕ проведенные уроки (был на занятии)
     attendance_qs = LessonAttendance.objects.filter(
-        lesson__tutor=tutor,
-        was_present=True
-    )
+        lesson__tutor=tutor, was_present=True
+    ).select_related('lesson', 'lesson__subject', 'student').order_by('-lesson__start_time')
 
-    # Применяем фильтры по датам, если они есть
-    if date_from:
-        attendance_qs = attendance_qs.filter(lesson__start_time__date__gte=date_from)
-    if date_to:
-        attendance_qs = attendance_qs.filter(lesson__start_time__date__lte=date_to)
+    if date_from: attendance_qs = attendance_qs.filter(lesson__start_time__date__gte=date_from)
+    if date_to: attendance_qs = attendance_qs.filter(lesson__start_time__date__lte=date_to)
 
-    # Если фильтров нет, для графика берем последние 30 дней
-    if not date_from and not date_to:
-        last_30_days = timezone.now() - timedelta(days=30)
-        chart_qs = attendance_qs.filter(lesson__start_time__gte=last_30_days)
-    else:
-        chart_qs = attendance_qs
-
-    # Расчеты показателей за выбранный период
-    total_earned = attendance_qs.aggregate(Sum('lesson__price'))['lesson__price__sum'] or 0
+    # ИСПРАВЛЕННЫЙ РАСЧЕТ
+    total_earned = attendance_qs.filter(is_paid=True).aggregate(Sum('lesson__price'))['lesson__price__sum'] or 0
     total_debt = attendance_qs.filter(is_paid=False).aggregate(Sum('lesson__price'))['lesson__price__sum'] or 0
 
-    # Данные для графика
-    stats_raw = chart_qs.values('lesson__start_time__date').annotate(
-        total=Sum('lesson__price')
-    ).order_by('lesson__start_time__date')
-
+    stats_raw = attendance_qs.values('lesson__start_time__date').annotate(total=Sum('lesson__price')).order_by('lesson__start_time__date')
     chart_labels = [s['lesson__start_time__date'].strftime('%d.%m') for s in stats_raw]
     chart_values = [float(s['total']) for s in stats_raw]
-
-    # История операций (транзакции) всегда внизу
-    transactions = Transaction.objects.filter(tutor=tutor).order_by('-date')
 
     context = {
         'total_earned': total_earned,
         'total_debt': total_debt,
         'chart_labels': json.dumps(chart_labels),
         'chart_values': json.dumps(chart_values),
-        'transactions': transactions,
+        'attendances': attendance_qs, # Передаем полный список уроков
         'date_from': date_from,
         'date_to': date_to,
     }
