@@ -1,7 +1,7 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'my_students' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'my_students' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
@@ -16,10 +16,10 @@
         margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;
         font-size: 28px; font-weight: 800;
     }
-    .gc-header h2 { font-size: 22px; font-weight: 800; color: white; margin: 0 0 5px; }
+    .gc-header h2 { font-size: 22px; font-weight: 800; color: var(--tg-text); margin: 0 0 5px; }
     .gc-header .gc-subject { color: var(--tg-hint); font-size: 14px; }
     .gc-section { padding: 20px 15px; }
-    .gc-section-title { font-size: 18px; font-weight: 800; color: white; margin-bottom: 12px; }
+    .gc-section-title { font-size: 18px; font-weight: 800; color: var(--tg-text); margin-bottom: 12px; }
     .gc-members-card {
         background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
         border-radius: 16px; padding: 15px;
@@ -40,7 +40,7 @@
         display: flex; align-items: center; justify-content: center;
         font-size: 12px; font-weight: 700; flex-shrink: 0;
     }
-    .gc-member-name { font-size: 15px; font-weight: 600; color: white; }
+    .gc-member-name { font-size: 15px; font-weight: 600; color: var(--tg-text); }
     .gc-hw-btn {
         background: var(--tg-active); color: white; border: none;
         padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px;
@@ -53,11 +53,11 @@
     }
     .gc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .gc-table th {
-        background: rgba(255,255,255,0.05); padding: 12px 10px;
+        background: var(--tg-card-active); padding: 12px 10px;
         text-align: left; color: var(--tg-hint); font-size: 11px;
         text-transform: uppercase; font-weight: 700;
     }
-    .gc-table td { padding: 12px 10px; border-top: 1px solid var(--tg-separator); color: white; }
+    .gc-table td { padding: 12px 10px; border-top: 1px solid var(--tg-separator); color: var(--tg-text); }
     .att-dots { display: flex; gap: 4px; flex-wrap: wrap; }
     .att-dot {
         width: 24px; height: 24px; border-radius: 50%;
@@ -68,7 +68,7 @@
     .att-dot.absent { background: rgba(248, 113, 113, 0.1); color: var(--tg-red); }
     .modal-overlay {
         display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.7); z-index: 3000;
+        background: var(--overlay-bg); z-index: 3000;
         align-items: flex-end; justify-content: center;
     }
     .modal-overlay.active { display: flex; }
@@ -82,17 +82,17 @@
         width: 36px; height: 4px; background: var(--tg-separator);
         border-radius: 2px; margin: 0 auto 15px;
     }
-    .modal-title { font-size: 18px; font-weight: 800; color: white; margin-bottom: 20px; text-align: center; }
+    .modal-title { font-size: 18px; font-weight: 800; color: var(--tg-text); margin-bottom: 20px; text-align: center; }
     .modal-label { display: block; font-size: 13px; font-weight: 700; color: var(--tg-hint); margin-bottom: 6px; text-transform: uppercase; }
     .modal-textarea {
         background: transparent; border: 1px solid var(--tg-separator);
-        color: white; padding: 12px; border-radius: 10px; font-size: 15px;
+        color: var(--tg-text); padding: 12px; border-radius: 10px; font-size: 15px;
         width: 100%; min-height: 80px; outline: none; resize: vertical;
         box-sizing: border-box; font-family: inherit; margin-bottom: 15px;
     }
     .modal-input {
         background: transparent; border: 1px solid var(--tg-separator);
-        color: white; padding: 12px; border-radius: 10px; font-size: 15px;
+        color: var(--tg-text); padding: 12px; border-radius: 10px; font-size: 15px;
         width: 100%; outline: none; box-sizing: border-box; margin-bottom: 15px;
     }
     .modal-files {
@@ -101,7 +101,7 @@
     }
     .modal-file-item {
         display: flex; align-items: center; gap: 10px;
-        margin-bottom: 8px; font-size: 13px; color: white;
+        margin-bottom: 8px; font-size: 13px; color: var(--tg-text);
     }
     .modal-file-item:last-child { margin-bottom: 0; }
     .modal-file-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--tg-active); }

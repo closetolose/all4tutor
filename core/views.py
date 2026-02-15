@@ -993,6 +993,8 @@ def finances(request):
     if date_from: attendance_qs = attendance_qs.filter(lesson__start_time__date__gte=date_from)
     if date_to: attendance_qs = attendance_qs.filter(lesson__start_time__date__lte=date_to)
 
+    transactions = Transaction.objects.filter(tutor=tutor).order_by('-date')
+
     # ИСПРАВЛЕННЫЙ РАСЧЕТ
     total_earned = attendance_qs.filter(is_paid=True).aggregate(Sum('lesson__price'))['lesson__price__sum'] or 0
     total_debt = attendance_qs.filter(is_paid=False).aggregate(Sum('lesson__price'))['lesson__price__sum'] or 0
@@ -1009,6 +1011,7 @@ def finances(request):
         'attendances': attendance_qs, # Передаем полный список уроков
         'date_from': date_from,
         'date_to': date_to,
+        'transactions': transactions,
     }
     return smart_render(request, 'core/finances.html', context)
 

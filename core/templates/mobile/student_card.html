@@ -1,7 +1,7 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'my_students' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'my_students' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
@@ -39,21 +39,6 @@
             <i class="fas fa-book"></i> Задать ДЗ
         </button>
     </div>
-    <div class="mobile-note-section">
-    <div class="mobile-card-header">
-        <span><i class="fas fa-sticky-note"></i> Личная заметка</span>
-        <button type="submit" form="mobileNoteForm" class="save-note-btn">Сохранить</button>
-    </div>
-
-    <form id="mobileNoteForm" method="POST">
-        {% csrf_token %}
-        <input type="hidden" name="save_tutor_note" value="1">
-        <textarea name="tutor_note_text"
-                  class="mobile-note-input"
-                  placeholder="Особенности ученика, которые видите только вы..."
-        >{{ tutor_note|default:"" }}</textarea>
-    </form>
-</div>
 
     <div class="s-section">
     <h3 class="section-title">Журнал занятий</h3>
@@ -281,11 +266,11 @@
 <style>
     .s-profile-header { text-align: center; padding: 25px 15px; background: var(--tg-sidebar); border-bottom: 1px solid var(--tg-separator); }
     .s-big-avatar { width: 70px; height: 70px; border-radius: 50%; background: var(--tg-active); margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: white; }
-    .s-name { font-size: 20px; font-weight: 800; color: white; margin: 0; }
+    .s-name { font-size: 20px; font-weight: 800; color: var(--tg-text); margin: 0; }
     .s-phone { color: var(--tg-hint); font-size: 14px; margin-top: 5px; }
     .s-quick-stats { display: flex; justify-content: center; gap: 30px; margin-top: 15px; }
     .s-stat span { display: block; font-size: 11px; color: var(--tg-hint); text-transform: uppercase; font-weight: 700; }
-    .s-stat strong { font-size: 15px; color: white; }
+    .s-stat strong { font-size: 15px; color: var(--tg-text); }
 
     .s-container { padding: 15px; }
     .b-cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
@@ -296,15 +281,15 @@
     .b-value { font-size: 20px; font-weight: 900; margin-top: 4px; }
 
     .s-actions-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 25px; }
-    .s-action-btn { background: var(--tg-sidebar); color: white; border: 1px solid var(--tg-separator); padding: 14px; border-radius: 12px; font-weight: 700; font-size: 14px; text-align: left; display: flex; align-items: center; gap: 12px; }
+    .s-action-btn { background: var(--tg-sidebar); color: var(--tg-text); border: 1px solid var(--tg-separator); padding: 14px; border-radius: 12px; font-weight: 700; font-size: 14px; text-align: left; display: flex; align-items: center; gap: 12px; }
     .s-action-btn i { color: var(--tg-active); width: 20px; text-align: center; }
     .s-action-btn.warning i { color: #f59e0b; }
 
     .s-section { margin-bottom: 20px; }
-    .section-title { font-size: 17px; font-weight: 800; margin: 0 0 12px; color: white; }
+    .section-title { font-size: 17px; font-weight: 800; margin: 0 0 12px; color: var(--tg-text); }
     .m-table-wrap { background: var(--tg-sidebar); border-radius: 14px; border: 1px solid var(--tg-separator); overflow: hidden; }
     .m-simple-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .m-simple-table th { background: rgba(255,255,255,0.03); padding: 10px; text-align: left; color: var(--tg-hint); font-size: 11px; text-transform: uppercase; }
+    .m-simple-table th { background: var(--tg-card-active); padding: 10px; text-align: left; color: var(--tg-hint); font-size: 11px; text-transform: uppercase; }
     .m-simple-table td { padding: 12px 10px; border-top: 1px solid var(--tg-separator); }
     .empty-row { text-align: center; color: var(--tg-hint); padding: 20px !important; }
     .empty-msg { text-align: center; color: var(--tg-hint); padding: 20px; font-size: 14px; }
@@ -313,7 +298,7 @@
 
     .price-cell { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
     .btn-pay-mini {
-        background: #0f172a; border: 1px solid var(--tg-separator);
+        background: var(--tg-bg); border: 1px solid var(--tg-separator);
         color: var(--tg-active); width: 32px; height: 32px; border-radius: 8px;
         display: flex; align-items: center; justify-content: center; font-size: 14px;
     }
@@ -323,17 +308,17 @@
 
     .hw-card { background: var(--tg-sidebar); border: 1px solid var(--tg-separator); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
     .hw-header { display: flex; justify-content: space-between; align-items: flex-start; }
-    .hw-subject { font-size: 15px; font-weight: 800; color: white; }
+    .hw-subject { font-size: 15px; font-weight: 800; color: var(--tg-text); }
     .hw-status-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 8px; text-transform: uppercase; }
     .hw-status-badge.pending { background: rgba(99, 102, 241, 0.2); color: var(--tg-active); }
     .hw-status-badge.submitted { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
     .hw-status-badge.completed { background: rgba(34, 197, 94, 0.2); color: var(--tg-green); }
     .hw-desc { margin: 0; font-size: 14px; color: #e2e8f0; line-height: 1.5; word-wrap: break-word; }
-    .hw-feedback { margin-top: 10px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 13px; color: var(--tg-hint); border-left: 3px solid var(--tg-active); }
+    .hw-feedback { margin-top: 10px; padding: 8px 12px; background: var(--tg-card-active); border-radius: 8px; font-size: 13px; color: var(--tg-hint); border-left: 3px solid var(--tg-active); }
 
     .hw-files-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .hw-file-chip {
-        font-size: 11px; background: #0f172a; border: 1px solid var(--tg-separator);
+        font-size: 11px; background: var(--tg-bg); border: 1px solid var(--tg-separator);
         padding: 5px 10px; border-radius: 8px; color: var(--tg-active);
         text-decoration: none; display: flex; align-items: center; gap: 6px;
     }
@@ -360,7 +345,7 @@
     .hw-deadline { font-size: 12px; color: var(--tg-hint); font-weight: 600; }
     .hw-deadline i { margin-right: 4px; color: var(--tg-red); }
     .hw-btn-group { display: flex; gap: 8px; }
-    .hw-mini-btn { background: #0f172a; border: 1px solid var(--tg-separator); color: white; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .hw-mini-btn { background: var(--tg-bg); border: 1px solid var(--tg-separator); color: var(--tg-text); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
     .hw-mini-btn.edit { color: var(--tg-active); }
     .hw-mini-btn.check { color: var(--tg-green); }
     .hw-mini-btn:active { transform: scale(0.9); }
@@ -368,59 +353,18 @@
     .tg-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; align-items: flex-end; z-index: 4000; }
     .tg-modal-content { background: var(--tg-sidebar); width: 100%; border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box; max-height: 85vh; overflow-y: auto; }
     .tg-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .tg-modal-header h3 { margin: 0; color: white; font-size: 18px; }
+    .tg-modal-header h3 { margin: 0; color: var(--tg-text); font-size: 18px; }
     .close-modal { background: none; border: none; color: var(--tg-hint); font-size: 24px; }
     .tg-input-group { margin-bottom: 15px; }
     .tg-input-group label { display: block; color: var(--tg-hint); font-size: 12px; margin-bottom: 5px; font-weight: 700; }
-    .tg-modal-input { width: 100%; background: #0f172a; border: 1px solid var(--tg-separator); color: white; padding: 12px; border-radius: 10px; box-sizing: border-box; outline: none; font-size: 15px; }
+    .tg-modal-input { width: 100%; background: var(--tg-bg); border: 1px solid var(--tg-separator); color: var(--tg-text); padding: 12px; border-radius: 10px; box-sizing: border-box; outline: none; font-size: 15px; }
     .tg-modal-btn { width: 100%; background: var(--tg-active); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: 700; font-size: 16px; margin-top: 10px; }
-    .modal-files-list { max-height: 150px; overflow-y: auto; background: #0f172a; border-radius: 10px; padding: 10px; }
+    .modal-files-list { max-height: 150px; overflow-y: auto; background: var(--tg-bg); border-radius: 10px; padding: 10px; }
     .file-check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; color: #e2e8f0; }
     .tx-scroll-area { max-height: 60vh; overflow-y: auto; }
     .tx-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--tg-separator); }
-    .tx-info strong { display: block; font-size: 14px; color: white; }
+    .tx-info strong { display: block; font-size: 14px; color: var(--tg-text); }
     .tx-info span { font-size: 11px; color: var(--tg-hint); }
-    .mobile-note-section {
-        background: var(--tg-sidebar);
-        border: 1px solid var(--tg-separator);
-        border-radius: 16px;
-        margin: 15px;
-        padding: 15px;
-    }
-    .mobile-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-        font-size: 13px;
-        font-weight: 800;
-        color: var(--tg-hint);
-        text-transform: uppercase;
-    }
-    .mobile-card-header i { color: #f59e0b; }
-
-    .mobile-note-input {
-        width: 100%;
-        height: 100px;
-        background: rgba(245, 158, 11, 0.05); /* Легкий оранжевый оттенок */
-        border: 1px dashed rgba(245, 158, 11, 0.3);
-        border-radius: 12px;
-        padding: 12px;
-        color: white;
-        font-size: 14px;
-        line-height: 1.4;
-        resize: none;
-        box-sizing: border-box;
-    }
-    .save-note-btn {
-        background: var(--tg-active);
-        color: white;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 8px;
-        font-size: 11px;
-        font-weight: 700;
-    }
 </style>
 
 <script>

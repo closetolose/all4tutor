@@ -1,7 +1,7 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'index' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 
@@ -48,7 +48,6 @@
 </a>
 
 <style>
-    /* --- SEARCH --- */
     .search-container { padding: 15px; background: var(--tg-bg); position: sticky; top: 56px; z-index: 900; }
     .search-box {
         background: var(--tg-sidebar); border-radius: 12px;
@@ -57,11 +56,10 @@
     }
     .search-box i { color: var(--tg-hint); font-size: 14px; }
     .search-box input {
-        background: transparent; border: none; color: white;
+        background: transparent; border: none; color: var(--tg-text);
         width: 100%; outline: none; font-size: 15px;
     }
 
-    /* --- LIST --- */
     .student-list { padding: 0 0 100px; }
     
     .student-card {
@@ -81,8 +79,7 @@
 
     .student-info { flex-grow: 1; min-width: 0; }
     .info-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-    .name { font-size: 16px; font-weight: 700; color: white; }
-
+    .name { font-size: 16px; font-weight: 700; color: var(--tg-text); }
     
     .info-sub { font-size: 13px; color: var(--tg-hint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -92,6 +89,7 @@
         background: var(--tg-active); color: white; border: none;
         padding: 12px 25px; border-radius: 12px; font-weight: 700;
     }
+
     .fab-btn {
         position: fixed; bottom: 25px; right: 20px;
         width: 52px; height: 52px; border-radius: 50%;
@@ -102,13 +100,13 @@
         z-index: 500;
     }
     .fab-btn:active { transform: scale(0.92); }
+
     .empty-state { text-align: center; padding: 60px 20px; color: var(--tg-hint); }
     .empty-icon { font-size: 40px; margin-bottom: 15px; opacity: 0.3; }
-    .empty-state p { font-size: 16px; font-weight: 600; margin: 0 0 5px; color: white; }
+    .empty-state p { font-size: 16px; font-weight: 600; margin: 0 0 5px; color: var(--tg-text); }
 </style>
 
 <script>
-    // Простой живой поиск
     document.getElementById('studentSearch').addEventListener('input', function(e) {
         let val = e.target.value.toLowerCase();
         document.querySelectorAll('.student-card').forEach(card => {

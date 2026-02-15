@@ -5,44 +5,80 @@
 
 {% block content %}
 <style>
-    /* Главный контейнер (фон) */
-    .modal-overlay {
-        display: none; /* Скрыто по умолчанию */
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(15, 23, 42, 0.75); /* Темный фон */
-        backdrop-filter: blur(4px); /* Размытие */
-        z-index: 10000;
+    /* Статусы ДЗ (как в student_card.html) */
+    .badge-hw {
+        padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 700;
+        text-transform: uppercase; display: inline-block;
+    }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-submitted {
+        background: #e0f2fe; color: #075985; position: relative; padding-left: 20px !important;
+    }
+    .status-submitted::before {
+        content: ''; position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+        width: 6px; height: 6px; background: #0ea5e9; border-radius: 50%; animation: pulse 1.5s infinite;
+    }
+    .status-completed { background: #dcfce7; color: #166534; }
+
+    @keyframes pulse {
+        0% { opacity: 1; transform: translateY(-50%) scale(1); }
+        100% { opacity: 0; transform: translateY(-50%) scale(2.5); }
+    }
+
+    /* Стили для файлов-пилюль (Материалы и Ответы) */
+    .file-link-pill {
+        font-size: 11px;
+        background: var(--tg-input-bg);
+        padding: 5px 12px;
+        border-radius: 8px;
+        color: var(--tg-active);
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
+        gap: 6px;
+        border: 1px solid var(--tg-separator);
+        transition: all 0.2s ease;
+        margin-bottom: 4px;
+    }
+    .file-link-pill:hover { background: var(--tg-card-active); transform: translateY(-1px); }
+
+    /* Зеленые пилюли для ответов */
+    .file-link-pill.response { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+    .file-link-pill.response:hover { background: #bbf7d0; }
+
+    /* Контейнеры и подписи */
+    .files-group-container { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .files-label {
+        font-size: 10px; font-weight: 800; text-transform: uppercase;
+        letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;
     }
 
-    /* Окно внутри */
-    .modal-window {
-        background: white !important;
-        padding: 32px;
-        border-radius: 20px;
-        width: 90%;
-        max-width: 450px;
-        position: relative;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    /* Комментарий репетитора */
+    .tutor-comment-box {
+        margin-top: 15px; padding: 12px; background: rgba(99, 102, 241, 0.05);
+        border-left: 4px solid var(--tg-active); border-radius: 4px 10px 10px 4px;
+        display: flex; gap: 10px;
     }
 
-    /* Крестик */
-    .close-btn {
-        position: absolute;
-        top: 15px;
-        right: 15px;
-        font-size: 28px;
-        color: #94a3b8;
-        cursor: pointer;
-        line-height: 1;
+    /* Модальное окно */
+    .modal-overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: var(--overlay-bg); backdrop-filter: blur(4px); z-index: 10000;
+        align-items: center; justify-content: center;
     }
-    .close-btn:hover { color: #1e293b; }
+    .modal-overlay.active { display: flex !important; }
+    .modal-window { background: var(--tg-card-bg); padding: 30px; border-radius: 20px; width: 90%; max-width: 450px; position: relative; }
+    .status-revision {
+    background: #ffedd5 !important;
+    color: #9a3412 !important;
+    border: 1px solid #fed7aa;
+}
 
-    .modal-overlay.active {
-    display: flex !important; /* Показываем окно, если есть этот класс */
+/* Если хочешь добавить иконку-индикатор как у "На проверке" */
+.status-revision::before {
+    content: ''; position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+    width: 6px; height: 6px; background: #f97316; border-radius: 50%;
 }
 </style>
 <div class="content-header">
@@ -62,43 +98,76 @@
                 </tr>
             </thead>
             <tbody>
-                {% for hw in homeworks %}
-                <tr>
-                    <td><strong>{{ hw.subject.name }}</strong></td>
-                    <td>
-                        <div class="assignment-text mb-2">
-                            {{ hw.description }}
-                        </div>
+    {% for hw in homeworks %}
+    <tr style="border-bottom: 1px solid var(--tg-separator);">
+        <td style="vertical-align: top; padding: 20px 15px;">
+            <strong style="color: var(--tg-active);">{{ hw.subject.name }}</strong>
+        </td>
+        <td style="max-width: 500px; padding: 15px 10px;">
+            <div style="font-size: 15px; font-weight: 600; margin-bottom: 10px; color: var(--tg-text);">
+                {{ hw.description }}
+            </div>
 
-                        {% if hw.files.all %}
-                        <div class="assignment-files d-flex flex-wrap gap-2">
+            <div class="files-group-container">
+                {% if hw.files.exists %}
+                    <div>
+                        <div class="files-label" style="color: var(--tg-hint);">
+                            <i class="fas fa-folder-open"></i> Материалы к уроку
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
                             {% for f in hw.files.all %}
-                                <a href="{{ f.file.url }}" class="file-pill" title="Скачать: {{ f.file_name }}" target="_blank">
-                                    <i class="fas fa-file-alt"></i>
-                                    <span class="file-name">{{ f.file_name }}</span>
+                                <a href="{{ f.file.url }}" target="_blank" class="file-link-pill">
+                                    <i class="fas fa-paperclip"></i> {{ f.file_name|truncatechars:25 }}
                                 </a>
                             {% endfor %}
                         </div>
-                        {% endif %}
-                    </td>
-                    <td>{{ hw.deadline|date:"d.m.Y H:i" }}</td>
-                    <td>
-                        <span class="badge status-{{ hw.status }}">
-                            {{ hw.get_status_display }}
-                        </span>
-                    </td>
-                    <td>
-                        <button onclick="openSubmitModal({{ hw.id }})" class="btn btn-sm btn-primary">
-                            Отправить
-                        </button>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center">У вас пока нет назначенных заданий.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
+                    </div>
+                {% endif %}
+
+                {% if hw.responses.exists %}
+                    <div style="margin-top: 5px; padding-top: 8px; border-top: 1px dashed var(--tg-separator);">
+                        <div class="files-label" style="color: var(--tg-green);">
+                            <i class="fas fa-check-double"></i> Мои ответы
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
+                            {% for resp in hw.responses.all %}
+                                <a href="{{ resp.file.url }}" target="_blank" class="file-link-pill response">
+                                    <i class="fas fa-reply"></i> {{ resp.file_name|truncatechars:25 }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            {% if hw.tutor_comment %}
+                <div class="tutor-comment-box">
+                    <i class="fas fa-comment-dots" style="color: var(--tg-active); margin-top: 2px;"></i>
+                    <div>
+                        <span style="display: block; font-size: 10px; font-weight: 800; color: var(--tg-active); text-transform: uppercase;">Работа над ошибками:</span>
+                        <div style="font-size: 13px; color: var(--tg-text); font-style: italic; margin-top: 2px;">"{{ hw.tutor_comment }}"</div>
+                    </div>
+                </div>
+            {% endif %}
+        </td>
+        <td style="vertical-align: top; padding-top: 20px; font-size: 13px; color: var(--tg-hint);">
+            {{ hw.deadline|date:"d.m.Y H:i" }}
+        </td>
+        <td style="vertical-align: top; padding-top: 20px;">
+            <span class="badge-hw status-{{ hw.status }}">
+                {{ hw.get_status_display }}
+            </span>
+        </td>
+        <td style="vertical-align: top; padding-top: 15px;">
+            <button onclick="openSubmitModal({{ hw.id }})" class="btn btn-sm btn-primary" style="padding: 8px 16px; border-radius: 10px;">
+                <i class="fas fa-upload"></i> Отправить
+            </button>
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" style="text-align: center; padding: 60px; color: var(--tg-hint);">У вас пока нет назначенных заданий.</td></tr>
+    {% endfor %}
+</tbody>
         </table>
     </div>
 </div>

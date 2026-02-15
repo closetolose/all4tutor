@@ -43,21 +43,24 @@
             <thead>
                 <tr style="background: #f8fafc; color: #64748b; font-size: 11px;">
                     <th style="padding: 15px;">Дата</th>
-                    <th>Тип</th>
                     <th>Сумма</th>
                     <th>Комментарий</th>
                 </tr>
             </thead>
             <tbody>
                 {% for t in transactions %}
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 15px;">{{ t.date|date:"d.m.Y" }}</td>
-                    <td>{{ t.get_type_display }}</td>
-                    <td style="font-weight: 700; color: {% if t.type == 'withdrawal' %}var(--danger){% else %}var(--success){% endif %};">
-                        {{ t.amount }} ₽
+                {% if t.type == 'withdrawal' %}
+                <tr style="border-bottom: 1px solid var(--tg-separator);">
+                    <td style="padding: 15px; font-size: 13px;">{{ t.date|date:"d.m.Y H:i" }}</td>
+
+                    <td style="font-weight: 700; color: {% if t.type == 'deposit' %}var(--tg-green){% else %}var(--tg-red){% endif %};">
+                        {% if t.type == 'deposit' %}{% else %}+{% endif %}{{ t.amount }} ₽
                     </td>
-                    <td style="color: var(--text-muted); font-size: 13px;">{{ t.comment|default:"-" }}</td>
+                    <td style="color: var(--tg-hint); font-size: 13px;">{{ t.description|default:"Транзакция" }}</td>
                 </tr>
+                {% endif %}
+                {% empty %}
+                <tr><td colspan="4" style="text-align: center; padding: 30px; color: var(--tg-hint);">Транзакций за этот период нет</td></tr>
                 {% endfor %}
             </tbody>
         </table>

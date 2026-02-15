@@ -1,7 +1,7 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'index' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
@@ -112,7 +112,7 @@
     .fl-page-title h2 {
         font-size: 20px;
         font-weight: 800;
-        color: white;
+        color: var(--tg-text);
         margin: 0;
     }
     .fl-page-title h2 i {
@@ -143,7 +143,7 @@
         width: 48px;
         height: 48px;
         border-radius: 14px;
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--tg-card-active);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -158,7 +158,7 @@
     .fl-file-name {
         font-size: 15px;
         font-weight: 700;
-        color: white;
+        color: var(--tg-text);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -178,7 +178,7 @@
         width: 36px;
         height: 36px;
         border-radius: 10px;
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--tg-card-active);
         border: 1px solid var(--tg-separator);
         color: var(--tg-hint);
         display: flex;
@@ -211,7 +211,7 @@
         font-size: 16px;
         font-weight: 600;
         margin: 0 0 5px;
-        color: white;
+        color: var(--tg-text);
     }
     .fl-empty-state span {
         font-size: 13px;
@@ -245,7 +245,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.7);
+        background: var(--overlay-bg);
         display: none;
         align-items: center;
         justify-content: center;
@@ -272,7 +272,7 @@
     .fl-modal-header h3 {
         font-size: 18px;
         font-weight: 800;
-        color: white;
+        color: var(--tg-text);
         margin: 0;
     }
     .fl-modal-close {
@@ -298,7 +298,7 @@
     .fl-input {
         background: transparent;
         border: 1px solid var(--tg-separator);
-        color: white;
+        color: var(--tg-text);
         padding: 12px;
         border-radius: 10px;
         width: 100%;

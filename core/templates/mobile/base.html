@@ -8,147 +8,269 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* --- TELEGRAM DARK THEME & BRANDING --- */
         :root {
-            --tg-bg: #0f172a;           /* Темно-синий фон (как на скрине десктопа) */
-            --tg-sidebar: #1e293b;      /* Фон меню */
-            --tg-active: #6366f1;       /* Фиолетовый акцент (Дашборд) */
+            --tg-bg: #f0f2f5;
+            --tg-sidebar: #ffffff;
+            --tg-active: #6366f1;
+            --tg-text: #1a1a2e;
+            --tg-hint: #65748b;
+            --tg-separator: #e2e8f0;
+            --tg-red: #ef4444;
+            --tg-green: #16a34a;
+            --tg-green-bg: rgba(22, 163, 74, 0.08);
+            --overlay-bg: rgba(0, 0, 0, 0.4);
+            --tg-card-bg: #ffffff;
+            --tg-header-bg: rgba(255, 255, 255, 0.92);
+            --tg-card-active: #f1f5f9;
+            --tg-input-bg: #f8fafc;
+            --tg-shadow: rgba(0, 0, 0, 0.06);
+            --tg-body-bg: #f0f2f5;
+        }
+
+        [data-theme="dark"] {
+            --tg-bg: #0f172a;
+            --tg-sidebar: #1e293b;
+            --tg-active: #6366f1;
             --tg-text: #ffffff;
-            --tg-hint: #94a3b8;         /* Серый текст */
+            --tg-hint: #94a3b8;
             --tg-separator: #334155;
             --tg-red: #f87171;
             --tg-green: #22c55e;
             --tg-green-bg: rgba(34, 197, 94, 0.1);
             --overlay-bg: rgba(0, 0, 0, 0.7);
+            --tg-card-bg: #1e293b;
+            --tg-header-bg: rgba(30, 41, 59, 0.95);
+            --tg-card-active: #28364d;
+            --tg-input-bg: #1e293b;
+            --tg-shadow: rgba(0, 0, 0, 0.3);
+            --tg-body-bg: #000000;
         }
 
         body {
-            background-color: #000000; /* Основной фон приложения черный/темный */
+            background-color: var(--tg-body-bg);
             color: var(--tg-text);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            margin: 0; padding: 0;
+            margin: 0;
+            padding: 0;
             -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        /* HEADER (Mobile Top Bar) */
         .tg-header {
-            background-color: rgba(30, 41, 59, 0.95);
+            background-color: var(--tg-header-bg);
             backdrop-filter: blur(10px);
             height: 56px;
-            display: flex; align-items: center; justify-content: center;
-            position: sticky; top: 0; z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
             border-bottom: 1px solid var(--tg-separator);
-            font-weight: 700; font-size: 18px;
+            font-weight: 700;
+            font-size: 18px;
         }
 
         .header-icon {
-            position: absolute; padding: 10px 15px;
-            color: var(--tg-text); font-size: 20px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
+            position: absolute;
+            padding: 10px 15px;
+            color: var(--tg-text);
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+
         .h-left { left: 0; }
         .h-right { right: 0; }
 
         .header-logo-link {
-        color: white !important;
-        text-decoration: none !important;
-        font-weight: 700;
-        font-size: 18px;
+            color: var(--tg-text) !important;
+            text-decoration: none !important;
+            font-weight: 700;
+            font-size: 18px;
         }
 
-        /* --- DRAWER (SIDEBAR) --- */
         .drawer-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--overlay-bg); opacity: 0; visibility: hidden;
-            transition: opacity 0.3s ease; z-index: 2000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--overlay-bg);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+            z-index: 2000;
             backdrop-filter: blur(4px);
         }
 
         .drawer {
-            position: fixed; top: 0; left: -85%; width: 85%; max-width: 320px; height: 100%;
-            background: var(--tg-sidebar); z-index: 2100;
+            position: fixed;
+            top: 0;
+            left: -85%;
+            width: 85%;
+            max-width: 320px;
+            height: 100%;
+            background: var(--tg-sidebar);
+            z-index: 2100;
             transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            display: flex; flex-direction: column;
+            display: flex;
+            flex-direction: column;
             border-right: 1px solid var(--tg-separator);
         }
 
         body.menu-open .drawer-overlay { opacity: 1; visibility: visible; }
         body.menu-open .drawer { transform: translateX(100%); }
 
-        /* HEADER МЕНЮ (Логотип + Профиль) */
         .drawer-header {
             padding: 40px 20px 20px;
             border-bottom: 1px solid var(--tg-separator);
         }
 
         .brand-title {
-            font-size: 22px; font-weight: 800; color: white; margin-bottom: 25px;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--tg-text);
+            margin-bottom: 25px;
         }
 
-        /* Профиль мини-карточка */
         .user-card {
-            display: flex; align-items: center; gap: 12px;
-            background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--tg-bg);
+            padding: 12px;
+            border-radius: 12px;
         }
+
         .user-avatar {
-            width: 42px; height: 42px; border-radius: 10px;
-            background: var(--tg-active); color: white;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 18px;
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: var(--tg-active);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
         }
-        .user-info h4 { margin: 0; font-size: 15px; color: white; }
+
+        .user-info h4 { margin: 0; font-size: 15px; color: var(--tg-text); }
         .user-info p { margin: 2px 0 0; font-size: 12px; color: var(--tg-hint); }
 
-        /* НАВИГАЦИЯ */
-        .drawer-nav { padding: 20px 15px; flex-grow: 1; overflow-y: auto; }
+        .drawer-nav {
+            padding: 20px 15px;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
 
         .nav-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 14px 16px; color: var(--tg-hint); text-decoration: none;
-            font-size: 15px; font-weight: 600; border-radius: 12px;
-            margin-bottom: 5px; transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            color: var(--tg-hint);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 12px;
+            margin-bottom: 5px;
+            transition: 0.2s;
         }
 
         .nav-item i { width: 24px; text-align: center; font-size: 18px; }
 
-        /* Активный пункт (Фиолетовый как на скрине) */
         .nav-item.active {
             background-color: var(--tg-active);
             color: white;
             box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
         }
-        .nav-item.active i { color: white; }
-        .nav-item:not(.active):active { background: rgba(255,255,255,0.05); }
 
-        /* НИЖНИЙ БЛОК (FAQ, Бот, Выход) */
+        .nav-item.active i { color: white; }
+        .nav-item:not(.active):active { background: var(--tg-card-active); }
+
         .drawer-footer {
             padding: 20px 20px 40px;
             border-top: 1px solid var(--tg-separator);
         }
 
         .footer-link {
-            display: flex; align-items: center; gap: 10px;
-            color: var(--tg-hint); text-decoration: none; font-size: 14px; font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--tg-hint);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
             margin-bottom: 15px;
         }
+
         .footer-link i { font-size: 16px; }
 
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--tg-hint);
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 15px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            font-family: inherit;
+        }
+
+        .theme-toggle i { font-size: 16px; width: 16px; text-align: center; }
+
         .bot-status {
-            display: inline-flex; align-items: center; gap: 8px;
-            background: var(--tg-green-bg); color: var(--tg-green);
-            padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--tg-green-bg);
+            color: var(--tg-green);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
             margin-bottom: 20px;
         }
 
         .logout-btn {
-            display: flex; align-items: center; justify-content: space-between;
-            width: 100%; background: none; border: none;
-            color: var(--tg-hint); font-size: 15px; font-weight: 600;
-            padding: 0; cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--tg-hint);
+            font-size: 15px;
+            font-weight: 600;
+            padding: 0;
+            cursor: pointer;
         }
+
         .logout-btn i { color: var(--tg-hint); }
 
-        /* Контент страницы */
+        .logout-user-avatar {
+            background: var(--tg-active);
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+
+        .logout-username { color: var(--tg-text); font-size: 14px; }
+        .logout-role { font-size: 11px; color: var(--tg-hint); }
+
         .main-content { padding-bottom: 50px; }
     </style>
 </head>
@@ -165,7 +287,7 @@
 
         <div class="header-icon h-right">
             {% block header_right %}
-                {% endblock %}
+            {% endblock %}
         </div>
     </header>
 
@@ -177,7 +299,6 @@
         </div>
 
         <nav class="drawer-nav">
-
             <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
                 <i class="fas fa-chart-pie"></i> Дашборд
             </a>
@@ -198,7 +319,6 @@
                 <a href="{% url 'finances' %}" class="nav-item {% if request.resolver_match.url_name == 'finances' %}active{% endif %}">
                     <i class="fas fa-wallet"></i> Финансы
                 </a>
-
             {% else %}
                 <a href="{% url 'confirmations' %}" class="nav-item {% if request.resolver_match.url_name == 'confirmations' %}active{% endif %}">
                     <i class="fas fa-user-check"></i> Подтверждение
@@ -212,7 +332,6 @@
                     <i class="fas fa-chalkboard-teacher"></i> Мои репетиторы
                 </a>
             {% endif %}
-
         </nav>
 
         <div class="drawer-footer">
@@ -224,6 +343,11 @@
                 <i class="fas fa-cog"></i> Настройки профиля
             </a>
 
+            <button type="button" class="theme-toggle" onclick="toggleTheme()">
+                <i id="theme-icon" class="fas fa-sun"></i>
+                <span id="theme-label">Тёмная тема</span>
+            </button>
+
             <div class="bot-status">
                 <i class="fab fa-telegram-plane"></i> Бот активен
             </div>
@@ -231,12 +355,12 @@
             <form action="{% url 'logout' %}" method="post" style="margin: 0;">{% csrf_token %}
                 <button type="submit" class="logout-btn">
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <div style="background:#6366f1; width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:white; font-size:12px;">
+                        <div class="logout-user-avatar">
                             {{ user.first_name|first }}
                         </div>
                         <div style="text-align:left;">
-                            <div style="color:white; font-size:14px;">{{ user.username }}</div>
-                            <div style="font-size:11px; color:#94a3b8;">
+                            <div class="logout-username">{{ user.username }}</div>
+                            <div class="logout-role">
                                 {% if user.profile.role == 'tutor' %}Репетитор{% else %}Ученик{% endif %}
                             </div>
                         </div>
@@ -256,12 +380,36 @@
             document.getElementById('app-body').classList.toggle('menu-open');
         }
 
-        // Глобальный фикс багов отрисовки (оставляем, он полезный)
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            var icon = document.getElementById('theme-icon');
+            var label = document.getElementById('theme-label');
+            if (theme === 'dark') {
+                icon.className = 'fas fa-moon';
+                label.textContent = 'Светлая тема';
+            } else {
+                icon.className = 'fas fa-sun';
+                label.textContent = 'Тёмная тема';
+            }
+        }
+
+        function toggleTheme() {
+            var current = localStorage.getItem('theme') || 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', next);
+            applyTheme(next);
+        }
+
+        (function() {
+            var saved = localStorage.getItem('theme') || 'light';
+            applyTheme(saved);
+        })();
+
         window.addEventListener('load', function() {
-            setTimeout(() => {
-                const fixElements = document.querySelectorAll('.type-selector-grid, .m-week-grid, .segment-control, .tg-input-row');
-                fixElements.forEach(el => {
-                    const currentDisplay = window.getComputedStyle(el).display;
+            setTimeout(function() {
+                var fixElements = document.querySelectorAll('.type-selector-grid, .m-week-grid, .segment-control, .tg-input-row');
+                fixElements.forEach(function(el) {
+                    var currentDisplay = window.getComputedStyle(el).display;
                     el.style.display = 'none';
                     el.offsetHeight;
                     el.style.display = currentDisplay;

@@ -1,7 +1,7 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'index' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
@@ -59,16 +59,16 @@
         margin: 0 auto 15px; font-size: 28px;
     }
 
-    .faq-title { font-size: 20px; font-weight: 900; color: white; margin: 0 0 20px; }
+    .faq-title { font-size: 20px; font-weight: 900; color: var(--tg-text); margin: 0 0 20px; }
 
     .faq-body {
-        background: rgba(255,255,255,0.03);
+        background: var(--tg-card-active);
         padding: 20px; border-radius: 16px;
         border: 1px solid var(--tg-separator);
     }
 
     .faq-text { color: var(--tg-hint); font-size: 14px; line-height: 1.6; margin: 0 0 15px; }
-    .faq-contact-label { font-weight: 700; color: white; margin: 0 0 12px; font-size: 15px; }
+    .faq-contact-label { font-weight: 700; color: var(--tg-text); margin: 0 0 12px; font-size: 15px; }
 
     .tg-link-btn {
         display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -79,6 +79,7 @@
         box-sizing: border-box;
     }
     .faq-body { text-align: center; }
+
     .back-link {
         display: inline-block; margin-top: 20px;
         color: var(--tg-hint); text-decoration: none;

@@ -1,7 +1,7 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'my_students' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'my_students' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
@@ -14,7 +14,7 @@
         display: flex; align-items: center; justify-content: center;
         margin: 0 auto 15px; font-size: 28px;
     }
-    .add-student-header h2 { font-size: 20px; font-weight: 800; color: white; margin: 0 0 5px; }
+    .add-student-header h2 { font-size: 20px; font-weight: 800; color: var(--tg-text); margin: 0 0 5px; }
     .add-student-header p { font-size: 14px; color: var(--tg-hint); margin: 0; }
     .msg-box {
         padding: 12px; border-radius: 12px; margin-bottom: 20px;
@@ -29,7 +29,7 @@
     .form-label { display: block; font-size: 13px; font-weight: 700; color: var(--tg-hint); margin-bottom: 8px; text-transform: uppercase; }
     .form-input {
         background: transparent; border: 1px solid var(--tg-separator);
-        color: white; padding: 14px; border-radius: 10px; font-size: 15px;
+        color: var(--tg-text); padding: 14px; border-radius: 10px; font-size: 15px;
         width: 100%; outline: none; box-sizing: border-box; margin-bottom: 15px;
     }
     .form-input::placeholder { color: var(--tg-hint); }

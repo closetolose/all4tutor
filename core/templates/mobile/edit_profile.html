@@ -1,7 +1,7 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'index' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
@@ -138,7 +138,7 @@
     .ep-header h2 {
         font-size: 20px;
         font-weight: 800;
-        color: white;
+        color: var(--tg-text);
         margin: 0 0 4px;
     }
     .ep-header p {
@@ -191,7 +191,7 @@
     .ep-section textarea {
         background: transparent;
         border: 1px solid var(--tg-separator);
-        color: white;
+        color: var(--tg-text);
         padding: 12px;
         border-radius: 10px;
         width: 100%;
@@ -204,11 +204,11 @@
         opacity: 0.6;
     }
     .ep-section select {
-        color: white;
+        color: var(--tg-text);
     }
     .ep-section select option {
         background: var(--tg-sidebar);
-        color: white;
+        color: var(--tg-text);
     }
 
     .ep-error {
@@ -238,7 +238,7 @@
     .ep-tz-select select {
         background: transparent;
         border: 1px solid var(--tg-separator);
-        color: white;
+        color: var(--tg-text);
         padding: 12px;
         border-radius: 10px;
         width: 100%;
@@ -247,7 +247,7 @@
     }
     .ep-tz-select select option {
         background: var(--tg-sidebar);
-        color: white;
+        color: var(--tg-text);
     }
     .ep-detect-btn {
         width: 44px;

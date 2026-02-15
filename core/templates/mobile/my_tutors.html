@@ -1,7 +1,7 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'index' %}" style="color: white;"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'index' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
@@ -44,14 +44,14 @@
     <div class="empty-state">
         <div class="empty-icon"><i class="fas fa-user-friends"></i></div>
         <p>У вас пока нет преподавателей</p>
-        <span>Попросите репетитора добавить вас по логину: <strong style="color: white;">{{ request.user.username }}</strong></span>
+        <span>Попросите репетитора добавить вас по логину: <strong style="color: var(--tg-text);">{{ request.user.username }}</strong></span>
     </div>
     {% endfor %}
 </div>
 
 <style>
     .page-section { padding: 20px 15px 5px; }
-    .page-title { font-size: 20px; font-weight: 800; color: white; display: flex; align-items: center; gap: 10px; }
+    .page-title { font-size: 20px; font-weight: 800; color: var(--tg-text); display: flex; align-items: center; gap: 10px; }
 
     .tutors-list { padding: 10px 15px 50px; }
 
@@ -73,7 +73,7 @@
     }
 
     .tutor-main { display: flex; flex-direction: column; gap: 4px; }
-    .tutor-name { font-size: 16px; font-weight: 700; color: white; }
+    .tutor-name { font-size: 16px; font-weight: 700; color: var(--tg-text); }
 
     .tutor-badge {
         display: inline-block; font-size: 10px; font-weight: 800;
@@ -83,20 +83,20 @@
     }
 
     .tutor-contacts {
-        background: rgba(255,255,255,0.03);
+        background: var(--tg-card-active);
         border-radius: 12px; padding: 10px 12px;
     }
 
     .contact-row {
         display: flex; align-items: center; gap: 10px;
-        font-size: 14px; color: white; padding: 6px 0;
+        font-size: 14px; color: var(--tg-text); padding: 6px 0;
     }
     .contact-row i { color: var(--tg-hint); width: 18px; text-align: center; font-size: 13px; }
     .contact-row .no-data { color: var(--tg-hint); font-style: italic; }
 
     .empty-state { text-align: center; padding: 60px 20px; color: var(--tg-hint); }
     .empty-icon { font-size: 40px; margin-bottom: 15px; opacity: 0.3; }
-    .empty-state p { font-size: 16px; font-weight: 600; margin: 0 0 5px; color: white; }
+    .empty-state p { font-size: 16px; font-weight: 600; margin: 0 0 5px; color: var(--tg-text); }
     .empty-state span { font-size: 13px; line-height: 1.6; }
 </style>
 {% endblock %}
