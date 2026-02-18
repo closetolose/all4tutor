@@ -1,0 +1,10 @@
+<div class="alert alert-warning">
+    <strong>Внимание!</strong> При переводе в архив:
+    <ul>
+        <li>Все будущие уроки ученика будут удалены.</li>
+        <li>Ученик будет исключен из групп:
+            {% for g in student.study_groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+        </li>
+        <li>История посещенных занятий сохранится в вашем архиве.</li>
+    </ul>
+</div>

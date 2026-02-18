@@ -1,33 +1,15 @@
-"""
-URL configuration for tutor_project project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-from django.contrib import admin
-from django.urls import path
-from django.contrib.auth import views as auth_views
-from django.views.generic import TemplateView
-from core import views
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
+from django.contrib.auth import views as auth_views
+from django.urls import path
 
+from core import views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('secretplace/', admin.site.urls),
     path('', views.index, name='index'),
 
-    # Авторизация
     path('login/', views.user_login, name='login'),
     path('logout/', views.user_logout, name='logout'),
     path('register/', views.register, name='register'),
@@ -36,7 +18,6 @@ urlpatterns = [
     path('confirmations/accept/<int:request_id>/', views.accept_request, name='accept_request'),
     path('confirmations/reject/<int:request_id>/', views.reject_request, name='reject_request'),
 
-    # НОВЫЕ ПУТИ ДЛЯ СПИСКОВ
     path('my-students/', views.my_students, name='my_students'),
     path('my-tutors/', views.my_tutors, name='my_tutors'),
     path('add-lesson/', views.add_lesson, name='add_lesson'),
@@ -67,33 +48,48 @@ urlpatterns = [
     path('subjects/', views.my_subjects, name='my_subjects'),
     path('subjects/delete/<int:subject_id>/', views.delete_subject, name='delete_subject'),
     path('activate/<uidb64>/<token>/', views.activate, name='activate'),
-    path('bulk-action/', views.bulk_action_lessons, name='bulk_action'),
     path('group-card/<int:group_id>/', views.group_card, name='group_card'),
     path('homework/download-all/<int:hw_id>/', views.download_homework_all, name='download_homework_all'),
-    path('homework/delete/<int:hw_id>/', views.delete_homework, name='delete_homework'),
+    path('lesson/<int:lesson_id>/materials/', views.download_lesson_materials, name='download_lesson_materials'),
+    path('homework/<int:hw_id>/files/', views.download_homework_all, name='download_homework_all'),
+    path('homework/response/<int:response_id>/download/', views.download_homework_response, name='download_homework_response'),
+    path('toggle-presence/<int:attendance_id>/', views.toggle_presence, name='toggle_presence'),
+    path('toggle-attendance-pay/<int:attendance_id>/', views.toggle_attendance_pay, name='toggle_attendance_pay'),
+    path('load-more-lessons/', views.load_more_lessons, name='load_more_lessons'),
+    path('logout-all/', views.logout_all_devices, name='logout_all_devices'),
+    path('tutor-card/<int:tutor_id>/', views.tutor_card, name='tutor_card'),
+    path('subjects/edit/<int:subject_id>/', views.edit_subject, name='edit_subject'),
+    path('students/archive-list/', views.archived_students, name='archived_students_list'),
+    path('students/archive-action/<int:student_id>/', views.archive_student, name='archive_student'),
+    path('students/restore/<int:student_id>/', views.restore_student, name='restore_student'),
+
+
 
 
     path('password-reset/',
          auth_views.PasswordResetView.as_view(
              template_name='core/registration/password_reset_form.html',
              html_email_template_name='core/emails/password_reset_email.html',
-             subject_template_name='core/emails/password_reset_subject.txt'
+             subject_template_name='core/emails/password_reset_subject.txt',
          ),
          name='password_reset'),
 
-
     path('password-reset/done/',
-         auth_views.PasswordResetDoneView.as_view(template_name='core/registration/password_reset_done.html'),
+         auth_views.PasswordResetDoneView.as_view(
+             template_name='core/registration/password_reset_done.html',
+         ),
          name='password_reset_done'),
 
-
     path('password-reset-confirm/<uidb64>/<token>/',
-         auth_views.PasswordResetConfirmView.as_view(template_name='core/registration/password_reset_confirm.html'),
+         auth_views.PasswordResetConfirmView.as_view(
+             template_name='core/registration/password_reset_confirm.html',
+         ),
          name='password_reset_confirm'),
 
-
     path('password-reset-complete/',
-         auth_views.PasswordResetCompleteView.as_view(template_name='core/registration/password_reset_complete.html'),
+         auth_views.PasswordResetCompleteView.as_view(
+             template_name='core/registration/password_reset_complete.html',
+         ),
          name='password_reset_complete'),
 
     path('faq/', views.faq, name='faq'),

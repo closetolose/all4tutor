@@ -1,0 +1,48 @@
+{% for lesson in lessons %}
+<tr style="border-bottom: 1px solid var(--tg-separator);">
+    {% if role == 'tutor' %}
+    <td style="padding: 15px;"><input type="checkbox" class="lesson-checkbox" value="{{ lesson.id }}"></td>
+    {% endif %}
+
+    <td style="padding: 15px;">
+        <span style="font-weight: 700; color: var(--tg-active);">{{ lesson.subject.name }}</span>
+    </td>
+
+    <td>
+        {% if role == 'student' %}
+            <span style="font-weight: 500;">{{ lesson.tutor.first_name }} {{ lesson.tutor.last_name }}</span>
+        {% else %}
+            {% if lesson.group %}
+                <span class="badge" style="background: var(--tg-green-bg); color: var(--tg-green);">{{ lesson.group.name }}</span>
+            {% else %}
+                <span style="font-weight: 500;">{{ lesson.student.first_name }} {{ lesson.student.last_name }}</span>
+            {% endif %}
+        {% endif %}
+    </td>
+
+    <td style="color: var(--tg-hint); font-size: 14px;">
+        {{ lesson.start_time|date:"d.m.Y" }}<br>
+        <span style="font-size: 12px; opacity: 0.7;">{{ lesson.start_time|date:"H:i" }}</span>
+    </td>
+
+    <td style="font-weight: 700;">{{ lesson.price|floatformat:0 }} ₽</td>
+
+    <td>
+        <div style="display: flex; gap: 4px;">
+            {% for att in lesson.attendances.all %}
+            <span onclick="togglePresence(this, {{ att.id }})"
+                  class="pay-dot {% if att.was_present %}paid{% else %}debt{% endif %}"
+                  style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;font-weight:700;font-size:10px;">
+                {{ att.student.first_name|slice:":1" }}
+            </span>
+            {% endfor %}
+        </div>
+    </td>
+
+    {% if role == 'tutor' %}
+    <td style="text-align: center;">
+        <button onclick="openUniversalEdit('single', '{{ lesson.id }}', { ... })" style="border:none;background:none;color:var(--tg-active);cursor:pointer;"><i class="fas fa-edit"></i></button>
+    </td>
+    {% endif %}
+</tr>
+{% endfor %}

@@ -25,26 +25,31 @@
     .badge-hw:hover { opacity: 0.8; }
     .status-pending { background: #fef3c7; color: #92400e; }
 
+    .status-submitted { background: #e0f2fe; color: #075985; padding-left: 18px !important; }
+    .status-submitted::before {
+        content: ''; position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+        width: 6px; height: 6px; background: #0ea5e9; border-radius: 50%; animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0% { opacity: 1; transform: translateY(-50%) scale(1); } 100% { opacity: 0; transform: translateY(-50%) scale(2.5); } }
 
+    .status-completed { background: #dcfce7; color: #166534; }
+    .status-revision { background: #fef3c7; color: #d97706; padding-left: 18px !important; }
+    .status-revision::before {
+        content: ''; position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+        width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; animation: pulse 1.5s infinite;
+    }
 
+    .badge-hw {
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        display: inline-block;
+        transition: all 0.2s;
+    }
 
-    /* Цвета статусов ДЗ */
-.status-pending { background: #fef3c7; color: #92400e; }    /* Ожидает - Желтый */
-.status-submitted { background: #e0f2fe; color: #075985; }  /* На проверке - Голубой */
-.status-revision { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; } /* Доработать - Оранжевый */
-.status-completed { background: #dcfce7; color: #166534; }  /* Выполнено - Зеленый */
-
-.badge-hw {
-    padding: 5px 12px;
-    border-radius: 8px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    display: inline-block;
-    transition: all 0.2s;
-}
-
-.badge-hw:active { transform: scale(0.95); }
+    .badge-hw:active { transform: scale(0.95); }
 </style>
 
 <div style="display: flex; gap: 25px; align-items: flex-start;">
@@ -78,7 +83,7 @@
             <div class="info-stat-card balance-box">
                 <span class="box-label">Текущий баланс</span>
                 <div id="student-balance-val" style="font-size: 24px; font-weight: 800; color: #22c55e;">
-                    {{ student.balance }} ₽
+                    {{ balance }} ₽
                 </div>
             </div>
 
@@ -152,6 +157,12 @@
                             <td style="max-width: 300px;">
                                 <div style="font-size: 13px; font-weight: 600;">{{ hw.description }}</div>
 
+                                {% if hw.tutor_comment %}
+                                    <div style="margin-top: 6px; font-size: 12px; color: #6366f1; font-style: italic;">
+                                        <i class="fas fa-comment" style="margin-right: 4px;"></i>{{ hw.tutor_comment }}
+                                    </div>
+                                {% endif %}
+
                                 {% if hw.files.exists %}
                                     <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
                                         {% for f in hw.files.all %}<a href="{{ f.file.url }}" target="_blank" style="font-size: 10px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; color: var(--primary); text-decoration: none;"><i class="fas fa-paperclip"></i> {{ f.file_name|truncatechars:15 }}</a>{% endfor %}
@@ -184,14 +195,23 @@
                             </td>
                             <td style="text-align: center;">
                                 <div style="display: flex; gap: 12px; justify-content: center;">
-                                    <button onclick="openEditHWModal('{{ hw.id }}', '{{ hw.subject.id }}', '{{ hw.description|escapejs }}', '{{ hw.deadline|date:'Y-m-d\TH:i' }}', [{% for f in hw.files.all %}{{ f.id }}{% if not forloop.last %},{% endif %}{% endfor %}])"
+                                    <button onclick="openEditHWModal('{{ hw.id }}', '{{ hw.subject.id }}', '{{ hw.description|escapejs }}', '{{ hw.deadline|date:'Y-m-d\TH:i' }}', [{% for f in hw.files.all %}{{ f.id }}{% if not forloop.last %},{% endif %}{% endfor %}], '{{ hw.tutor_comment|default_if_none:""|escapejs }}')"
                                             style="border:none; background:none; color: var(--primary); cursor:pointer;"><i class="fas fa-edit"></i></button>
-                                    <a href="{% url 'delete_homework' hw.id %}" onclick="return confirm('Удалить это задание?')" style="color: #ef4444;"><i class="fas fa-trash"></i></a>
+                                    <form method="post" action="{% url 'delete_homework' hw.id %}" style="display: inline;" onsubmit="return confirmSubmit(this, 'Удалить задание?', 'Домашнее задание будет удалено.');">
+                                        {% csrf_token %}
+                                        <button type="submit" style="border:none; background:none; color: #ef4444; cursor:pointer;"><i class="fas fa-trash"></i></button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="5" style="text-align: center; padding: 30px; color: #94a3b8;">Заданий пока нет</td></tr>
+                        <tr><td colspan="5">
+                            <div class="empty-state" style="padding: 40px 20px;">
+                                <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
+                                <h3>Заданий пока нет</h3>
+                                <p>Задайте первое домашнее задание для ученика</p>
+                            </div>
+                        </td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -233,11 +253,33 @@
             <div class="mb-15"><label class="form-label">Предмет</label><select name="subject" class="filter-select" required>{% for sub in subjects %}<option value="{{ sub.id }}">{{ sub.name }}</option>{% endfor %}</select></div>
             <div class="mb-15"><label class="form-label">Описание</label><textarea name="description" class="filter-select" style="height: 100px; padding: 10px;" required placeholder="Напр: Выучить формулы..."></textarea></div>
             <div class="mb-15"><label class="form-label">Срок сдачи</label><input type="datetime-local" name="deadline" class="filter-select"></div>
-            <div class="mb-20"><label class="form-label">Материалы</label>
-                <div style="max-height: 120px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #f8fafc;">
-                    {% for f in tutor_files %}<label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; cursor: pointer;"><input type="checkbox" name="files" value="{{ f.id }}"><span style="font-size: 13px;">{{ f.file_name }}</span></label>{% endfor %}
+            <details class="extra-params-details" style="margin-top: 15px;">
+                <summary style="padding: 10px 0; cursor: pointer; color: var(--primary); font-weight: 600; font-size: 14px; list-style: none; display: flex; justify-content: space-between;">
+                    <span><i class="fas fa-paperclip"></i> Прикрепить материалы</span>
+                    <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                </summary>
+
+                <div style="padding-top: 10px;">
+                    <input type="text" class="hw-material-search filter-select mb-10"
+                           placeholder="🔎 Поиск в библиотеке..."
+                           style="font-size: 13px; margin-bottom: 8px;">
+
+                    <div class="materials-selector-container" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px;">
+                        <table class="materials-table" style="width: 100%;">
+                            <tbody class="hw-materials-list">
+                                {% for f in tutor_files %}
+                                <tr class="hw-material-item">
+                                    <td style="width: 40px; padding: 8px;"><input type="checkbox" name="materials" value="{{ f.id }}"></td>
+                                    <td class="file-name" style="padding: 8px; font-size: 13px;">{{ f.file_name }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="2" style="text-align: center; padding: 10px;">Библиотека пуста</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            </details>
             <button type="submit" class="btn btn-primary" style="width: 100%;">Отправить ученику</button>
         </form>
     </div>
@@ -267,17 +309,32 @@
                 <label class="form-label">Комментарий репетитора</label>
                 <textarea name="tutor_comment" id="edit-hw-comment" class="filter-select" style="height: 80px; padding: 10px;" placeholder="Комментарий к заданию..."></textarea>
             </div>
-            <div class="mb-20">
-                <label class="form-label">Материалы</label>
-                <div id="edit-hw-files" style="max-height: 120px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #f8fafc;">
-                    {% for f in tutor_files %}
-                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; cursor: pointer;">
-                        <input type="checkbox" name="files" value="{{ f.id }}" class="edit-hw-file-cb">
-                        <span style="font-size: 13px;">{{ f.file_name }}</span>
-                    </label>
-                    {% endfor %}
+            <details class="extra-params-details" style="margin-top: 15px;">
+                <summary style="padding: 10px 0; cursor: pointer; color: var(--primary); font-weight: 600; font-size: 14px; list-style: none; display: flex; justify-content: space-between;">
+                    <span><i class="fas fa-paperclip"></i> Изменить материалы</span>
+                    <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                </summary>
+
+                <div style="padding-top: 10px;">
+                    <input type="text" class="hw-material-search filter-select mb-10"
+                           placeholder="🔎 Поиск в библиотеке..." style="font-size: 13px; margin-bottom: 8px;">
+
+                    <div class="materials-selector-container" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px;">
+                        <table class="materials-table" style="width: 100%;">
+                            <tbody>
+                                {% for f in tutor_files %}
+                                <tr class="hw-material-item">
+                                    <td style="width: 40px; padding: 8px;">
+                                        <input type="checkbox" name="files" value="{{ f.id }}" class="edit-hw-file-cb">
+                                    </td>
+                                    <td class="file-name" style="padding: 8px; font-size: 13px;">{{ f.file_name }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            </details>
             <button type="submit" class="btn btn-primary" style="width: 100%;">Сохранить изменения</button>
         </form>
     </div>
@@ -305,14 +362,12 @@
                             {{ tx.date|date:"d.m.Y H:i" }} </td>
                         <td style="font-weight: 500;">{{ tx.description|default:"Транзакция" }}</td>
                         <td style="text-align: right; padding-right: 20px; font-weight: 700;">
-                            <td style="text-align: right; padding-right: 20px; font-weight: 700;">
-                                {% if tx.type == 'deposit' %} <span style="color: #166534;">+{{ tx.amount }} ₽</span>
-                                {% else %}
-                                    <span style="color: var(--tg-red);">
-                                        -{{ tx.amount }} ₽
-                                    </span>
-                                {% endif %}
-                            </td>
+                            {% if tx.type == 'deposit' %} <span style="color: #166534;">+{{ tx.amount }} ₽</span>
+                            {% else %}
+                                <span style="color: var(--tg-red);">
+                                    -{{ tx.amount }} ₽
+                                </span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
@@ -328,7 +383,7 @@
     function openModal(id) { document.getElementById(id).classList.add('active'); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-    function openEditHWModal(id, subjectId, desc, deadline, fileIds,comment) {
+    function openEditHWModal(id, subjectId, desc, deadline, fileIds, comment) {
         const form = document.getElementById('editHWForm');
         form.action = `/homework/edit/${id}/`;
         document.getElementById('edit-hw-subject').value = subjectId;
@@ -339,26 +394,49 @@
         checkboxes.forEach(cb => { cb.checked = fileIds.includes(parseInt(cb.value)); });
         openModal('editHWModal');
     }
+    function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
 
     function togglePay(el, attId) {
-        fetch(`/toggle-pay/${attId}/`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    el.classList.toggle('paid', data.is_paid);
-                    el.classList.toggle('debt', !data.is_paid);
-                    el.innerText = data.is_paid ? 'Оплачено' : 'Долг';
-                    const balanceEl = document.getElementById('student-balance-val');
-                    if (balanceEl) { balanceEl.innerText = data.new_balance + ' ₽'; }
-                    const debtEl = document.getElementById('total-debt-val');
-                    if (debtEl) {
-                        debtEl.innerText = data.new_total_debt + ' ₽';
-                        debtEl.style.color = data.new_total_debt > 0 ? '#ef4444' : '#22c55e';
-                    }
-                } else if (data.status === 'error') { alert(data.message); }
-            })
-            .catch(err => console.error("Ошибка запроса:", err));
-    }
+    if (el.classList.contains('ajax-loading')) return;
+    el.classList.add('ajax-loading');
+
+    fetch(`/toggle-attendance-pay/${attId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        el.classList.remove('ajax-loading');
+        if (data.status === 'ok') {
+            // обновить UI: статус оплаты, баланс, долг
+            el.classList.toggle('paid', data.is_paid);
+            // обновить числа баланса/долга, если показываются
+        } else {
+            showToast(data.message || 'Ошибка', 'error');
+        }
+    })
+    .catch(() => {
+        el.classList.remove('ajax-loading');
+        showToast('Ошибка соединения', 'error');
+    });
+}
 
     window.onclick = function(event) { if (event.target.classList.contains('modal-overlay')) { event.target.classList.remove('active'); } }
     function updateHwStatus(hwId, newStatus, selectElement) {
@@ -373,10 +451,7 @@
     })
     .then(response => {
         if (response.ok) {
-            // Обновляем цвет самого селекта, меняя его класс
             selectElement.className = `hw-status-select status-${newStatus}`;
-
-            // Визуальный эффект сохранения
             selectElement.style.boxShadow = '0 0 5px var(--tg-active)';
             setTimeout(() => selectElement.style.boxShadow = 'none', 1000);
         }
@@ -386,8 +461,8 @@
 
     function cycleHwStatus(hwId, element) {
     const badge = element.querySelector('.badge-hw');
+    if (element.classList.contains('ajax-loading')) return;
 
-    // Определяем порядок смены статусов (цикл)
     const statusCycle = {
         'pending': { next: 'submitted', label: 'На проверке' },
         'submitted': { next: 'revision', label: 'Доработать' },
@@ -395,7 +470,6 @@
         'completed': { next: 'pending', label: 'Ожидает' }
     };
 
-    // Определяем текущий статус по классу
     let currentStatus = '';
     if (badge.classList.contains('status-pending')) currentStatus = 'pending';
     else if (badge.classList.contains('status-submitted')) currentStatus = 'submitted';
@@ -403,8 +477,8 @@
     else if (badge.classList.contains('status-completed')) currentStatus = 'completed';
 
     const nextData = statusCycle[currentStatus];
+    element.classList.add('ajax-loading');
 
-    // Отправляем данные на сервер (используем твой существующий URL редактирования)
     const formData = new FormData();
     formData.append('status', nextData.next);
     formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
@@ -415,15 +489,29 @@
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => {
+        element.classList.remove('ajax-loading');
         if (response.ok) {
-            // Мгновенно обновляем внешний вид пилюли
             badge.className = `badge-hw status-${nextData.next}`;
             badge.innerText = nextData.label;
-
-           
+            showToast('Статус обновлён: ' + nextData.label, 'success');
         }
     })
-    .catch(err => console.error("Ошибка при смене статуса:", err));
+    .catch(err => {
+        element.classList.remove('ajax-loading');
+        showToast('Ошибка при смене статуса', 'error');
+    });
 }
+    document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('hw-material-search')) {
+        const text = e.target.value.toLowerCase();
+        const container = e.target.nextElementSibling; // Это наш div.materials-selector-container
+        const rows = container.querySelectorAll('.hw-material-item');
+
+        rows.forEach(row => {
+            const fileName = row.querySelector('.file-name').innerText.toLowerCase();
+            row.style.display = fileName.includes(text) ? 'table-row' : 'none';
+        });
+    }
+});
 </script>
 {% endblock %}

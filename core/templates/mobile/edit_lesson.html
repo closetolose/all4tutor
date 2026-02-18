@@ -110,11 +110,9 @@
 </form>
 
 <style>
-    /* --- Стили для формы --- */
     .tg-form-container { padding-top: 20px; padding-bottom: 50px; }
     .mobile-final-form { padding-top: 15px; }
 
-    /* Сегментный переключатель (Tabs) */
     .segment-control {
         display: flex;
         background: var(--tg-body-bg);
@@ -140,15 +138,13 @@
         font-weight: 600;
     }
 
-    /* Секции */
     .tg-section {
-        background: var(--tg-header); /* #212121 */
+        background: var(--tg-header);
         margin-bottom: 30px;
         border-top: 1px solid var(--tg-separator);
         border-bottom: 1px solid var(--tg-separator);
     }
 
-    /* Строки ввода */
     .tg-input-row {
         display: flex; align-items: center;
         margin-left: 15px; padding-right: 15px;
@@ -163,30 +159,27 @@
 
     .tg-field-wrap { flex-grow: 1; display: flex; justify-content: flex-end; }
 
-    /* Стилизация Django инпутов внутри враппера */
     .tg-field-wrap input, .tg-field-wrap select {
         background: transparent; border: none;
         color: var(--tg-blue); font-size: 16px;
         text-align: right; width: 100%; outline: none;
-        appearance: none; /* Убираем стандартные стрелки */
+        appearance: none;
     }
 
     .tg-native-input { color: var(--tg-blue); font-family: inherit; }
 
     .tg-arrow { color: #555; font-size: 12px; margin-left: 10px; }
 
-    /* iOS Toggle Switch */
     .tg-switch { position: relative; display: inline-block; width: 50px; height: 30px; }
     .tg-switch input { opacity: 0; width: 0; height: 0; }
     .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3a3a3c; transition: .4s; border-radius: 34px; }
     .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
-    input:checked + .slider { background-color: var(--tg-green); } /* Зеленый iOS */
+    input:checked + .slider { background-color: var(--tg-green); }
     input:checked + .slider:before { transform: translateX(20px); }
 
-    /* Блок повторения */
     .recurring-box {
-        display: none; /* Скрыто по умолчанию */
-        background: #1c1c1c; /* Чуть темнее секции */
+        display: none;
+        background: var(--tg-bg);
         border-top: 1px solid var(--tg-separator);
         padding-bottom: 10px;
     }
@@ -196,7 +189,6 @@
 
     .days-grid { display: flex; justify-content: space-between; gap: 5px; }
 
-    /* Дни недели как пузыри */
     .day-checkbox input { display: none; }
     .day-bubble {
         display: flex; align-items: center; justify-content: center;
@@ -213,16 +205,12 @@
 </style>
 
 <script>
-    // 1. Логика переключения Индивидуально / Группа
     function setLessonType(type, element) {
-        // Меняем стили табов
         document.querySelectorAll('.segment-option').forEach(el => el.classList.remove('active'));
         element.classList.add('active');
 
-        // Меняем значение скрытого инпута (если он нужен бэкенду)
         document.getElementById('lesson_type_input').value = type;
 
-        // Показываем нужные поля
         const studentRow = document.getElementById('field-student');
         const groupRow = document.getElementById('field-group');
 
@@ -235,31 +223,26 @@
         }
     }
 
-    // 2. Логика слайдера "Повторение"
     const recurringSwitch = document.querySelector('.tg-switch input');
     const recurringBox = document.getElementById('recurring-options');
 
     if (recurringSwitch) {
         recurringSwitch.addEventListener('change', function() {
             if (this.checked) {
-                // Эффект слайда вниз (простой вариант через display)
                 recurringBox.style.display = 'block';
             } else {
                 recurringBox.style.display = 'none';
             }
         });
 
-        // Проверка при загрузке (если редактируем урок)
         if (recurringSwitch.checked) {
             recurringBox.style.display = 'block';
         }
     }
 
-    // 3. Маленький хак: добавляем класс всем инпутам Django, чтобы CSS их подцепил
     document.addEventListener('DOMContentLoaded', function() {
         const inputs = document.querySelectorAll('#lessonForm input:not([type="checkbox"]):not([type="radio"]), #lessonForm select');
         inputs.forEach(input => {
-            // Если у инпута еще нет стилей, можно добавить (хотя CSS выше и так справляется через селекторы)
             input.style.textAlign = 'right';
         });
     });

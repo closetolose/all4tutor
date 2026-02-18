@@ -1,0 +1,68 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Архив учеников{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <h2 style="margin:0;"><i class="fas fa-archive text-primary"></i> Архив учеников</h2>
+        <a href="{% url 'my_students' %}" class="btn btn-outline btn-sm">
+            <i class="fas fa-arrow-left"></i> К активным
+        </a>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="scrollable-container" style="max-height: 600px;">
+            <table style="width: 100%;">
+                <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                    <tr style="text-align: left; font-size: 12px; color: #64748b; text-transform: uppercase;">
+                        <th style="padding: 15px;">Ученик</th>
+                        <th>Последний урок</th>
+                        <th style="text-align: right; padding-right: 20px;">Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 15px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 40px; height: 40px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #64748b;">
+                                    {{ student.first_name|slice:":1" }}
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600;">{{ student.first_name }} {{ student.last_name }}</div>
+                                    <small style="color: #94a3b8;">{{ student.email }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="color: #64748b; font-size: 14px;">
+                            {% with last_att=student.attendance.first %}
+                                {{ last_att.lesson.start_time|date:"d.m.Y"|default:"Нет данных" }}
+                            {% endwith %}
+                        </td>
+                        <td style="text-align: right; padding-right: 15px;">
+                            <a href="{% url 'student_card' student.id %}" class="btn btn-outline btn-sm" title="Посмотреть историю">
+                                <i class="fas fa-eye"></i> История
+                            </a>
+                            <form method="post" action="{% url 'restore_student' student.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-primary" title="Восстановить в активные">
+                                    <i class="fas fa-user-plus"></i> Вернуть
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" style="padding: 50px; text-align: center; color: #94a3b8;">
+                            <i class="fas fa-folder-open" style="font-size: 40px; display: block; margin-bottom: 10px; opacity: 0.3;"></i>
+                            В архиве пока пусто
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

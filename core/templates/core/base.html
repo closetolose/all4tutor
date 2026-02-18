@@ -11,6 +11,7 @@
 </head>
 <body class="{% if not user.is_authenticated %}auth-body{% endif %}">
 
+
     {% if user.is_authenticated %}
     <aside class="sidebar">
         <div class="sidebar-header">
@@ -34,7 +35,8 @@
                 </a>
             {% endif %}
             {% if user.profile.role == 'tutor' %}
-                <a href="{% url 'my_students' %}" class="nav-item {% if 'my_students' in request.path %}active{% endif %}">
+                <a href="{% url 'my_students' %}"
+                   class="nav-item {% if request.resolver_match.url_name == 'my_students' %}active{% endif %}">
                     <i class="fas fa-user-graduate"></i> Мои ученики
                 </a>
                 <a href="{% url 'my_subjects' %}" class="nav-item {% if request.resolver_match.url_name == 'my_subjects' %}active{% endif %}">
@@ -89,35 +91,68 @@
     {% endif %}
 
     <main class="{% if request.user.is_authenticated %}main-content{% else %}auth-content{% endif %}">
-        {% if messages %}
-        <div class="messages-container">
-            {% for message in messages %}
-                <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %}">
-                    {{ message }}
-                </div>
+            {% if user.is_authenticated and auto_breadcrumbs %}
+        <nav class="breadcrumbs">
+            {% for crumb in auto_breadcrumbs %}
+                {% if not forloop.last %}
+                    <a href="{{ crumb.url }}">{{ crumb.name }}</a>
+                    <i class="fas fa-chevron-right separator"></i>
+                {% else %}
+                    <span class="current">{{ crumb.name }}</span>
+                {% endif %}
             {% endfor %}
-        </div>
+        </nav>
         {% endif %}
-
         {% block content %}{% endblock %}
     </main>
 
     <div id="global-tooltip"></div>
 
-    <nav class="mobile-bottom-nav">
-        <a href="{% url 'index' %}" class="nav-link active">
-            <i class="fas fa-comment"></i>
-            <span>Чаты</span>
-        </a>
-        <a href="#" class="nav-link">
-            <i class="fas fa-user-friends"></i>
-            <span>Контакты</span>
-        </a>
+    <div class="toast-container" id="toastContainer"></div>
 
-    </nav>
+    <div class="confirm-modal-overlay" id="confirmModal">
+        <div class="confirm-modal">
+            <div class="confirm-modal-icon danger">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <h3 id="confirmTitle">Подтвердите действие</h3>
+            <p id="confirmText">Вы уверены? Это действие нельзя отменить.</p>
+            <div class="confirm-modal-actions">
+                <button class="btn btn-outline" onclick="closeConfirm()">Отмена</button>
+                <button class="btn btn-primary" id="confirmBtn" style="background: var(--danger); box-shadow: 0 2px 8px rgba(239,68,68,0.3);">Удалить</button>
+            </div>
+        </div>
+    </div>
+    {% if user.is_authenticated %}
+    <script>
+        const currentTz = "{{ user.profile.timezone }}";
+        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+        // Если пояс в базе не совпадает с тем, что в браузере — обновляем через AJAX
+        if (browser_tz && currentTz !== browserTz) {
+            fetch('/update-timezone/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'timezone=' + browserTz
+            });
+        }
+    </script>
+    {% endif %}
+
+    {% if messages %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            {% for message in messages %}
+            showToast('{{ message|escapejs }}', '{% if message.tags == "error" %}error{% else %}success{% endif %}');
+            {% endfor %}
+        });
+    </script>
+    {% endif %}
 
     <script>
-        // 1. ФУНКЦИИ МОДАЛЬНЫХ ОКОН (ДОБАВЛЕНО)
         function openModal(id) {
             const modal = document.getElementById(id);
             if (modal) modal.classList.add('active');
@@ -128,7 +163,6 @@
             if (modal) modal.classList.remove('active');
         }
 
-        // Закрытие по клику на фон
         window.addEventListener('click', function(event) {
             if (event.target.classList.contains('modal-overlay')) {
                 event.target.classList.remove('active');
@@ -147,12 +181,9 @@
 
         const tooltipRect = tooltip.getBoundingClientRect();
 
-        // Центрируем по горизонтали
         let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
-        // Ставим чуть выше (с небольшим нахлестом невидимой зоны)
         let top = rect.top - tooltipRect.height - 5;
 
-        // Если вылетает за верхнюю границу — показываем под текстом
         if (top < 10) {
             top = rect.bottom + 5;
         }
@@ -168,17 +199,14 @@
         });
 
         trigger.addEventListener('mouseleave', () => {
-            // Увеличим задержку до 500мс (полсекунды), этого хватит даже медленному пользователю
             hideTimeout = setTimeout(() => {
                 tooltip.classList.remove('active');
             }, 100);
         });
     });
 
-    // Если мышка внутри окна — не закрываем!
     tooltip.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
 
-    // Как только ушла из окна — закрываем через паузу
     tooltip.addEventListener('mouseleave', () => {
         hideTimeout = setTimeout(() => {
             tooltip.classList.remove('active');
@@ -187,22 +215,67 @@
 });
         function copyToClipboard(text, btn) {
     navigator.clipboard.writeText(text).then(() => {
-        // Находим иконку внутри кнопки
         const icon = btn.querySelector('i');
         const originalClass = icon.className;
 
-        // Меняем иконку на галочку и красим в зеленый
         icon.className = 'fas fa-check';
         btn.classList.add('copied');
 
-        // Через 2 секунды возвращаем как было
         setTimeout(() => {
             icon.className = originalClass;
             btn.classList.remove('copied');
         }, 2000);
     }).catch(err => {
-        console.error('Ошибка копирования: ', err);
+        console.error(err);
     });
+}
+
+function showToast(message, type) {
+    type = type || 'success';
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const icons = {success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle'};
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    toast.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i><span>' + message + '</span><button class="toast-close" onclick="dismissToast(this.parentElement)">&times;</button>';
+    container.appendChild(toast);
+    setTimeout(function() { dismissToast(toast); }, 4000);
+}
+
+function dismissToast(el) {
+    if (!el || el.classList.contains('toast-out')) return;
+    el.classList.add('toast-out');
+    setTimeout(function() { el.remove(); }, 300);
+}
+
+let _confirmCallback = null;
+function showConfirm(title, text, btnText, callback) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmText').textContent = text;
+    document.getElementById('confirmBtn').textContent = btnText || 'Удалить';
+    _confirmCallback = callback;
+    document.getElementById('confirmModal').classList.add('active');
+}
+
+function closeConfirm() {
+    document.getElementById('confirmModal').classList.remove('active');
+    _confirmCallback = null;
+}
+
+document.getElementById('confirmBtn').addEventListener('click', function() {
+    if (_confirmCallback) _confirmCallback();
+    closeConfirm();
+});
+
+document.getElementById('confirmModal').addEventListener('click', function(e) {
+    if (e.target === this) closeConfirm();
+});
+
+function confirmSubmit(form, title, text) {
+    showConfirm(title || 'Удалить?', text || 'Это действие нельзя будет отменить.', 'Удалить', function() {
+        form.submit();
+    });
+    return false;
 }
 
     </script>

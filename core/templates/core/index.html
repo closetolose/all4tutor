@@ -4,7 +4,6 @@
 
 {% block content %}
     <style>
-        /* Выбор дней недели */
         .weekdays-selector { display: flex; gap: 5px; flex-wrap: wrap; }
         .weekday-btn input { display: none !important; }
         .weekday-btn span {
@@ -20,7 +19,6 @@
 
         .filter-select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: white; }
 
-        /* Бар массовых действий */
         .bulk-bar {
             position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
             background: #1e293b; color: white; padding: 12px 25px; border-radius: 50px;
@@ -31,7 +29,6 @@
         .bulk-content { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 30px; }
         .btn-bulk { background: none; border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: 0.2s; }
 
-        /* Таблица материалов в модалке */
         .materials-selector-container {
             max-height: 180px;
             overflow-y: auto;
@@ -91,6 +88,25 @@
                 <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ДО</label>
                 <input type="time" name="time_to" value="{{ request.GET.time_to }}" class="filter-select">
             </div>
+        </div>
+
+        <div style="flex: 1; min-width: 140px;">
+            <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ПРЕДМЕТ</label>
+            <select name="subject" class="filter-select">
+                <option value="">Все предметы</option>
+                {% for item in my_subjects %}
+                    <option value="{{ item.subject.id }}" {% if request.GET.subject == item.subject.id|stringformat:"s" %}selected{% endif %}>{{ item.subject.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 140px;">
+            <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">СТАТУС</label>
+            <select name="status" class="filter-select">
+                <option value="">Все</option>
+                <option value="paid" {% if request.GET.status == 'paid' %}selected{% endif %}>Оплачено</option>
+                <option value="unpaid" {% if request.GET.status == 'unpaid' %}selected{% endif %}>Не оплачено</option>
+            </select>
         </div>
 
         <div style="display: flex; gap: 8px; align-items: flex-end; padding-bottom: 2px;">
@@ -235,7 +251,16 @@
 
                         </td>
 
-                        <td style="color: #475569; font-size: 14px;">{{ lesson.start_time|date:"d.m.Y" }} <span style="color: #94a3b8; font-size: 12px;">{{ lesson.start_time|date:"H:i" }}</span></td>
+                        <td style="padding: 10px 15px; vertical-align: middle;">
+                            <div style="display: flex; flex-direction: column; line-height: 1.2;">
+                                <span style="color: #475569; font-size: 14px; font-weight: 500;">
+                                    {{ lesson.start_time|date:"d.m.Y" }}
+                                </span>
+                                <span style="color: #94a3b8; font-size: 12px;">
+                                    {{ lesson.start_time|date:"H:i" }}
+                                </span>
+                            </div>
+                        </td>
                         <td style="font-weight: 700;">{{ lesson.price|default:"0" }} ₽</td>
                         <td>
                             <div style="display: flex; gap: 4px; flex-wrap: wrap;">
@@ -268,10 +293,23 @@
                         {% endif %}
                     </tr>
                     {% empty %}
-                    <tr><td colspan="7" style="text-align: center; padding: 60px; color: #94a3b8;">Занятий не найдено.</td></tr>
+                    <tr><td colspan="7">
+                        <div class="empty-state">
+                            <div class="empty-state-icon"><i class="fas fa-calendar-plus"></i></div>
+                            <h3>Занятий не найдено</h3>
+                            <p>{% if role == 'tutor' %}Создайте первое занятие, нажав кнопку выше{% else %}Ваш репетитор ещё не добавил занятий{% endif %}</p>
+                        </div>
+                    </td></tr>
                     {% endfor %}
                 </tbody>
             </table>
+                       <div id="load-more-container" style="text-align:center; padding:20px; border-top:1px solid #f1f5f9;">
+                {% if has_more %}
+                <button id="load-more-btn" class="btn btn-primary btn-sm" style="padding:10px 25px;">
+                    <i class="fas fa-chevron-down"></i> Загрузить ещё
+                </button>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -332,27 +370,36 @@
                 </div>
             </div>
 
-            <div class="static-extra-params">
-                <h4 style="margin: 0 0 15px 0; font-size: 14px; color: var(--text-muted);"><i class="fas fa-cog"></i> Дополнительно</h4>
-                <div style="display: flex; gap: 15px;" class="mb-15">
-                    <div style="flex: 1;"><label class="form-label">Формат</label>{{ add_lesson_form.format }}</div>
-                    <div style="flex: 1;"><label class="form-label">Место / Ссылка</label>{{ add_lesson_form.location }}</div>
-                </div>
-                <div class="mb-15"><label class="form-label">Личные заметки (скрыты от ученика)</label>{{ add_lesson_form.notes }}</div>
-            </div>
+            <details class="extra-params-details" style="margin-top: 20px; border-top: 1px dashed var(--border);">
+                <summary style="padding: 15px 0; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 14px; list-style: none; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fas fa-cog"></i> Дополнительные параметры</span>
+                    <i class="fas fa-chevron-down" style="font-size: 12px; transition: transform 0.3s;"></i>
+                </summary>
 
-            <div class="mb-20">
-                <label class="form-label"><i class="fas fa-paperclip"></i> Файлы из библиотеки</label>
-                <div class="materials-selector-container">
-                    <table class="materials-table">
-                        <tbody>
-                            {% for f in files %}
-                            <tr><td style="width: 40px;"><input type="checkbox" name="materials" value="{{ f.id }}"></td><td>{{ f.file_name }}</td></tr>
-                            {% empty %}
-                            <tr><td colspan="2" style="text-align: center; color: #94a3b8; padding: 10px;">Библиотека пуста</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div style="padding-bottom: 15px;">
+                    <div style="display: flex; gap: 15px;" class="mb-15">
+                        <div style="flex: 1;"><label class="form-label">Формат</label>{{ add_lesson_form.format }}</div>
+                        <div style="flex: 1;"><label class="form-label">Место / Ссылка</label>{{ add_lesson_form.location }}</div>
+                    </div>
+                    <div class="mb-15">
+                        <label class="form-label">Личные заметки (скрыты от ученика)</label>
+                        {{ add_lesson_form.notes }}
+                    </div>
+                </div>
+            </details>
+
+            <div class="mb-15">
+                <label class="form-label">Прикрепить материалы</label>
+                <input type="text" id="material-search" class="form-control mb-10"
+                       placeholder="🔎 Поиск по названию файла..." style="margin-bottom: 10px;">
+
+                <div id="materials-list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+                    {% for choice in add_lesson_form.materials %}
+                        <div class="material-item" style="margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
+                            {{ choice.tag }}
+                            <span class="file-name">{{ choice.choice_label }}</span>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
 
@@ -426,42 +473,42 @@
     <div id="deleteModal" class="modal-overlay">
         <div class="modal-window" style="max-width: 400px; text-align: center;">
             <div class="close-btn" onclick="closeModal('deleteModal')">&times;</div>
-            <h3 class="modal-title">Удаление занятия</h3>
+            <div class="confirm-modal-icon danger" style="margin-top: 8px;">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <h3 class="modal-title">Удалить занятие?</h3>
             <form id="deleteForm" method="post">
                 {% csrf_token %}
-                <p style="margin-bottom: 25px; color: var(--text-muted);">Вы действительно хотите удалить это занятие?</p>
-                <button type="submit" class="btn btn-danger btn-full">Да, удалить</button>
+                <p style="margin-bottom: 25px; color: var(--text-muted); line-height: 1.5;">Это действие нельзя будет отменить. Занятие будет удалено из расписания.</p>
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" onclick="closeModal('deleteModal')" class="btn btn-outline" style="flex: 1;">Отмена</button>
+                    <button type="submit" class="btn" style="flex: 1; background: var(--danger); color: white;">Удалить</button>
+                </div>
             </form>
         </div>
     </div>
 
     <script>
-        // ЛОГИКА ТАБЛИЦЫ И ВЫДЕЛЕНИЯ
         document.addEventListener('DOMContentLoaded', function() {
     const selectAll = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.lesson-checkbox');
     const hiddenIdsInput = document.getElementById('hidden-ids');
 
-    // 1. ФУНКЦИЯ ОБНОВЛЕНИЯ ПАНЕЛИ
     function updateBulk() {
         const checkedCount = document.querySelectorAll('.lesson-checkbox:checked');
         const bulkBar = document.getElementById('bulk-actions-bar');
         const selectedCount = document.getElementById('selected-count');
 
-        // Собираем ID всех выбранных уроков
         const selectedIds = Array.from(checkedCount).map(cb => cb.value);
 
-        // Записываем ID в скрытое поле для формы (чтобы улетело на сервер)
         if (hiddenIdsInput) {
             hiddenIdsInput.value = selectedIds.join(',');
         }
 
-        // Обновляем текст счетчика
         if (selectedCount) {
             selectedCount.innerText = checkedCount.length;
         }
 
-        // Показываем или скрываем черную панель
         if (checkedCount.length > 0) {
             bulkBar.classList.add('active');
         } else {
@@ -469,24 +516,20 @@
         }
     }
 
-    // 2. СЛУШАЕМ КЛИКИ ПО КАЖДОМУ ЧЕКБОКСУ
-    // Без этого этапа твоя функция updateBulk никогда не запустится
     checkboxes.forEach(cb => {
         cb.addEventListener('change', updateBulk);
     });
 
-    // 3. ЛОГИКА "ВЫБРАТЬ ВСЕ"
     if (selectAll) {
         selectAll.addEventListener('change', function() {
             checkboxes.forEach(cb => {
-                cb.checked = selectAll.checked; // Ставим всем такой же статус, как у главной галки
+                cb.checked = selectAll.checked;
             });
-            updateBulk(); // Запускаем обновление панели
+            updateBulk();
         });
     }
 });
 
-        // МАТЕРИАЛЫ
         function toggleAllMaterials(source) {
             document.querySelectorAll('#materials-edit-list .material-checkbox').forEach(cb => cb.checked = source.checked);
         }
@@ -494,12 +537,10 @@
             document.querySelectorAll(`#${modalId} input[name="materials"]`).forEach(cb => cb.checked = source.checked);
         }
 
-        // РЕДАКТИРОВАНИЕ
         function openUniversalEdit(mode, id, data) {
             const idsInput = document.getElementById('hidden-ids');
             const title = document.getElementById('edit-modal-title');
 
-            // Сброс галочек
             document.querySelectorAll('.material-checkbox').forEach(cb => cb.checked = false);
             if(document.getElementById('selectAllMaterials')) document.getElementById('selectAllMaterials').checked = false;
 
@@ -553,7 +594,14 @@
             openModal('deleteModal');
         }
 
-        function submitBulk(action) { if(confirm('Применить действие?')) { document.getElementById('action-type').value = action; document.getElementById('bulk-form').submit(); } }
+        function submitBulk(action) {
+            const title = action === 'delete' ? 'Удалить занятия?' : 'Применить действие?';
+            const text = action === 'delete' ? 'Выбранные занятия будут удалены безвозвратно.' : 'Действие будет применено к выбранным занятиям.';
+            showConfirm(title, text, action === 'delete' ? 'Удалить' : 'Применить', function() {
+                document.getElementById('action-type').value = action;
+                document.getElementById('bulk-form').submit();
+            });
+        }
 
         function clearSelection() {
             document.querySelectorAll('.lesson-checkbox').forEach(cb => cb.checked = false);
@@ -563,7 +611,6 @@
 
         function closeUniversalEdit() { closeModal('universalEditModal'); }
 
-        // Переключение Студент/Группа в создании
         document.addEventListener('DOMContentLoaded', function() {
             const radios = document.querySelectorAll('input[name="lesson_type"]');
             radios.forEach(r => r.addEventListener('change', () => {
@@ -587,34 +634,52 @@
         });
 
         function togglePresence(el, attId) {
-            fetch(`/toggle-presence/${attId}/`).then(r => r.json()).then(data => {
-                if(data.status === 'ok') { el.classList.toggle('paid', data.was_present); el.classList.toggle('debt', !data.was_present); }
-            });
+    if (el.classList.contains('ajax-loading')) return;
+    el.classList.add('ajax-loading');
+
+    fetch(`/toggle-presence/${attId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),  // обязательно для POST
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        el.classList.remove('ajax-loading');
+        if(data.status === 'ok') {
+            el.classList.toggle('paid', data.was_present);
+            el.classList.toggle('debt', !data.was_present);
         }
-        function setType(type) {
-            const isGroup = type === 'group';
+    })
+    .catch(() => {
+        el.classList.remove('ajax-loading');
+        showToast('Ошибка соединения', 'error');
+    });
+}
 
-            // Визуальные табы
-            document.getElementById('tab-ind').classList.toggle('active', !isGroup);
-            document.getElementById('tab-group').classList.toggle('active', isGroup);
-
-            // Реальные поля
-            document.getElementById('block-student').style.display = isGroup ? 'none' : 'block';
-            document.getElementById('block-group').style.display = isGroup ? 'block' : 'none';
-
-            // Обновляем скрытый инпут Django
-            const radio = document.querySelector(`input[name="lesson_type"][value="${type}"]`);
-            if(radio) radio.checked = true;
+// Добавь функцию для CSRF токена (если нет)
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
         }
+    }
+    return cookieValue;
+}
 
-        // Показ настроек повторения при чеке
         document.querySelector('input[name="is_recurring"]')?.addEventListener('change', function() {
             document.getElementById('recurring-settings').style.display = this.checked ? 'block' : 'none';
         });
             document.addEventListener('DOMContentLoaded', function() {
         const dateFromInput = document.querySelector('input[name="date_from"]');
 
-        // Если поле даты пустое (первый запуск), ставим сегодняшнее число
         if (dateFromInput && !dateFromInput.value) {
             const today = new Date().toISOString().split('T')[0];
             dateFromInput.value = today;
@@ -625,24 +690,21 @@
     fetch(`/toggle-attendance-pay/${attendanceId}/`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': '{{ csrf_token }}', // Берем токен из Django
+            'X-CSRFToken': '{{ csrf_token }}',
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
     .then(response => {
         if (!response.ok) {
-            // Если сервер вернул 400 или 500, читаем текст ошибки
             return response.json().then(err => { throw new Error(err.message) });
         }
         return response.json();
     })
     .then(data => {
         if (data.status === 'ok') {
-            // 1. Меняем визуальное состояние точки
             btn.classList.toggle('paid', data.is_paid);
             btn.classList.toggle('debt', !data.is_paid);
 
-            // 2. Обновляем цифры в карточках статистики (если они есть на этой странице)
             const balanceEl = document.getElementById('student-balance-display');
             const debtEl = document.getElementById('student-debt-display');
 
@@ -651,14 +713,69 @@
         }
     })
     .catch(error => {
-        // Показываем сообщение "Недостаточно средств"
-        alert(error.message);
+        showToast(error.message, 'error');
     });
 }
         function openSubmitModal(hwId) {
-    // Устанавливаем правильный URL для формы
     document.getElementById('submitHWForm').action = `/homework/submit/${hwId}/`;
     openModal('submitHWModal');
 }
+        let currentPage = 1;
+document.getElementById('load-more-btn')?.addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загрузка...';
+
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const response = await fetch(`/load-more-lessons/?page=${++currentPage}&${params}`);
+        const data = await response.json();
+
+        document.querySelector('.table-container tbody').insertAdjacentHTML('beforeend', data.html);
+
+        if (!data.has_more) {
+            document.getElementById('load-more-container').remove();
+        } else {
+            btn.innerHTML = `<i class="fas fa-chevron-down"></i> Загрузить ещё`;
+        }
+    } catch(e) {
+        alert('Ошибка загрузки');
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+        function setType(type) {
+    // 1. Переключаем активный класс визуальных вкладок
+    document.getElementById('tab-ind').classList.toggle('active', type === 'individual');
+    document.getElementById('tab-group').classList.toggle('active', type === 'group');
+
+    // 2. Находим скрытый радио-баттон в форме и выбираем его
+    const radio = document.querySelector(`input[name="lesson_type"][value="${type}"]`);
+    if (radio) {
+        radio.checked = true;
+        // Вручную вызываем событие change, если на радио висят другие обработчики
+        radio.dispatchEvent(new Event('change'));
+    }
+
+    // 3. Переключаем видимость блоков "Ученик" и "Группа"
+    const studentBlock = document.getElementById('block-student');
+    const groupBlock = document.getElementById('block-group');
+
+    if (type === 'group') {
+        studentBlock.style.display = 'none';
+        groupBlock.style.display = 'block';
+    } else {
+        studentBlock.style.display = 'block';
+        groupBlock.style.display = 'none';
+    }
+}
+        document.getElementById('material-search')?.addEventListener('input', function(e) {
+    const text = e.target.value.toLowerCase();
+    document.querySelectorAll('.material-item').forEach(item => {
+        const name = item.querySelector('.file-name').innerText.toLowerCase();
+        item.style.display = name.includes(text) ? 'flex' : 'none';
+    });
+});
     </script>
 {% endblock %}

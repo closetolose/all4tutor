@@ -19,7 +19,7 @@
             {% elif f.get_extension in '.xls,.xlsx' %}<i class="fas fa-file-excel" style="color: #10b981;"></i>
             {% elif f.get_extension in '.mp4,.mov' %}<i class="fas fa-file-video" style="color: #8b5cf6;"></i>
             {% elif f.get_extension in '.jpg,.png,.jpeg' %}<i class="fas fa-file-image" style="color: #f59e0b;"></i>
-            {% else %}<i class="fas fa-file-alt" style="color: #64748b;"></i>{% endif %}
+            {% else %}<i class="fas fa-file-alt" style="color: var(--tg-hint);"></i>{% endif %}
         </div>
         <div class="fl-file-info">
             <div class="fl-file-name">{{ f.file_name }}</div>

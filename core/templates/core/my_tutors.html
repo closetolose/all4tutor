@@ -8,7 +8,9 @@
         <div class="card list-item">
             <div class="list-info">
                 <h3 style="color: #1e293b; margin: 0 0 10px 0;">
-                    {{ conn.tutor.first_name }} {{ conn.tutor.last_name }}
+                    <a href="{% url 'tutor_card' conn.tutor.id %}" style="text-decoration: none; color: inherit; border-bottom: 2px solid var(--primary-light);">
+                        {{ conn.tutor.first_name }} {{ conn.tutor.last_name }}
+                    </a>
                 </h3>
 
                 <div style="font-size: 14px; line-height: 1.6;">

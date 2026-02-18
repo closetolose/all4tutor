@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Users,  Subjects, StudyGroups, Lessons, StudentBalances, Transaction, TutorSubjects,ConnectionRequest
+from .models import Users,  Subjects, StudyGroups, Lessons, StudentBalance, Transaction, TutorSubjects,ConnectionRequest
 
 
 @admin.register(Users)
@@ -22,6 +22,6 @@ class ConnectionRequestAdmin(admin.ModelAdmin):
 
 admin.site.register(Subjects)
 admin.site.register(StudyGroups)
-admin.site.register(StudentBalances)
+admin.site.register(StudentBalance)
 admin.site.register(Transaction)
 admin.site.register(TutorSubjects)

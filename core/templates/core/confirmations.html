@@ -24,12 +24,15 @@
                     </div>
 
                     <div style="display: flex; gap: 10px;">
-                        <a href="{% url 'accept_request' req.id %}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-check"></i> Принять
-                        </a>
-                        <a href="{% url 'reject_request' req.id %}" class="btn btn-danger btn-sm">
-                            <i class="fas fa-times"></i> Отклонить
-                        </a>
+                        <form action="{% url 'accept_request' req.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-sm">Принять</button>
+                        </form>
+
+                        <form action="{% url 'reject_request' req.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm">Отклонить</button>
+                        </form>
                     </div>
                 </div>
             {% endfor %}

@@ -3,8 +3,11 @@
 {% block title %}Ученики и Группы | All4Tutors{% endblock %}
 
 {% block content %}
-<div style="margin-bottom: 30px;">
-    <h1><i class="fas fa-users-cog"></i> Мои ученики и группы</h1>
+<div style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
+    <h1 style="margin: 0;"><i class="fas fa-users-cog"></i> Мои ученики и группы</h1>
+    <a href="{% url 'archived_students_list' %}" class="btn btn-outline btn-sm">
+        <i class="fas fa-archive"></i> Архив учеников
+    </a>
 </div>
 
 <div style="display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start;">
@@ -21,7 +24,7 @@
                         <tr>
                             <th>Имя</th>
                             <th>Контакты</th>
-                            <th>Действия</th>
+                            <th style="text-align: right;">Действия</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -34,24 +37,25 @@
                             </td>
                             <td>{{ conn.student.contact|default:"—" }}</td>
                             <td>
-                                <div style="display: flex; gap: 10px; align-items: center;">
-                                    <button type="button"
-                                            onclick="openTariffModal('{{ conn.student.id }}', '{{ conn.student.first_name }}', 'student')"
-                                            class="btn btn-sm btn-outline"
-                                            title="Настроить тариф"
-                                            style="color: #10b981; border-color: #10b981;">
-                                        <i class="fas fa-money-bill-wave"></i>
+                                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                    <button onclick="openTariffModal('{{ conn.student.id }}', '{{ conn.student.first_name }}', 'student')"
+                                            class="btn btn-outline btn-sm" title="Настроить тариф">
+                                        <i class="fas fa-ruble-sign"></i>
                                     </button>
 
-                                    <form method="post" action="{% url 'remove_student' conn.id %}" onsubmit="return confirm('Удалить ученика из списка?');">
+                                    <form action="{% url 'archive_student' conn.student.id %}" method="post"
+                                          onsubmit="return confirm('Перевести {{ conn.student.first_name }} в архив? Будущие уроки удалятся, долги будут проверены.');"
+                                          style="display: inline;">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Удалить"><i class="fas fa-user-times"></i></button>
+                                        <button type="submit" class="btn btn-outline btn-sm" style="color: #64748b;" title="В архив">
+                                            <i class="fas fa-user-slash"></i>
+                                        </button>
                                     </form>
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="3" class="text-center" style="padding: 20px; color: var(--text-muted);">Учеников пока нет.</td></tr>
+                        <tr><td colspan="3" style="text-align: center; padding: 20px; color: #94a3b8;">У вас пока нет активных учеников</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -66,58 +70,45 @@
                 <a href="{% url 'add_group' %}" class="btn btn-primary btn-sm">+ Создать</a>
             </div>
 
-            {% for group in groups %}
-            <div style="border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin-bottom: 15px;">
-                <div class="flex-between">
-                    <div>
-                        <div class="hover-info-container">
-                            <a href="{% url 'group_card' group.id %}" style="text-decoration: none;">
-                                <h4 style="margin:0; color:var(--primary); cursor: pointer;">{{ group.name }}</h4>
-                            </a>
-                            <div class="hover-tooltip-content">
-                                <span class="tooltip-title">Участники группы</span>
-                                <ul style="margin: 0; padding-left: 18px; font-size: 13px;">
-                                    {% for student in group.students.all %}
-                                        <li style="margin-bottom: 4px;">
-                                            <i class="fas fa-user-circle" style="font-size: 10px; color: var(--primary); margin-right: 5px;"></i>
-                                            {{ student.first_name }} {{ student.last_name }}
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                                <hr class="tooltip-divider">
-                            </div>
-                        </div>
-                        <div style="font-size: 12px; color:var(--text-muted); margin-top: 4px;">{{ group.subject.name }}</div>
-                    </div>
-
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <button type="button"
-                                onclick="openTariffModal('{{ group.id }}', '{{ group.name }}', 'group')"
-                                style="border:none; background:none; color: #10b981; cursor:pointer; font-size: 18px;"
-                                title="Настроить тариф">
-                            <i class="fas fa-money-bill-wave"></i>
-                        </button>
-
-                        <span class="badge badge-active">{{ group.students.count }} уч.</span>
-                        <a href="{% url 'edit_group' group.id %}" style="color: #3b82f6;"><i class="fas fa-edit"></i></a>
-                        <form method="post" action="{% url 'delete_group' group.id %}" onsubmit="return confirm('Удалить группу?');">
-                            {% csrf_token %}
-                            <button type="submit" style="border:none; background:none; color:red; cursor:pointer;"><i class="fas fa-trash"></i></button>
-                        </form>
-                    </div>
-                </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Группа</th>
+                            <th>Учеников</th>
+                            <th style="text-align: right;">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for group in groups %}
+                        <tr>
+                            <td style="font-weight: 600;">{{ group.name }}</td>
+                            <td>{{ group.students.count }}</td>
+                            <td>
+                                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                    <button onclick="openTariffModal('{{ group.id }}', '{{ group.name }}', 'group')"
+                                            class="btn btn-outline btn-sm" title="Тариф группы">
+                                        <i class="fas fa-ruble-sign"></i>
+                                    </button>
+                                    <a href="#" class="btn btn-outline btn-sm"><i class="fas fa-edit"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" style="text-align: center; padding: 20px; color: #94a3b8;">Группы еще не созданы</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-            {% empty %}
-            <div class="text-center" style="color: var(--text-muted); padding: 20px;">Групп пока нет.</div>
-            {% endfor %}
         </div>
     </div>
 </div>
 
 <div id="tariffModal" class="modal-overlay">
-    <div class="modal-window" style="max-width: 400px;">
-        <div class="close-btn" onclick="closeTariffModal()">&times;</div>
-        <h2 class="modal-title">Тариф для: <span id="t-display-name"></span></h2>
+    <div class="modal-box" style="max-width: 400px;">
+        <span class="close-modal" onclick="closeTariffModal()">&times;</span>
+        <h3 id="t-title">Настройка тарифа</h3>
+        <p id="t-display-name" style="font-weight: 700; color: var(--primary); margin-bottom: 20px;"></p>
 
         <form method="post">
             {% csrf_token %}
@@ -125,12 +116,11 @@
             <input type="hidden" name="t_student" id="t-student-id">
             <input type="hidden" name="t_group" id="t-group-id">
 
-            <div class="mb-15">
+            <div class="mb-20">
                 <label class="form-label">Предмет</label>
                 <select name="t_subject" class="filter-select" required>
-                    <option value="">Выберите предмет...</option>
-                    {% for item in my_subjects %}
-                        <option value="{{ item.subject.id }}">{{ item.subject.name }}</option>
+                    {% for ts in my_subjects %}
+                        <option value="{{ ts.subject.id }}">{{ ts.subject.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -146,6 +136,7 @@
 </div>
 
 <script>
+    // Скрипты для модалки тарифов
     function openTariffModal(id, name, type) {
         document.getElementById('t-display-name').innerText = name;
         if (type === 'student') {
@@ -160,6 +151,14 @@
 
     function closeTariffModal() {
         document.getElementById('tariffModal').classList.remove('active');
+    }
+
+    // Закрытие модалки при клике на фон
+    window.onclick = function(event) {
+        let modal = document.getElementById('tariffModal');
+        if (event.target === modal) {
+            closeTariffModal();
+        }
     }
 </script>
 {% endblock %}

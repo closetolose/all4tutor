@@ -253,7 +253,7 @@
 }
 
 .btn-primary-modal {
-    flex: 2; /* Кнопка "Применить" шире */
+    flex: 2;
     background: var(--tg-active);
     color: white;
     border: none;
@@ -265,8 +265,8 @@
 }
 
 .btn-secondary {
-    flex: 1; /* Кнопка "Сбросить" уже */
-    background: var(--tg-card-active); /* Адаптируется под тему */
+    flex: 1;
+    background: var(--tg-card-active);
     color: var(--tg-hint);
     border: 1px solid var(--tg-separator);
     padding: 14px;
@@ -277,7 +277,6 @@
     text-decoration: none;
 }
 
-/* Фикс для селектов в темной теме */
 .tg-modal-content select, .tg-modal-content input {
     background: var(--tg-sidebar) !important;
     color: var(--tg-text) !important;
@@ -331,7 +330,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    color: white;
+    color: var(--tg-text);
 }
 
 .filter-status {

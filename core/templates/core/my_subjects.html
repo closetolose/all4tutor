@@ -1,27 +1,97 @@
 {% extends 'core/base.html' %}
+{% load static %}
+
 {% block content %}
-<div class="header-section">
-    <h1>Мои предметы</h1>
+<style>
+    .scrollable-container { max-height: 500px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; background: white; }
+    .scrollable-container table { width: 100%; border-collapse: collapse; }
+    .scrollable-container td { padding: 15px; border-bottom: 1px solid #f1f5f9; }
+
+    .modal-overlay { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal-overlay.active { display: flex; }
+    .modal-window { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 400px; position: relative; }
+</style>
+
+<div style="max-width: 800px; margin: 0 auto;">
+    <h2 class="mb-20"><i class="fas fa-book-open"></i> Управление предметами</h2>
+
+    <div class="card" style="margin-bottom: 25px;">
+        <form method="post" action="{% url 'my_subjects' %}" style="display: flex; gap: 15px;">
+            {% csrf_token %}
+            <input type="text" name="name" placeholder="Название предмета..." required class="filter-select" style="flex: 1; margin: 0;">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Добавить
+            </button>
+        </form>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="scrollable-container">
+            <table style="width: 100%;">
+                <thead style="background: #f8fafc;">
+                    <tr style="text-align: left; font-size: 12px; color: #64748b;">
+                        <th style="padding: 15px;">НАЗВАНИЕ</th>
+                        <th style="padding: 15px; text-align: right;">ДЕЙСТВИЯ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in subjects %}
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 15px; font-weight: 600;">{{ sub.name }}</td>
+                        <td style="padding: 15px; text-align: right;">
+                            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                                <button onclick="openEditModal('{{ sub.id }}', '{{ sub.name|escapejs }}')" class="btn btn-outline btn-sm">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+
+                                <form action="{% url 'delete_subject' sub.id %}" method="post" onsubmit="return confirm('Удалить предмет?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline btn-sm" style="color: #ef4444; border-color: #fecaca;">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="2" style="padding: 30px; text-align: center; color: #94a3b8;">Предметов пока нет</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
-<div class="card">
-    <div class="subjects-container">
-        <div class="current-subjects" style="margin-bottom: 25px;">
-            {% for subject in subjects %}
-                <span class="subject-tag" style="background: var(--bg-alt); padding: 8px 15px; border-radius: 20px; margin-right: 10px; display: inline-block; border: 1px solid var(--border);">
-                    {{ subject.name }}
-                    <a href="{% url 'delete_subject' subject.id %}" style="margin-left: 8px; color: var(--text-muted);">×</a>
-                </span>
-            {% empty %}
-                <p class="text-muted">Предметы еще не добавлены.</p>
-            {% endfor %}
-        </div>
+<div id="editSubjectModal" class="modal-overlay">
+    <div class="modal-window">
+        <div class="close-btn" onclick="closeModal('editSubjectModal')" style="position: absolute; right: 20px; top: 15px; cursor: pointer; font-size: 20px;">&times;</div>
+        <h3 style="margin-top: 0;">Изменить предмет</h3>
 
-        <form action="{% url 'my_subjects' %}" method="post" style="display: flex; gap: 10px;">
+        <form id="editSubjectForm" method="post">
             {% csrf_token %}
-            <input type="text" name="name" placeholder="Новый предмет" required style="margin: 0; flex-grow: 1;">
-            <button type="submit" class="btn btn-primary">Добавить</button>
+            <div style="margin: 20px 0;">
+                <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 5px;">Новое название</label>
+                <input type="text" name="name" id="edit-subject-input" class="filter-select" required style="width: 100%;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Сохранить</button>
         </form>
     </div>
 </div>
+
+<script>
+    // Функции управления модалками из student_card.html
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    function openEditModal(id, currentName) {
+        const form = document.getElementById('editSubjectForm');
+        // Подставляем ID в URL действия формы
+        form.action = `/subjects/edit/${id}/`;
+        document.getElementById('edit-subject-input').value = currentName;
+        openModal('editSubjectModal');
+    }
+
+    // Закрытие по клику на фон
+    window.onclick = function(e) { if (e.target.classList.contains('modal-overlay')) { e.target.classList.remove('active'); } }
+</script>
 {% endblock %}

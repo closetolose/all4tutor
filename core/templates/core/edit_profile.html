@@ -94,21 +94,33 @@
             </div>
         </form>
     </div>
+    <div class="settings-section" style="margin-top: 30px; padding: 20px; border: 1px solid var(--border); border-radius: 12px;">
+    <h3><i class="fas fa-shield-alt"></i> Безопасность</h3>
+    <p class="text-muted" style="font-size: 14px; margin-bottom: 15px;">
+        Если вы вошли в аккаунт на чужом устройстве и забыли выйти, нажмите кнопку ниже.
+        Это завершит все сессии, кроме текущей.
+    </p>
+
+    <form action="{% url 'logout_all_devices' %}" method="POST"
+          onsubmit="return confirm('Завершить все остальные сеансы?');">
+        {% csrf_token %}
+        <button type="submit" class="btn-primary" style="background: var(--danger); border-color: var(--danger);">
+            <i class="fas fa-sign-out-alt"></i> Выйти со всех остальных устройств
+        </button>
+    </form>
+</div>
 
 </div>
 
 <script>
     function detectTimezone() {
-        // Получаем системный часовой пояс браузера
         const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const selector = document.getElementById('tz-selector');
 
         if (detectedTz) {
-            // Ищем совпадение в нашем списке select
             for (let i = 0; i < selector.options.length; i++) {
                 if (selector.options[i].value === detectedTz) {
                     selector.selectedIndex = i;
-                    // Подсветим, что всё получилось
                     selector.style.borderColor = '#10b981';
                     setTimeout(() => selector.style.borderColor = '#f1f5f9', 2000);
                     return;

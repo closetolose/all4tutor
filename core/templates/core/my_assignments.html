@@ -5,7 +5,6 @@
 
 {% block content %}
 <style>
-    /* Статусы ДЗ (как в student_card.html) */
     .badge-hw {
         padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 700;
         text-transform: uppercase; display: inline-block;
@@ -25,7 +24,6 @@
         100% { opacity: 0; transform: translateY(-50%) scale(2.5); }
     }
 
-    /* Стили для файлов-пилюль (Материалы и Ответы) */
     .file-link-pill {
         font-size: 11px;
         background: var(--tg-input-bg);
@@ -43,25 +41,21 @@
     }
     .file-link-pill:hover { background: var(--tg-card-active); transform: translateY(-1px); }
 
-    /* Зеленые пилюли для ответов */
     .file-link-pill.response { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
     .file-link-pill.response:hover { background: #bbf7d0; }
 
-    /* Контейнеры и подписи */
     .files-group-container { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
     .files-label {
         font-size: 10px; font-weight: 800; text-transform: uppercase;
         letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;
     }
 
-    /* Комментарий репетитора */
     .tutor-comment-box {
         margin-top: 15px; padding: 12px; background: rgba(99, 102, 241, 0.05);
         border-left: 4px solid var(--tg-active); border-radius: 4px 10px 10px 4px;
         display: flex; gap: 10px;
     }
 
-    /* Модальное окно */
     .modal-overlay {
         display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: var(--overlay-bg); backdrop-filter: blur(4px); z-index: 10000;
@@ -75,7 +69,6 @@
     border: 1px solid #fed7aa;
 }
 
-/* Если хочешь добавить иконку-индикатор как у "На проверке" */
 .status-revision::before {
     content: ''; position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
     width: 6px; height: 6px; background: #f97316; border-radius: 50%;
@@ -165,7 +158,13 @@
         </td>
     </tr>
     {% empty %}
-    <tr><td colspan="5" style="text-align: center; padding: 60px; color: var(--tg-hint);">У вас пока нет назначенных заданий.</td></tr>
+    <tr><td colspan="5">
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-clipboard-check"></i></div>
+            <h3>Заданий пока нет</h3>
+            <p>Когда репетитор задаст домашнее задание, оно появится здесь</p>
+        </div>
+    </td></tr>
     {% endfor %}
 </tbody>
         </table>
@@ -207,22 +206,18 @@
         const modal = document.getElementById('submitHWModal');
         const form = document.getElementById('submitHWForm');
 
-        // Устанавливаем путь отправки
         form.action = `/homework/submit/${hwId}/`;
 
-        // Открываем через класс, как в student_card.html
         modal.classList.add('active');
     }
 
     function closeModal(id) {
         const modal = document.getElementById(id);
         if (modal) {
-            // Закрываем через класс
             modal.classList.remove('active');
         }
     }
 
-    // Этот код позволит закрывать окно кликом на темный фон
     window.addEventListener('click', function(event) {
         const modal = document.getElementById('submitHWModal');
         if (event.target === modal) {

@@ -52,7 +52,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'core'
+    'core',
 
 ]
 
@@ -68,7 +68,8 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'core.middleware.TimezoneMiddleware',
     'core.middleware.MobileDiscoveryMiddleware',
-    'core.middleware.ProfileCompletionMiddleware'
+    'core.middleware.ProfileCompletionMiddleware',
+    'core.middleware.SessionCheckMiddleware',
 
 ]
 
@@ -84,7 +85,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'core.context_processors.next_lesson_processor'
+                'core.context_processors.next_lesson_processor',
+                'core.context_processors.breadcrumbs',
             ],
         },
     },
@@ -169,3 +171,23 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
 DEFAULT_FROM_EMAIL = f'All4Tutors <{EMAIL_HOST_USER}>'
+
+if not DEBUG:
+
+    SECURE_SSL_REDIRECT = True
+
+    SESSION_COOKIE_SECURE = True
+
+    CSRF_COOKIE_SECURE = True
+
+    # 4. Включаем HSTS (говорим браузеру всегда использовать HTTPS для этого сайта)
+    # Начинай с небольшого значения (например, час), если всё ок — ставь год (31536000)
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # 5. Защита от подмены типов контента
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+PASSWORD_RESET_TIMEOUT = 3600
