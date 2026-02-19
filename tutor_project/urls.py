@@ -59,10 +59,9 @@ urlpatterns = [
     path('logout-all/', views.logout_all_devices, name='logout_all_devices'),
     path('tutor-card/<int:tutor_id>/', views.tutor_card, name='tutor_card'),
     path('subjects/edit/<int:subject_id>/', views.edit_subject, name='edit_subject'),
-    path('students/archive-list/', views.archived_students, name='archived_students_list'),
+    path('students/archive-list/', views.archived_students, name='archived_students'),
     path('students/archive-action/<int:student_id>/', views.archive_student, name='archive_student'),
     path('students/restore/<int:student_id>/', views.restore_student, name='restore_student'),
-
 
 
 

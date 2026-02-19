@@ -20,6 +20,7 @@ services:
       - .:/app
     ports:
       - "8000:8000"
+    command: gunicorn tutor_project.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
     environment: &env_vars # Создаем шаблон переменных
       - DB_NAME=tutor_db
       - DB_USER=tutor_user
@@ -43,7 +44,7 @@ services:
              echo '*/5 * * * * root . /etc/environment; python /app/manage.py send_reminders >> /proc/1/fd/1 2>&1' > /etc/cron.d/tutor-cron && 
              chmod 0644 /etc/cron.d/tutor-cron && 
              cron -f"
-    volumes: 
+    volumes:
       - .:/app
     environment:
       - DB_NAME=tutor_db
@@ -63,7 +64,23 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     depends_on:
       - db
+  nginx:
+    image: nginx:latest
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    depends_on:
+      - web
 
 
 volumes:
   mysql_data:
+  static_volume:
+  media_volume:

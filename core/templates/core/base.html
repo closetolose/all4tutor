@@ -30,8 +30,9 @@
                 <a href="{% url 'confirmations' %}" class="nav-item {% if 'confirmations' in request.path %}active{% endif %}">
                     <i class="fas fa-user-check"></i> Подтверждение
                 </a>
-                <a href="{% url 'my_assignments' %}" class="nav-item {% if request.resolver_match.url_name == 'my_assignments' %}active{% endif %}">
-                    <i class="fas fa-tasks"></i> Мои задания
+                <a href="{% url 'my_tutors' %}"
+                   class="nav-item {% if request.resolver_match.url_name == 'my_tutors' %}active{% endif %}">
+                    <i class="fas fa-user-graduate"></i> Мои репетиторы
                 </a>
             {% endif %}
             {% if user.profile.role == 'tutor' %}

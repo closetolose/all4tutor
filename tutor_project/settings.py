@@ -16,7 +16,7 @@ import environ
 
 
 env = environ.Env(
-    DEBUG=(bool, True)
+    DEBUG=(bool, False)
 )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -32,14 +32,11 @@ TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN', default=None)
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['all4tutors.ru', 'www.all4tutors.ru'])
 CSRF_TRUSTED_ORIGINS = [
     'https://all4tutors.ru',
     'https://www.all4tutors.ru',
-    'localhost'
 ]
 
 
@@ -159,7 +156,6 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-CSRF_TRUSTED_ORIGINS = ['https://*.pinggy.link']
 #STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'
 

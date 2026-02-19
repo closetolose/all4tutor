@@ -55,7 +55,7 @@ class FilesLibrary(models.Model):
         validators=[validate_file_size],
     )
     file_name = models.CharField(max_length=30,verbose_name="Название файла")
-    upload_date = models.DateTimeField(auto_now_add=True)
+    upload_date = models.DateTimeField(default=timezone.now,blank=True)
 
     class Meta:
         db_table = 'files_library'
@@ -125,7 +125,7 @@ class Lessons(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     materials = models.ManyToManyField('FilesLibrary', blank=True, related_name='lessons_materials')
     reminder_sent = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -160,7 +160,7 @@ class Transaction(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     type = models.CharField(max_length=10, choices=TYPES)
     description = models.CharField(max_length=255, blank=True)
-    date = models.DateTimeField(default=timezone.now)
+    date = models.DateTimeField(default=timezone.now,blank=True)
 
     class Meta:
         db_table = 'student_transactions'
@@ -185,12 +185,13 @@ class ConnectionRequest(models.Model):
         ('pending', 'Ожидает'),
         ('confirmed', 'Подтверждено'),
         ('rejected', 'Отклонено'),
+        ('archived', 'В архиве'),
     ]
 
     tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='sent_requests')
     student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='received_requests')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True)
 
     class Meta:
         db_table = 'connection_requests'
@@ -214,7 +215,7 @@ class StudentPerformance(models.Model):
     type = models.CharField(max_length=4, choices=TYPE_CHOICES)
     score = models.IntegerField(help_text="Оценка или процент выполнения")
     comment = models.TextField(blank=True, null=True)
-    date = models.DateField(auto_now_add=True)
+    date = models.DateField(default=timezone.now,blank=True)
 
 
 class Homework(models.Model):
@@ -233,7 +234,7 @@ class Homework(models.Model):
     deadline = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
     tutor_comment = models.TextField(blank=True, null=True, verbose_name="Комментарий репетитора")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True)
 
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -248,9 +249,8 @@ class HomeworkResponse(models.Model):
         upload_to='student_responses/',
         validators=[validate_file_size],
     )
-    file = models.FileField(upload_to='student_responses/')
     file_name = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True)
     student = models.ForeignKey('Users', on_delete=models.CASCADE, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -266,3 +266,5 @@ class TutorStudentNote(models.Model):
 
     class Meta:
         unique_together = ('tutor', 'student')
+
+

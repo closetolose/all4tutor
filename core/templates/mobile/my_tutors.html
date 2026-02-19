@@ -20,7 +20,9 @@
                 {{ conn.tutor.first_name|first }}
             </div>
             <div class="tutor-main">
+                <a href="{% url 'tutor_card' conn.tutor.id %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i>
                 <span class="tutor-name">{{ conn.tutor.first_name }} {{ conn.tutor.last_name }}</span>
+                </a>
                 <span class="tutor-badge">ВАШ РЕПЕТИТОР</span>
             </div>
         </div>

@@ -298,14 +298,15 @@ def my_students(request):
             subject_id=request.POST.get('t_subject'),
             defaults={'price': request.POST.get('t_price')}
         )
-        return redirect('my_students')
+        return smart_render(request, 'core/my_students.html')
+
 
     # Твои активные связи
     connections = ConnectionRequest.objects.filter(tutor=user_profile, status='confirmed').select_related('student')
     groups = StudyGroups.objects.filter(tutor=user_profile)
     my_subjects = TutorSubjects.objects.filter(tutor=user_profile).select_related('subject')
 
-    return render(request, 'core/my_students.html', {
+    return smart_render(request, 'core/my_students.html', {
         'connections': connections,
         'groups': groups,
         'my_subjects': my_subjects
@@ -353,8 +354,6 @@ def add_student(request):
     return smart_render(request, 'core/add_student.html')
 
 
-@login_required
-@require_POST
 #@ratelimit(key='ip', rate='5/m', block=True)
 def add_lesson(request):
     if request.user.profile.role != 'tutor':
@@ -365,12 +364,11 @@ def add_lesson(request):
         if form.is_valid():
             base_start_time = form.cleaned_data.get('start_time')
             duration = form.cleaned_data.get('duration')
-            if not(15<=duration<=600):
-                messages.error(
-                    request,
-                    f"Введите корректную длительность занятия"
 
-                )
+            # Фикс 1: Останавливаем выполнение, если данные неверны
+            if not (15 <= duration <= 600):
+                messages.error(request, "Введите корректную длительность занятия (15-600 мин)")
+                return render(request, 'core/add_lesson.html', {'form': form})
 
             is_recurring = form.cleaned_data.get('is_recurring')
             new_series_id = uuid.uuid4() if is_recurring else None
@@ -379,7 +377,7 @@ def add_lesson(request):
             repeat_until = form.cleaned_data.get('repeat_until')
             selected_weekdays = form.cleaned_data.get('weekdays') or []
 
-            end_date_limit = base_start_time.date()
+            # Определяем лимит даты
             if is_recurring:
                 if repeat_until:
                     end_date_limit = repeat_until
@@ -387,6 +385,8 @@ def add_lesson(request):
                     end_date_limit = base_start_time.date() + timedelta(weeks=repeat_count)
                 else:
                     end_date_limit = base_start_time.date() + timedelta(weeks=4)
+            else:
+                end_date_limit = base_start_time.date()
 
             created_count = 0
             current_date = base_start_time.date()
@@ -396,56 +396,50 @@ def add_lesson(request):
                 is_selected_day = str(current_date.weekday()) in selected_weekdays
 
                 if not is_recurring or is_first_day or is_selected_day:
+                    # Создаем копию объекта из формы
                     lesson = form.save(commit=False)
                     lesson.pk = None
                     lesson.tutor = request.user.profile
                     lesson.series_id = new_series_id
 
+                    # Работа со временем
                     naive_start = timezone.make_naive(base_start_time)
                     new_naive = naive_start.replace(
-                        year=current_date.year,
-                        month=current_date.month,
-                        day=current_date.day,
-                        second=0,
-                        microsecond=0,
+                        year=current_date.year, month=current_date.month, day=current_date.day,
+                        second=0, microsecond=0
                     )
                     new_start = timezone.make_aware(new_naive)
                     lesson.start_time = new_start
                     lesson.end_time = new_start + timedelta(minutes=duration)
 
-                    if form.cleaned_data.get('lesson_type') == 'individual':
-                        lesson.group = None
-                    else:
-                        lesson.student = None
-
-                    # --- НОВОЕ: проверка коллизий перед сохранением ---
+                    # Фикс 2: Глобальная проверка коллизий репетитора
+                    # Теперь проверяем, нет ли У РЕПЕТИТОРА другого урока в это время вообще
                     overlap_qs = Lessons.objects.filter(
                         tutor=request.user.profile,
                         start_time__lt=lesson.end_time,
                         end_time__gt=lesson.start_time,
                     )
-                    if lesson.student_id:
-                        overlap_qs = overlap_qs.filter(student_id=lesson.student_id)
-                    if lesson.group_id:
-                        overlap_qs = overlap_qs.filter(group_id=lesson.group_id)
 
                     if overlap_qs.exists():
                         messages.error(
                             request,
-                            f"Найдено пересечение по времени с другим занятием "
-                            f"({lesson.start_time.strftime('%d.%m %H:%M')})."
+                            f"Коллизия! Вы уже заняты на время {lesson.start_time.strftime('%H:%M')} ({current_date.strftime('%d.%m')})."
                         )
-                        # можно либо полностью прервать серию:
-                        break
-                        # либо просто пропустить конкретный день:
-                        # current_date += timedelta(days=1)
-                        # continue
-                    # --- КОНЕЦ НОВОГО БЛОКА ---
+                        # Для серии уроков лучше просто пропустить этот день и идти дальше
+                        current_date += timedelta(days=1)
+                        continue
+
+                    # Распределяем тип урока
+                    if form.cleaned_data.get('lesson_type') == 'individual':
+                        lesson.group = None
+                    else:
+                        lesson.student = None
 
                     lesson.save()
                     form.save_m2m()
                     created_count += 1
 
+                    # Создаем записи посещаемости
                     students_to_link = []
                     if lesson.group:
                         students_to_link = lesson.group.students.all()
@@ -459,25 +453,20 @@ def add_lesson(request):
                     break
 
                 current_date += timedelta(days=1)
-                if created_count >= 100:
+                if created_count >= 100:  # Защита от бесконечных циклов
                     break
 
-            messages.success(request, f"Создано занятий: {created_count}")
+            messages.success(request, f"Успешно создано занятий: {created_count}")
             return redirect('index')
-        else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"Ошибка в поле {field}: {error}")
     else:
         form = AddLessonForm(tutor=request.user.profile)
 
-    if getattr(request, 'is_mobile', False):
-        return smart_render(request, 'core/add_lesson.html', {'form': form})
-    return redirect('index')
+    return smart_render(request, 'core/add_lesson.html', {'form': form})
 
 
 @login_required
 #@ratelimit(key='ip', rate='5/m', block=True)
+@login_required
 def edit_lesson(request, lesson_id):
     lesson = get_object_or_404(Lessons, id=lesson_id, tutor=request.user.profile)
 
@@ -486,23 +475,19 @@ def edit_lesson(request, lesson_id):
         if form.is_valid():
             updated_lesson = form.save(commit=False)
 
-            # Проверка пересечений по времени для этого же репетитора
+            # Пересчитываем end_time на основе измененной длительности
+            duration = form.cleaned_data.get('duration')
+            updated_lesson.end_time = updated_lesson.start_time + timedelta(minutes=duration)
+
+            # Фикс: Проверка пересечений (репетитор не может быть в двух местах одновременно)
             overlap_qs = Lessons.objects.filter(
                 tutor=request.user.profile,
                 start_time__lt=updated_lesson.end_time,
                 end_time__gt=updated_lesson.start_time,
             ).exclude(id=lesson.id)
 
-            if updated_lesson.student_id:
-                overlap_qs = overlap_qs.filter(student_id=updated_lesson.student_id)
-            if updated_lesson.group_id:
-                overlap_qs = overlap_qs.filter(group_id=updated_lesson.group_id)
-
             if overlap_qs.exists():
-                messages.error(
-                    request,
-                    "Найдено пересечение по времени с другим занятием."
-                )
+                messages.error(request, "Ошибка: Это время уже занято другим вашим уроком.")
             else:
                 updated_lesson.save()
                 form.save_m2m()
@@ -511,9 +496,7 @@ def edit_lesson(request, lesson_id):
     else:
         form = AddLessonForm(instance=lesson, tutor=request.user.profile)
 
-    if getattr(request, 'is_mobile', False):
-        return smart_render(request, 'core/edit_lesson.html', {'form': form, 'lesson': lesson})
-    return redirect('index')
+    return smart_render(request, 'core/edit_lesson.html', {'form': form, 'lesson': lesson})
 
 
 @login_required
@@ -751,7 +734,16 @@ def student_card(request, student_id):
     student = get_object_or_404(Users, id=student_id)
     now = timezone.now()
     note_obj, created = TutorStudentNote.objects.get_or_create(tutor=tutor, student=student)
-
+    if request.user.profile.role != 'tutor':
+        return redirect('index')
+    has_access = ConnectionRequest.objects.filter(
+        tutor=tutor,
+        student=student,
+        status__in=['confirmed', 'archived']
+    ).exists()
+    if not has_access:
+        messages.error(request, "Ошибка доступа: это не ваш ученик.")
+        return redirect('my_students')
     # Пополнение баланса
     if request.method == 'POST' and 'update_balance' in request.POST:
         raw_amount = request.POST.get('amount', '').replace(',', '.')
@@ -1229,7 +1221,7 @@ def my_subjects(request):
             )
             TutorSubjects.objects.get_or_create(tutor=tutor, subject=subject)
             messages.success(request, f"Предмет '{subject_name}' добавлен!")
-        return redirect('my_subjects')
+        return smart_render(request, 'core/my_subjects.html')
 
     subjects = Subjects.objects.filter(tutor=tutor)
     return smart_render(request, 'core/my_subjects.html', {'subjects': subjects})
@@ -1445,7 +1437,7 @@ def tutor_card(request, tutor_id):
         'balance': balance_obj.balance,
         'total_debt': total_debt,
     }
-    return render(request, 'core/tutor_card.html', context)
+    return smart_render(request, 'core/tutor_card.html', context)
 
 
 # views.py
@@ -1487,10 +1479,13 @@ def archive_student(request, student_id):
         group.students.remove(student)
 
     # 4. Разрываем связь (используем tutor/student на основе твоих FieldError)
-    ConnectionRequest.objects.filter(tutor=tutor, student=student, status='confirmed').delete()
-
+    ConnectionRequest.objects.filter(
+        tutor=tutor,
+        student=student,
+        status='confirmed'
+    ).update(status='archived')
     messages.success(request, f"Ученик {student.first_name} переведен в архив.")
-    return redirect('my_students')
+    return smart_render(request, 'core/my_students.html')
 
 
 @login_required
@@ -1498,17 +1493,14 @@ def archived_students(request):
     tutor = request.user.profile
 
     # Исправленный фильтр: используем lessonattendance и корректные поля ConnectionRequest
-    archived = Users.objects.filter(
-        role='student',
-        lessonattendance__lesson__tutor=tutor
-    ).exclude(
-        id__in=ConnectionRequest.objects.filter(
-            tutor=tutor,
-            status='confirmed'
-        ).values_list('student_id', flat=True)
-    ).distinct()
+    archived_ids = ConnectionRequest.objects.filter(
+        tutor=tutor,
+        status='archived'
+    ).values_list('student_id', flat=True)
 
-    return smart_render(request, 'core/archived_students.html', {'students': archived})
+    students = Users.objects.filter(id__in=archived_ids).distinct()
+
+    return smart_render(request, 'core/archived_students.html', {'students': students})
 
 
 @login_required
@@ -1526,4 +1518,4 @@ def restore_student(request, student_id):
 
     messages.success(request, f"Ученик {student.first_name} успешно возвращен из архива!")
     # После восстановления логично сразу перейти к списку активных учеников
-    return redirect('my_students')
+    return smart_render(request, 'core/archived_students.html')
