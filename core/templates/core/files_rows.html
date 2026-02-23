@@ -1,0 +1,37 @@
+{% for f in files %}
+<div class="card" style="text-align: center; position: relative; padding: 20px; transition: transform 0.2s;">
+    <div style="font-size: 45px; margin-bottom: 15px;">
+        {% if f.get_extension == '.pdf' %}<i class="fas fa-file-pdf" style="color: #ef4444;"></i>
+        {% elif f.get_extension in '.doc,.docx' %}<i class="fas fa-file-word" style="color: #3b82f6;"></i>
+        {% elif f.get_extension in '.xls,.xlsx' %}<i class="fas fa-file-excel" style="color: #10b981;"></i>
+        {% elif f.get_extension in '.mp4,.mov' %}<i class="fas fa-file-video" style="color: #8b5cf6;"></i>
+        {% elif f.get_extension in '.jpg,.png,.jpeg' %}<i class="fas fa-file-image" style="color: #f59e0b;"></i>
+        {% else %}<i class="fas fa-file-alt" style="color: #64748b;"></i>{% endif %}
+    </div>
+
+    <div style="font-size: 14px; font-weight: 600; margin-bottom: 5px; height: 40px; overflow: hidden; line-height: 1.4;">
+        {{ f.file_name }}
+    </div>
+
+    <div style="font-size: 11px; color: #94a3b8; margin-bottom: 15px;">
+        {{ f.upload_date|date:"d.m.Y" }}
+    </div>
+
+    <div style="display: flex; gap: 8px; justify-content: center;">
+        <a href="{% url 'download_library_file' f.id %}" target="_blank" class="btn btn-outline btn-sm" title="Скачать/Открыть">
+            <i class="fas fa-download"></i>
+        </a>
+
+        <button onclick="prepareEditModal('{{ f.id }}', '{{ f.file_name|escapejs }}')" class="btn btn-outline btn-sm" title="Редактировать">
+            <i class="fas fa-edit"></i>
+        </button>
+
+        <form method="post" action="{% url 'delete_file' f.id %}" style="display: inline;" onsubmit="return confirmSubmit(this, 'Удалить файл?', 'Файл «{{ f.file_name|escapejs }}» будет удалён навсегда.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline btn-sm" style="color: #ef4444; border-color: #fee2e2;" title="Удалить">
+                <i class="fas fa-trash"></i>
+            </button>
+        </form>
+    </div>
+</div>
+{% endfor %}

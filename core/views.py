@@ -1,3 +1,4 @@
+import csv
 import io
 import json
 import os
@@ -35,6 +36,7 @@ from .models import (
 from .utils import send_telegram_notification, send_verification_email
 #from ratelimit.decorators import ratelimit
 from django.db.models import ProtectedError
+from django.core.paginator import Paginator
 
 
 @login_required
@@ -52,6 +54,8 @@ def index(request):
     student_debt = 0
     homeworks = []
     files = []
+    active_hw_count = 0
+    active_tutors = []
 
     try:
         user_profile = request.user.profile
@@ -131,7 +135,10 @@ def index(request):
             is_paid=False
         ).aggregate(Sum('lesson__price'))['lesson__price__sum'] or 0
 
-        homeworks = Homework.objects.filter(student=user_profile).order_by('-deadline')
+        homeworks = Homework.objects.filter(student=user_profile).order_by('deadline')
+        active_hw = homeworks.filter(status__in=['pending', 'revision']).select_related('tutor')
+        active_hw_count = active_hw.count()
+        ctive_tutors = list(set([f"{hw.tutor.first_name} {hw.tutor.last_name}" for hw in active_hw]))
 
         # Логика обработки POST (добавление/удаление предметов)
     if request.method == 'POST' and user_role == 'tutor':
@@ -176,7 +183,9 @@ def index(request):
         'files': files,
         'student_debt': student_debt,
         'homeworks': homeworks,
-        'attendance_map_json': attendance_map,  # Это словарь, в шаблоне используй |safe если нужно для JS
+        'attendance_map_json': attendance_map,
+        'active_hw_count': active_hw_count,
+        'active_tutors': active_tutors,
     }
 
     return smart_render(request, 'core/index.html', context)
@@ -645,8 +654,10 @@ def bulk_action_lessons(request):
 
                     lesson.save()
 
-                    if 'materials' in request.POST:
-                        lesson.materials.set(selected_materials)
+                    if 'materials_updated' in request.POST:
+                        # Очищаем от пустых строк на всякий случай
+                        valid_materials = [m for m in selected_materials if m.strip()]
+                        lesson.materials.set(valid_materials)
 
                     if new_student or new_group:
                         lesson.attendances.all().delete()
@@ -910,7 +921,7 @@ def files_library(request):
         messages.success(request, "Файл успешно добавлен в библиотеку!")
         return redirect('files_library')
 
-    files = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
+    files = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')[:20]
     return smart_render(request, 'core/files_library.html', {'files': files})
 
 
@@ -1158,35 +1169,73 @@ def finances(request):
 #@ratelimit(key='ip', rate='5/m', block=True)
 def submit_homework(request, hw_id):
     homework = get_object_or_404(Homework, id=hw_id, student=request.user.profile)
+    user_profile = request.user.profile
 
     if request.method == 'POST':
-        files = request.FILES.getlist('response_files')
-        if files:
-            for f in files:
-                HomeworkResponse.objects.create(
-                    homework=homework,
-                    file=f,
-                    file_name=f.name,
-                    student=request.user.profile
-                )
+        # 1. Получаем файлы, загруженные напрямую с ПК (из my_assignments)
+        uploaded_files = request.FILES.getlist('response_files')
+
+        # 2. Получаем ID файлов, выбранных из библиотеки (из tutor_card / student_card)
+        library_file_ids = request.POST.getlist('response_files')
+
+        added_new = False
+
+        # Обрабатываем загрузку с компьютера
+        if uploaded_files:
+            for f in uploaded_files:
+                # ПРОВЕРКА НА ДУБЛИКАТ: Ищем файл с таким же именем в этом ДЗ
+                if not HomeworkResponse.objects.filter(homework=homework, file_name=f.name).exists():
+                    HomeworkResponse.objects.create(
+                        homework=homework,
+                        file=f,
+                        file_name=f.name,
+                        student=user_profile
+                    )
+                    added_new = True
+
+        # Обрабатываем выбор из библиотеки
+        if library_file_ids:
+            for f_id in library_file_ids:
+                try:
+                    lib_file = FilesLibrary.objects.get(id=f_id, tutor=user_profile)
+                    # ПРОВЕРКА НА ДУБЛИКАТ:
+                    if not HomeworkResponse.objects.filter(homework=homework, file_name=lib_file.file_name).exists():
+                        HomeworkResponse.objects.create(
+                            homework=homework,
+                            file=lib_file.file,
+                            file_name=lib_file.file_name,
+                            student=user_profile
+                        )
+                        added_new = True
+                except FilesLibrary.DoesNotExist:
+                    continue
+
+        # Если были переданы хоть какие-то файлы
+        if added_new or uploaded_files or library_file_ids:
             homework.status = 'submitted'
             homework.save()
+
             tutor = homework.tutor
             if tutor.telegram_id:
                 msg = (
                     f"✅ <b>Задание сдано на проверку!</b>\n\n"
-                    f"<b>Ученик:</b> {request.user.profile.first_name} {request.user.profile.last_name}\n"
+                    f"<b>Ученик:</b> {user_profile.first_name} {user_profile.last_name}\n"
                     f"<b>Предмет:</b> {homework.subject.name}\n"
                     f"<b>Задание:</b> {homework.description[:50]}...\n\n"
-                    f"🧐 <a href='https://all4tutors.ru/student-card/{request.user.profile.id}/'>Перейти к проверке</a>"
+                    f"🧐 <a href='https://all4tutors.ru/student-card/{user_profile.id}/'>Перейти к проверке</a>"
                 )
                 send_telegram_notification(tutor, msg)
-            messages.success(request, "Задание успешно отправлено!")
+
+            if added_new:
+                messages.success(request, "Задание успешно отправлено!")
+            else:
+                messages.info(request,
+                              "Эти файлы уже были прикреплены ранее. Статус задания обновлен на «На проверке».")
         else:
             messages.error(request, "Файлы не были выбраны.")
-        return redirect('my_assignments')
 
-    return redirect('tutor_card',tutor_id=homework.tutor.id)
+        # Возвращаем пользователя на ту страницу, с которой он отправлял форму
+        return redirect(request.META.get('HTTP_REFERER', 'my_assignments'))
 
 
 @login_required
@@ -1402,7 +1451,8 @@ def tutor_card(request, tutor_id):
     # Используем LessonAttendance вместо несуществующей модели Attendance
     attendances = LessonAttendance.objects.filter(
         student=student_profile,
-        lesson__tutor=tutor
+        lesson__tutor=tutor,
+        was_present=True
     ).select_related('lesson', 'lesson__subject').order_by('-lesson__start_time')
 
     # ДЗ именно от этого репетитора
@@ -1424,7 +1474,7 @@ def tutor_card(request, tutor_id):
     )
 
     # Считаем сумму долга за неоплаченные уроки
-    total_debt = attendances.filter(is_paid=False).aggregate(
+    total_debt = attendances.filter(is_paid=False,was_present=True).aggregate(
         total=Sum('lesson__price')
     )['total'] or 0
 
@@ -1519,3 +1569,211 @@ def restore_student(request, student_id):
     messages.success(request, f"Ученик {student.first_name} успешно возвращен из архива!")
     # После восстановления логично сразу перейти к списку активных учеников
     return smart_render(request, 'core/archived_students.html')
+
+
+@login_required
+def homework_detail(request, hw_id):
+    user_profile = request.user.profile
+
+    # Достаем задание со всеми связями, чтобы не делать лишних запросов к БД
+    hw = get_object_or_404(
+        Homework.objects.select_related('tutor', 'student'),
+        id=hw_id
+    )
+
+    # Проверка прав: чужие зайти не смогут
+    is_tutor = hw.tutor_id == user_profile.id
+    is_student = hw.student_id == user_profile.id
+
+    if not (is_tutor or is_student):
+        messages.error(request, "У вас нет доступа к этому заданию.")
+        return redirect('index')
+
+    # Достаем ответы ученика (если связь называется 'responses', замени на свое имя related_name)
+    # Если ты не задавал related_name, то по умолчанию это homeworkresponse_set
+    responses = hw.responses.all()  # или hw.homeworkresponse_set.all()
+
+    context = {
+        'hw': hw,
+        'responses': responses,
+        'is_tutor': is_tutor,
+    }
+    return render(request, 'core/homework_detail.html', context)
+
+
+@login_required
+def api_get_user_files(request):
+    user_profile = request.user.profile
+    query = request.GET.get('search', '')
+    page_number = request.GET.get('page', 1)
+
+    # 1. Достаем файлы только текущего репетитора из правильной модели
+    # Сортируем по дате загрузки (самые новые сверху)
+    files = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
+
+    # 2. Живой поиск по названию
+    if query:
+        files = files.filter(file_name__icontains=query)
+
+    # 3. Пагинация: отдаем по 20 файлов за раз
+    paginator = Paginator(files, 20)
+    page_obj = paginator.get_page(page_number)
+
+    # 4. Формируем JSON ответ
+    files_data = []
+    for f in page_obj:
+        # У тебя в модели FilesLibrary есть метод get_extension(),
+        # но можно достать расширение и так:
+        ext = str(f.file.name).split('.')[-1].lower() if f.file else 'file'
+
+        files_data.append({
+            'id': f.id,
+            'name': f.file_name,
+            'ext': ext
+        })
+
+    return JsonResponse({
+        'files': files_data,
+        'has_next': page_obj.has_next()
+    })
+
+
+@login_required
+def load_more_files(request):
+    """AJAX: Подгрузка следующих файлов библиотеки"""
+    page = int(request.GET.get('page', 1))
+    per_page = 20
+    user_profile = request.user.profile
+
+    files_qs = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
+
+    start = (page - 1) * per_page
+    end = page * per_page
+    files = list(files_qs[start:end])
+
+    # Рендерим HTML только для новых карточек
+    html = render_to_string('core/files_rows.html', {'files': files}, request=request)
+
+    has_more = files_qs.count() > end
+    return JsonResponse({'html': html, 'has_more': has_more})
+
+
+@login_required
+def download_library_file(request, file_id):
+    # Ищем файл и проверяем, что он принадлежит этому репетитору
+    file_obj = get_object_or_404(FilesLibrary, id=file_id, tutor=request.user.profile)
+
+    if not file_obj.file or not os.path.exists(file_obj.file.path):
+        messages.error(request, "Файл не найден на сервере.")
+        return redirect(request.META.get('HTTP_REFERER', 'files_library'))
+
+    # Формируем правильное имя с расширением
+    ext = os.path.splitext(file_obj.file.name)[1]
+    filename = file_obj.file_name if file_obj.file_name.endswith(ext) else file_obj.file_name + ext
+
+    # Отдаем файл через Django
+    return FileResponse(
+        open(file_obj.file.path, 'rb'),
+        as_attachment=True,  # True - скачивание, False - открытие в браузере
+        filename=filename,
+    )
+
+
+@login_required
+def export_lessons_csv(request):
+    user_profile = request.user.profile
+
+    # Получаем параметры
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    pay_status = request.GET.get('pay_status')
+    lesson_type = request.GET.get('lesson_type')
+    subject_id = request.GET.get('subject_id')
+    student_id = request.GET.get('student_id')
+
+    # Базовый запрос
+    lessons = Lessons.objects.filter(tutor=user_profile).select_related('student', 'group', 'subject')
+
+    # 1. Фильтр по датам
+    if date_from:
+        lessons = lessons.filter(start_time__date__gte=date_from)
+    if date_to:
+        lessons = lessons.filter(start_time__date__lte=date_to)
+
+    # 2. Фильтр по оплате
+    if pay_status == 'paid':
+        lessons = lessons.filter(is_paid=True)
+    elif pay_status == 'debt':
+        lessons = lessons.filter(is_paid=False)
+
+    # 3. ИСПРАВЛЕННЫЙ Фильтр по формату (индив/группа)
+    if lesson_type == 'individual':
+        lessons = lessons.filter(student__isnull=False)
+    elif lesson_type == 'group':
+        lessons = lessons.filter(group__isnull=False)
+
+    # 4. Фильтр по предмету
+    if subject_id:
+        lessons = lessons.filter(subject_id=subject_id)
+
+    # 5. ИСПРАВЛЕННЫЙ Фильтр по ученику
+    if student_id:
+        lessons = lessons.filter(student_id=student_id)
+
+    # Сортировка
+    lessons = lessons.order_by('-start_time')
+
+    # Формируем Excel
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = 'attachment; filename="filtered_lessons_report.csv"'
+    writer = csv.writer(response, delimiter=';')
+
+    writer.writerow(['Дата', 'Время', 'Тип', 'Ученик/Группа', 'Предмет', 'Цена (₽)', 'Статус оплаты'])
+
+    for lesson in lessons:
+        # ИСПРАВЛЕННОЕ определение типа и участника
+        if lesson.student:
+            participant = f"{lesson.student.first_name} {lesson.student.last_name}"
+            l_type = "Индивидуальное"
+        elif lesson.group:
+            participant = f"Группа: {lesson.group.name}"
+            l_type = "Групповое"
+        else:
+            participant = "Не указан"
+            l_type = "Неизвестно"
+
+        writer.writerow([
+            lesson.start_time.strftime('%d.%m.%Y'),
+            lesson.start_time.strftime('%H:%M'),
+            l_type,
+            participant,
+            lesson.subject.name if lesson.subject else '',
+            lesson.price,
+            'Оплачено' if lesson.is_paid else 'Долг'
+        ])
+
+    return response
+
+
+@login_required
+@require_POST
+def delete_homework_response(request, response_id):
+    # Находим ответ
+    response_obj = get_object_or_404(HomeworkResponse, id=response_id)
+    hw = response_obj.homework
+
+    # Проверка безопасности: удалить может только автор (ученик)
+    if request.user.profile != response_obj.student:
+        messages.error(request, "У вас нет прав для удаления этого файла.")
+        return redirect(request.META.get('HTTP_REFERER', 'index'))
+
+    # Запрещаем удалять, если ДЗ уже принято
+    if hw.status == 'completed':
+        messages.error(request, "Нельзя удалять файлы из завершенного задания.")
+        return redirect(request.META.get('HTTP_REFERER', 'index'))
+
+    # Удаляем и возвращаем обратно
+    response_obj.delete()
+    messages.success(request, "Ответ успешно удален.")
+
+    return redirect(request.META.get('HTTP_REFERER', 'index'))

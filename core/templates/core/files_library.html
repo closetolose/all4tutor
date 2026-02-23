@@ -8,44 +8,11 @@
     </button>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;">
-    {% for f in files %}
-    <div class="card" style="text-align: center; position: relative; padding: 20px; transition: transform 0.2s;">
-        <div style="font-size: 45px; margin-bottom: 15px;">
-            {% if f.get_extension == '.pdf' %}<i class="fas fa-file-pdf" style="color: #ef4444;"></i>
-            {% elif f.get_extension in '.doc,.docx' %}<i class="fas fa-file-word" style="color: #3b82f6;"></i>
-            {% elif f.get_extension in '.xls,.xlsx' %}<i class="fas fa-file-excel" style="color: #10b981;"></i>
-            {% elif f.get_extension in '.mp4,.mov' %}<i class="fas fa-file-video" style="color: #8b5cf6;"></i>
-            {% elif f.get_extension in '.jpg,.png,.jpeg' %}<i class="fas fa-file-image" style="color: #f59e0b;"></i>
-            {% else %}<i class="fas fa-file-alt" style="color: #64748b;"></i>{% endif %}
-        </div>
+<div id="files-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;">
 
-        <div style="font-size: 14px; font-weight: 600; margin-bottom: 5px; height: 40px; overflow: hidden; line-height: 1.4;">
-            {{ f.file_name }}
-        </div>
+    {% include 'core/files_rows.html' %}
 
-        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 15px;">
-            {{ f.upload_date|date:"d.m.Y" }}
-        </div>
-
-        <div style="display: flex; gap: 8px; justify-content: center;">
-            <a href="{{ f.file.url }}" target="_blank" class="btn btn-outline btn-sm" title="Скачать/Открыть">
-                <i class="fas fa-download"></i>
-            </a>
-
-            <button onclick="prepareEditModal('{{ f.id }}', '{{ f.file_name|escapejs }}')" class="btn btn-outline btn-sm" title="Редактировать">
-                <i class="fas fa-edit"></i>
-            </button>
-
-            <form method="post" action="{% url 'delete_file' f.id %}" style="display: inline;" onsubmit="return confirmSubmit(this, 'Удалить файл?', 'Файл «{{ f.file_name|escapejs }}» будет удалён навсегда.');">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-outline btn-sm" style="color: #ef4444; border-color: #fee2e2;" title="Удалить">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </form>
-        </div>
-    </div>
-    {% empty %}
+    {% if not files %}
     <div style="grid-column: 1/-1;">
         <div class="empty-state" style="border: 2px dashed var(--border); border-radius: 16px;">
             <div class="empty-state-icon"><i class="fas fa-cloud-upload-alt"></i></div>
@@ -54,7 +21,13 @@
             <button onclick="openModal('uploadFileModal')" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Загрузить файл</button>
         </div>
     </div>
-    {% endfor %}
+    {% endif %}
+
+</div>
+
+<div id="lazy-loader" style="display: none; text-align: center; padding: 30px; color: #94a3b8; grid-column: 1/-1;">
+    <i class="fas fa-spinner fa-spin fa-2x"></i>
+    <div style="margin-top: 10px; font-size: 14px;">Загружаем ещё файлы...</div>
 </div>
 
 <div id="uploadFileModal" class="modal-overlay">
@@ -103,12 +76,49 @@
     function prepareEditModal(id, currentName) {
         const form = document.getElementById('editFileForm');
         const nameInput = document.getElementById('editFileNameInput');
-
         nameInput.value = currentName;
-
         form.action = `/files/edit/${id}/`;
-
         openModal('editFileModal');
+    }
+
+    // ==== НОВЫЙ КОД ДЛЯ ЛЕНИВОЙ ЗАГРУЗКИ ====
+    let currentPage = 1;
+    let isLoading = false;
+    let hasMore = true;
+
+    // Если изначально загрузилось меньше 20 файлов, значит грузить больше нечего
+    {% if files|length < 20 %}
+        hasMore = false;
+    {% endif %}
+
+    window.addEventListener('scroll', () => {
+        if (isLoading || !hasMore) return;
+
+        // Если доскроллили почти до низа страницы (за 200px до конца)
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {
+            loadMoreFiles();
+        }
+    });
+
+    async function loadMoreFiles() {
+        isLoading = true;
+        document.getElementById('lazy-loader').style.display = 'block';
+        currentPage++;
+
+        try {
+            const response = await fetch(`/load-more-files/?page=${currentPage}`);
+            const data = await response.json();
+
+            hasMore = data.has_more;
+
+            // Вставляем новый HTML в конец сетки
+            document.getElementById('files-grid').insertAdjacentHTML('beforeend', data.html);
+        } catch (error) {
+            console.error("Ошибка ленивой загрузки:", error);
+        } finally {
+            isLoading = false;
+            document.getElementById('lazy-loader').style.display = 'none';
+        }
     }
 </script>
 

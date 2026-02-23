@@ -150,70 +150,94 @@
                             <th style="text-align: center; width: 100px;">ДЕЙСТВИЯ</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {% for hw in homeworks %}
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td style="padding: 15px;"><strong>{{ hw.subject.name }}</strong></td>
-                            <td style="max-width: 300px;">
-                                <div style="font-size: 13px; font-weight: 600;">{{ hw.description }}</div>
+                   <tbody>
+    {% for hw in homeworks %}
+    <tr style="border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s;"
+        onclick="window.location.href='{% url 'homework_detail' hw.id %}'"
+        onmouseover="this.style.background='#f8fafc'"
+        onmouseout="this.style.background='transparent'">
 
-                                {% if hw.tutor_comment %}
-                                    <div style="margin-top: 6px; font-size: 12px; color: #6366f1; font-style: italic;">
-                                        <i class="fas fa-comment" style="margin-right: 4px;"></i>{{ hw.tutor_comment }}
-                                    </div>
-                                {% endif %}
+        <td style="padding: 15px;"><strong>{{ hw.subject.name }}</strong></td>
 
-                                {% if hw.files.exists %}
-                                    <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
-                                        {% for f in hw.files.all %}<a href="{{ f.file.url }}" target="_blank" style="font-size: 10px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; color: var(--primary); text-decoration: none;"><i class="fas fa-paperclip"></i> {{ f.file_name|truncatechars:15 }}</a>{% endfor %}
-                                    </div>
-                                {% endif %}
+        <td style="max-width: 300px;">
+            <div style="font-size: 13px; font-weight: 600;">{{ hw.description }}</div>
 
-                                {% if hw.responses.exists %}
-                                    <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 5px;">
-                                        <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Ответы ученика:</div>
-                                        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                                            {% for resp in hw.responses.all %}
-                                                <a href="{{ resp.file.url }}" target="_blank" style="font-size: 10px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; text-decoration: none; font-weight: 600;">
-                                                    <i class="fas fa-reply"></i> {{ resp.file_name|truncatechars:15 }}
-                                                </a>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                {% endif %}
-                            </td>
-                            <td style="font-size: 13px;">{{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}</td>
-                            <td>
-                                <a href="javascript:void(0);"
-                                   onclick="cycleHwStatus({{ hw.id }}, this)"
-                                   style="text-decoration: none;"
-                                   id="hw-link-{{ hw.id }}">
-                                    <span class="badge-hw status-{{ hw.status }}">
-                                        {{ hw.get_status_display }}
-                                    </span>
-                                </a>
-                            </td>
-                            <td style="text-align: center;">
-                                <div style="display: flex; gap: 12px; justify-content: center;">
-                                    <button onclick="openEditHWModal('{{ hw.id }}', '{{ hw.subject.id }}', '{{ hw.description|escapejs }}', '{{ hw.deadline|date:'Y-m-d\TH:i' }}', [{% for f in hw.files.all %}{{ f.id }}{% if not forloop.last %},{% endif %}{% endfor %}], '{{ hw.tutor_comment|default_if_none:""|escapejs }}')"
-                                            style="border:none; background:none; color: var(--primary); cursor:pointer;"><i class="fas fa-edit"></i></button>
-                                    <form method="post" action="{% url 'delete_homework' hw.id %}" style="display: inline;" onsubmit="return confirmSubmit(this, 'Удалить задание?', 'Домашнее задание будет удалено.');">
-                                        {% csrf_token %}
-                                        <button type="submit" style="border:none; background:none; color: #ef4444; cursor:pointer;"><i class="fas fa-trash"></i></button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="5">
-                            <div class="empty-state" style="padding: 40px 20px;">
-                                <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
-                                <h3>Заданий пока нет</h3>
-                                <p>Задайте первое домашнее задание для ученика</p>
-                            </div>
-                        </td></tr>
+
+            {% if hw.files.exists %}
+                <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
+                    {% for f in hw.files.all %}
+                        <a href="#"
+                           onclick="event.stopPropagation(); window.open('{% url 'download_homework_all' hw.id %}', '_blank')"
+                           style="font-size: 10px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; color: var(--primary); text-decoration: none;">
+                            <i class="fas fa-paperclip"></i> {{ f.file_name|truncatechars:15 }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% if hw.responses.exists %}
+                <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 5px;">
+                    <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Ответы ученика:</div>
+                    <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                        {% for resp in hw.responses.all %}
+                            <a href="{% url 'download_homework_response' resp.id %}"
+                               target="_blank"
+                               onclick="event.stopPropagation();"
+                               style="font-size: 10px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; text-decoration: none; font-weight: 600;">
+                                <i class="fas fa-reply"></i> {{ resp.file_name|truncatechars:15 }}
+                            </a>
                         {% endfor %}
-                    </tbody>
+                    </div>
+                </div>
+            {% endif %}
+        </td>
+
+        <td style="font-size: 13px;">{{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}</td>
+
+        <td>
+            <a href="javascript:void(0);"
+               onclick="event.stopPropagation(); cycleHwStatus({{ hw.id }}, this)"
+               style="text-decoration: none;"
+               id="hw-link-{{ hw.id }}">
+                <span class="badge-hw status-{{ hw.status }}">
+                    {{ hw.get_status_display }}
+                </span>
+            </a>
+        </td>
+
+        <td style="text-align: center;">
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button onclick="event.stopPropagation(); openEditHWModal('{{ hw.id }}', '{{ hw.subject.id }}', '{{ hw.description|escapejs }}', '{{ hw.deadline|date:'Y-m-d\TH:i' }}', '{{ hw.tutor_comment|default_if_none:""|escapejs }}', [
+                    {% for m in hw.files.all %}
+                        { id: '{{ m.id }}', name: '{{ m.file_name|escapejs }}' }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ])"
+                        style="border:none; background:none; color: var(--primary); cursor:pointer;">
+                    <i class="fas fa-edit"></i>
+                </button>
+
+                <form method="post" action="{% url 'delete_homework' hw.id %}" style="display: inline;"
+                      onsubmit="return confirmSubmit(this, 'Удалить задание?', 'Домашнее задание будет удалено.');">
+                    {% csrf_token %}
+                    <button type="submit"
+                            onclick="event.stopPropagation();"
+                            style="border:none; background:none; color: #ef4444; cursor:pointer;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5">
+        <div class="empty-state" style="padding: 40px 20px;">
+            <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
+            <h3>Заданий пока нет</h3>
+            <p>Задайте первое домашнее задание для ученика</p>
+        </div>
+    </td></tr>
+    {% endfor %}
+</tbody>
                 </table>
             </div>
         </div>
@@ -253,33 +277,18 @@
             <div class="mb-15"><label class="form-label">Предмет</label><select name="subject" class="filter-select" required>{% for sub in subjects %}<option value="{{ sub.id }}">{{ sub.name }}</option>{% endfor %}</select></div>
             <div class="mb-15"><label class="form-label">Описание</label><textarea name="description" class="filter-select" style="height: 100px; padding: 10px;" required placeholder="Напр: Выучить формулы..."></textarea></div>
             <div class="mb-15"><label class="form-label">Срок сдачи</label><input type="datetime-local" name="deadline" class="filter-select"></div>
-            <details class="extra-params-details" style="margin-top: 15px;">
-                <summary style="padding: 10px 0; cursor: pointer; color: var(--primary); font-weight: 600; font-size: 14px; list-style: none; display: flex; justify-content: space-between;">
-                    <span><i class="fas fa-paperclip"></i> Прикрепить материалы</span>
-                    <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
-                </summary>
+            <div class="form-group" style="margin-top: 15px;">
+                <label class="form-label"><i class="fas fa-paperclip"></i> Прикрепить файлы к ДЗ</label>
 
-                <div style="padding-top: 10px;">
-                    <input type="text" class="hw-material-search filter-select mb-10"
-                           placeholder="🔎 Поиск в библиотеке..."
-                           style="font-size: 13px; margin-bottom: 8px;">
+                <button type="button" onclick="openFilePickerModal('add-hw-display', 'add-hw-select')"
+                        style="display: block; width: 100%; padding: 10px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; color: var(--primary); cursor: pointer; text-align: center; font-size: 13px; font-weight: 600;">
+                    <i class="fas fa-plus-circle"></i> Выбрать файлы
+                </button>
 
-                    <div class="materials-selector-container" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px;">
-                        <table class="materials-table" style="width: 100%;">
-                            <tbody class="hw-materials-list">
-                                {% for f in tutor_files %}
-                                <tr class="hw-material-item">
-                                    <td style="width: 40px; padding: 8px;"><input type="checkbox" name="materials" value="{{ f.id }}"></td>
-                                    <td class="file-name" style="padding: 8px; font-size: 13px;">{{ f.file_name }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="2" style="text-align: center; padding: 10px;">Библиотека пуста</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </details>
+                <div id="add-hw-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
+
+                <select id="add-hw-select" name="files" multiple hidden></select>
+            </div>
             <button type="submit" class="btn btn-primary" style="width: 100%;">Отправить ученику</button>
         </form>
     </div>
@@ -309,32 +318,18 @@
                 <label class="form-label">Комментарий репетитора</label>
                 <textarea name="tutor_comment" id="edit-hw-comment" class="filter-select" style="height: 80px; padding: 10px;" placeholder="Комментарий к заданию..."></textarea>
             </div>
-            <details class="extra-params-details" style="margin-top: 15px;">
-                <summary style="padding: 10px 0; cursor: pointer; color: var(--primary); font-weight: 600; font-size: 14px; list-style: none; display: flex; justify-content: space-between;">
-                    <span><i class="fas fa-paperclip"></i> Изменить материалы</span>
-                    <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
-                </summary>
+            <div class="form-group" style="margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px;">
+                <label class="form-label"><i class="fas fa-paperclip"></i> Изменить материалы</label>
 
-                <div style="padding-top: 10px;">
-                    <input type="text" class="hw-material-search filter-select mb-10"
-                           placeholder="🔎 Поиск в библиотеке..." style="font-size: 13px; margin-bottom: 8px;">
+                <button type="button" onclick="openFilePickerModal('edit-hw-display', 'edit-hw-select')"
+                        style="display: block; width: 100%; padding: 10px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; color: var(--primary); cursor: pointer; text-align: center; font-size: 13px; font-weight: 600;">
+                    <i class="fas fa-plus-circle"></i> Выбрать материалы из библиотеки
+                </button>
 
-                    <div class="materials-selector-container" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px;">
-                        <table class="materials-table" style="width: 100%;">
-                            <tbody>
-                                {% for f in tutor_files %}
-                                <tr class="hw-material-item">
-                                    <td style="width: 40px; padding: 8px;">
-                                        <input type="checkbox" name="files" value="{{ f.id }}" class="edit-hw-file-cb">
-                                    </td>
-                                    <td class="file-name" style="padding: 8px; font-size: 13px;">{{ f.file_name }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </details>
+                <div id="edit-hw-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
+
+                <select id="edit-hw-select" name="files" multiple hidden></select>
+            </div>
             <button type="submit" class="btn btn-primary" style="width: 100%;">Сохранить изменения</button>
         </form>
     </div>
@@ -383,17 +378,35 @@
     function openModal(id) { document.getElementById(id).classList.add('active'); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-    function openEditHWModal(id, subjectId, desc, deadline, fileIds, comment) {
-        const form = document.getElementById('editHWForm');
-        form.action = `/homework/edit/${id}/`;
-        document.getElementById('edit-hw-subject').value = subjectId;
-        document.getElementById('edit-hw-desc').value = desc;
-        document.getElementById('edit-hw-deadline').value = deadline || '';
-        document.getElementById('edit-hw-comment').value = comment || '';
-        const checkboxes = document.querySelectorAll('.edit-hw-file-cb');
-        checkboxes.forEach(cb => { cb.checked = fileIds.includes(parseInt(cb.value)); });
-        openModal('editHWModal');
+    function openEditHWModal(id, subjectId, desc, deadline, comment, files) {
+    const form = document.getElementById('editHWForm');
+    form.action = `/homework/edit/${id}/`;
+    document.getElementById('edit-hw-subject').value = subjectId;
+    document.getElementById('edit-hw-desc').value = desc;
+    document.getElementById('edit-hw-deadline').value = deadline || '';
+    document.getElementById('edit-hw-comment').value = comment || '';
+
+    // Очищаем и заполняем файлы
+    const displayContainer = document.getElementById('edit-hw-display');
+    const hiddenSelect = document.getElementById('edit-hw-select');
+    if(displayContainer) displayContainer.innerHTML = '';
+    if(hiddenSelect) hiddenSelect.innerHTML = '';
+
+    if (files && files.length > 0) {
+        files.forEach(m => {
+            // Создаем бейджик
+            displayContainer.innerHTML += `<div style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 5px;"><i class="fas fa-file"></i> ${m.name}</div>`;
+            // Записываем в скрытый селект
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.text = m.name;
+            opt.selected = true;
+            hiddenSelect.appendChild(opt);
+        });
     }
+
+    openModal('editHWModal');
+}
     function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {

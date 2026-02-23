@@ -80,40 +80,83 @@
             </div>
             <div class="scrollable-container">
                 <table style="width: 100%;">
-                    <thead>
-                        <tr style="text-align: left; font-size: 12px; color: #64748b;">
-                            <th style="padding: 15px;">ЗАДАНИЕ</th>
-                            <th>ДЕДЛАЙН</th>
-                            <th>СТАТУС</th>
-                            <th style="text-align: center;">ДЕЙСТВИЕ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for hw in homeworks %}
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td style="padding: 15px;">
-                                <div style="font-weight: 600;">{{ hw.description }}</div>
-                                {% if hw.responses.exists %}
-                                    <div style="margin-top: 5px; font-size: 11px; color: #22c55e;">
-                                        <i class="fas fa-check-double"></i> Ответы отправлены
-                                    </div>
-                                {% endif %}
-                            </td>
-                            <td style="font-size: 13px;">{{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}</td>
-                            <td>
-                                <span class="badge-hw status-{{ hw.status }}">{{ hw.get_status_display }}</span>
-                            </td>
-                            <td style="text-align: center;">
-                                {% if hw.status != 'completed' %}
-                                <button onclick="openModal('submitModal{{ hw.id }}')" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-upload"></i> Сдать
-                                </button>
-                                {% endif %}
-                            </td>
-                        </tr>
+    <thead>
+        <tr style="text-align: left; font-size: 12px; color: #64748b;">
+            <th style="padding: 15px;">ПРЕДМЕТ</th>
+            <th>ЗАДАНИЕ И ФАЙЛЫ</th>
+            <th>ДЕДЛАЙН</th>
+            <th>СТАТУС</th>
+            <th style="text-align: center; width: 100px;">ДЕЙСТВИЯ</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for hw in homeworks %}
+        <tr style="border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s;"
+            onclick="window.location.href='{% url 'homework_detail' hw.id %}'"
+            onmouseover="this.style.background='#f8fafc'"
+            onmouseout="this.style.background='transparent'">
+
+            <td style="padding: 15px;"><strong>{{ hw.subject.name }}</strong></td>
+
+            <td style="max-width: 300px;">
+                <div style="font-size: 13px; font-weight: 600;">{{ hw.description }}</div>
+
+                {% if hw.files.exists %}
+                    <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
+                        {% for f in hw.files.all %}
+                            <a href="#"
+                               onclick="event.stopPropagation(); window.open('{% url 'download_homework_all' hw.id %}', '_blank')"
+                               style="font-size: 10px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; color: var(--primary); text-decoration: none;">
+                                <i class="fas fa-paperclip"></i> {{ f.file_name|truncatechars:15 }}
+                            </a>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </div>
+                {% endif %}
+
+                {% if hw.responses.exists %}
+                    <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 5px;">
+                        <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Мои ответы:</div>
+                        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                            {% for resp in hw.responses.all %}
+                                <a href="{% url 'download_homework_response' resp.id %}"
+                                   target="_blank"
+                                   onclick="event.stopPropagation();"
+                                   style="font-size: 10px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; text-decoration: none; font-weight: 600;">
+                                    <i class="fas fa-reply"></i> {{ resp.file_name|truncatechars:15 }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </td>
+
+            <td style="font-size: 13px;">{{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}</td>
+
+            <td>
+                <span class="badge-hw status-{{ hw.status }}">
+                    {{ hw.get_status_display }}
+                </span>
+            </td>
+
+            <td style="text-align: center;">
+                {% if hw.status != 'completed' %}
+                <button onclick="event.stopPropagation(); openModal('submitModal{{ hw.id }}')" class="btn btn-primary btn-sm">
+                    <i class="fas fa-upload"></i> Сдать
+                </button>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">
+            <div class="empty-state" style="padding: 40px 20px;">
+                <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
+                <h3>Заданий пока нет</h3>
+                <p>Репетитор еще не задавал вам домашнюю работу</p>
+            </div>
+        </td></tr>
+        {% endfor %}
+    </tbody>
+</table>
             </div>
         </div>
 
@@ -177,13 +220,25 @@
 <div id="submitModal{{ hw.id }}" class="modal-overlay">
     <div class="modal-window" style="max-width: 450px;">
         <div class="close-btn" onclick="closeModal('submitModal{{ hw.id }}')">&times;</div>
-        <h2>Сдать работу</h2>
-        <p style="font-size: 14px; color: #64748b;">{{ hw.description|truncatechars:50 }}</p>
+        <h3 style="margin-top: 0; margin-bottom: 10px;">Сдать работу</h3>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 20px; line-height: 1.4;">{{ hw.description|truncatechars:80 }}</p>
 
-        <form action="{% url 'submit_homework' hw.id %}" method="post" enctype="multipart/form-data">
+        <form action="{% url 'submit_homework' hw.id %}" method="post" onsubmit="return checkHwSubmit('{{ hw.id }}')">
             {% csrf_token %}
-            <input type="file" name="response_files" multiple required class="filter-select" style="margin: 20px 0;">
-            <button type="submit" class="btn btn-primary" style="width: 100%;">Отправить репетитору</button>
+
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label class="form-label"><i class="fas fa-reply"></i> Ваши ответы</label>
+
+                <button type="button" onclick="openFilePickerModal('submit-hw-display-{{ hw.id }}', 'submit-hw-select-{{ hw.id }}')"
+                        style="display: block; width: 100%; padding: 12px; background: #f8fafc; border: 1px dashed #6366f1; border-radius: 8px; color: #6366f1; cursor: pointer; text-align: center; font-size: 13px; font-weight: 600; transition: 0.2s;">
+                    <i class="fas fa-folder-open"></i> Выбрать файлы из Моих материалов
+                </button>
+
+                <div id="submit-hw-display-{{ hw.id }}" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
+                <select id="submit-hw-select-{{ hw.id }}" name="response_files" multiple hidden></select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 14px;">Отправить на проверку</button>
         </form>
     </div>
 </div>
@@ -193,6 +248,14 @@
     function openModal(id) { document.getElementById(id).classList.add('active'); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
     window.onclick = function(e) { if (e.target.classList.contains('modal-overlay')) { e.target.classList.remove('active'); } }
+    function checkHwSubmit(hwId) {
+        const select = document.getElementById('submit-hw-select-' + hwId);
+        if (!select || select.options.length === 0) {
+            showToast('Пожалуйста, выберите хотя бы один файл!', 'error');
+            return false; // Блокируем отправку
+        }
+        return true;
+    }
 </script>
 
 {% endblock %}

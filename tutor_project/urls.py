@@ -62,7 +62,12 @@ urlpatterns = [
     path('students/archive-list/', views.archived_students, name='archived_students'),
     path('students/archive-action/<int:student_id>/', views.archive_student, name='archive_student'),
     path('students/restore/<int:student_id>/', views.restore_student, name='restore_student'),
-
+    path('homework/<int:hw_id>/', views.homework_detail, name='homework_detail'),
+    path('api/user-files/', views.api_get_user_files, name='api_get_user_files'),
+    path('load-more-files/', views.load_more_files, name='load_more_files'),
+    path('download/file/<int:file_id>/', views.download_library_file, name='download_library_file'),
+    path('export/lessons/', views.export_lessons_csv, name='export_lessons_csv'),
+    path('homework/response/delete/<int:response_id>/', views.delete_homework_response, name='delete_homework_response'),
 
 
     path('password-reset/',

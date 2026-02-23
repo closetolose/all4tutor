@@ -40,15 +40,63 @@
         .materials-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .materials-table thead { position: sticky; top: 0; background: #f8fafc; z-index: 2; box-shadow: 0 1px 0 var(--border); }
         .materials-table td, .materials-table th { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: left; }
+        .file-explorer-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 15px;
+        padding: 10px;
+        max-height: 50vh;
+        overflow-y: auto;
+    }
+    .file-icon-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 15px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.1s;
+        border: 2px solid transparent;
+        user-select: none;
+    }
+    .file-icon-item:hover { background: #f1f5f9; }
+    /* Стиль ВЫДЕЛЕННОГО файла */
+    .file-icon-item.selected {
+        background: #e0e7ff;
+        border-color: #6366f1;
+    }
+    .file-icon-item i {
+        font-size: 35px;
+        color: #94a3b8;
+        margin-bottom: 8px;
+        pointer-events: none; /* Чтобы клик не падал на иконку */
+    }
+    .file-icon-item.selected i { color: #6366f1; }
+    .file-icon-item span {
+        font-size: 12px;
+        text-align: center;
+        word-break: break-word;
+        line-height: 1.2;
+        pointer-events: none;
+    }
     </style>
 
-    <div style="margin-bottom: 30px;">
-        <h1 style="font-size: 24px; margin-bottom: 5px;">Привет, {{ user.first_name|default:user.username }}!</h1>
-        <p style="color: var(--text-muted);">Твое расписание на сегодня.</p>
-    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <div>
+            <h1 style="font-size: 24px; margin-bottom: 5px;">Привет, {{ user.first_name|default:user.username }}!</h1>
+            <p style="color: var(--text-muted);">Твое расписание на сегодня.</p>
+        </div>
 
+        <button type="button" onclick="openModal('exportFilterModal')"
+           class="btn"
+           style="background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);"
+           onmouseover="this.style.background='#059669'; this.style.transform='translateY(-2px)';"
+           onmouseout="this.style.background='#10b981'; this.style.transform='translateY(0)';">
+            <i class="fas fa-file-csv"></i> Экспорт данных
+        </button>
+    </div>
     {% if role == 'tutor' %}
-<div class="card" style="margin-bottom: 30px; padding: 20px;">
+    <div class="card" style="margin-bottom: 30px; padding: 20px;">
     <form method="GET" action="{% url 'index' %}" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
 
         <div style="flex: 1.5; min-width: 180px;">
@@ -129,13 +177,20 @@
         </div>
 
         {% if role == 'student' %}
-            <div class="card">
-                <div class="stat-icon" style="color: #10b981;"><i class="fas fa-wallet"></i></div>
-                <div class="stat-label">Баланс на счету</div>
-                <div class="stat-value">{{ user.profile.balance|default:"0" }} ₽</div>
-            </div>
+            <div class="card" onclick="window.location.href='{% url 'my_assignments' %}'" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.05)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                <div class="stat-icon" style="color: #f59e0b;"><i class="fas fa-book-open"></i></div>
+                <div class="stat-label">Новые задания</div>
+                <div class="stat-value">{{ active_hw_count }}</div>
 
-            <div class="card">
+                {% if active_tutors %}
+                <div style="font-size: 11px; color: #64748b; margin-top: 8px; line-height: 1.3;">
+                    Ждут решения от:<br>
+                    <span style="font-weight: 600; color: #4f46e5;">
+                        {{ active_tutors|join:", "|truncatechars:35 }}
+                    </span>
+                </div>
+                {% endif %}
+            </div> <div class="card">
                 <div class="stat-icon" style="color: #ef4444;"><i class="fas fa-exclamation-circle"></i></div>
                 <div class="stat-label">Нужно оплатить</div>
                 <div class="stat-value">{{ student_debt }} ₽</div>
@@ -284,7 +339,11 @@
                                             time:'{{ lesson.start_time|date:'H:i' }}',
                                             dur:'{{ lesson.duration }}',
                                             price:'{{ lesson.price }}',
-                                            materials: [{% for m in lesson.materials.all %}{{ m.id }}{% if not forloop.last %},{% endif %}{% endfor %}]
+                                            materials: [
+                                                    {% for m in lesson.materials.all %}
+                                                        { id: '{{ m.id }}', name: '{{ m.file_name|escapejs }}' }{% if not forloop.last %},{% endif %}
+                                                    {% endfor %}
+                                                ]
                                         })"
                                         style="border:none; background:none; color: #4f46e5; cursor:pointer;"><i class="fas fa-edit"></i></button>
                                 <button type="button" onclick="openDeleteModal('{{ lesson.id }}')" style="border:none; background:none; color: #ef4444; cursor:pointer;"><i class="fas fa-trash"></i></button>
@@ -388,19 +447,17 @@
                 </div>
             </details>
 
-            <div class="mb-15">
-                <label class="form-label">Прикрепить материалы</label>
-                <input type="text" id="material-search" class="form-control mb-10"
-                       placeholder="🔎 Поиск по названию файла..." style="margin-bottom: 10px;">
+           <div class="form-group" style="margin-top: 15px;">
+                <label class="form-label"><i class="fas fa-paperclip"></i> Материалы к уроку</label>
 
-                <div id="materials-list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
-                    {% for choice in add_lesson_form.materials %}
-                        <div class="material-item" style="margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
-                            {{ choice.tag }}
-                            <span class="file-name">{{ choice.choice_label }}</span>
-                        </div>
-                    {% endfor %}
-                </div>
+                <button type="button" onclick="openFilePickerModal('add-lesson-display', 'add-lesson-select')"
+                        style="display: block; width: 100%; padding: 10px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; color: var(--primary); cursor: pointer; text-align: center; font-size: 13px; font-weight: 600;">
+                    <i class="fas fa-plus-circle"></i> Выбрать материалы из библиотеки
+                </button>
+
+                <div id="add-lesson-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
+
+                <select id="add-lesson-select" name="materials" multiple hidden></select>
             </div>
 
             <button type="submit" class="btn-save-modal" style="width: 100%;">Создать занятие</button>
@@ -408,45 +465,46 @@
     </div>
 </div>
 
-    <div id="universalEditModal" class="modal-overlay">
-        <div class="modal-window" style="max-width: 550px;">
-            <div class="close-btn" onclick="closeUniversalEdit()">&times;</div>
-            <h2 id="edit-modal-title" class="modal-title">Правка</h2>
-            <div class="form-section" style="background: #f8fafc; padding: 15px; border-radius: 10px;">
-                <div style="display: flex; gap: 10px;" class="mb-15">
-                    <div style="flex: 1;"><label class="form-label">Дата</label><input type="date" id="m-date-select" class="filter-select"></div>
-                    <div style="flex: 1;"><label class="form-label">Время</label><input type="time" id="m-time-select" class="filter-select"></div>
-                </div>
-                <div class="mb-15">
-                    <label class="form-label">Цена и Предмет</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="number" id="m-price-select" class="filter-select" placeholder="Цена" style="flex: 1;">
-                        <select id="m-subject-select" class="filter-select" style="flex: 1.5;">
-                            <option value="">Без изменений</option>
-                            {% for item in my_subjects %}<option value="{{ item.subject.id }}">{{ item.subject.name }}</option>{% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="mb-15">
-                    <label class="form-label"><i class="fas fa-paperclip"></i> Материалы</label>
-                    <div class="materials-selector-container">
-                        <table class="materials-table">
-                            <thead><tr><th style="width: 40px;"><input type="checkbox" id="selectAllMaterials" onclick="toggleAllMaterials(this)"></th><th>Файл</th></tr></thead>
-                            <tbody id="materials-edit-list">
-                                {% for f in files %}
-                                <tr>
-                                    <td><input type="checkbox" value="{{ f.id }}" class="material-checkbox"></td>
-                                    <td>{{ f.file_name }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+   <div id="universalEditModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 550px;">
+        <div class="close-btn" onclick="closeUniversalEdit()">&times;</div>
+        <h2 id="edit-modal-title" class="modal-title">Правка</h2>
+        <div class="form-section" style="background: #f8fafc; padding: 15px; border-radius: 10px;">
+
+            <div style="display: flex; gap: 10px;" class="mb-15">
+                <div style="flex: 1;"><label class="form-label">Дата</label><input type="date" id="m-date-select" class="filter-select"></div>
+                <div style="flex: 1;"><label class="form-label">Время</label><input type="time" id="m-time-select" class="filter-select"></div>
+            </div>
+
+            <div class="mb-15">
+                <label class="form-label">Цена и Предмет</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="m-price-select" class="filter-select" placeholder="Цена" style="flex: 1;">
+                    <select id="m-subject-select" class="filter-select" style="flex: 1.5;">
+                        <option value="">Без изменений</option>
+                        {% for item in my_subjects %}<option value="{{ item.subject.id }}">{{ item.subject.name }}</option>{% endfor %}
+                    </select>
                 </div>
             </div>
-            <button type="button" onclick="applyMassEdit()" class="btn-save-modal">Применить</button>
-        </div>
+
+            <div class="mb-15">
+                <label class="form-label"><i class="fas fa-paperclip"></i> Материалы</label>
+
+                <button type="button" onclick="openFilePickerModal('univ-selected-files', 'univ-hidden-files')"
+                        style="display: block; width: 100%; padding: 10px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; color: var(--primary); cursor: pointer; text-align: center; margin-bottom: 10px; font-size: 13px; font-weight: 600; transition: 0.2s;"
+                        onmouseover="this.style.borderColor='var(--primary)'; this.style.background='#f8fafc';"
+                        onmouseout="this.style.borderColor='#cbd5e1'; this.style.background='#fff';">
+                    <i class="fas fa-plus-circle"></i> Выбрать материалы из библиотеки
+                </button>
+
+                <div id="univ-selected-files" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+
+                <select id="univ-hidden-files" multiple hidden></select>
+            </div>
+            </div>
+        <button type="button" onclick="applyMassEdit()" class="btn-save-modal">Применить</button>
     </div>
+</div>
 
     <div id="bulk-actions-bar" class="bulk-bar">
         <div class="bulk-content">
@@ -488,8 +546,74 @@
         </div>
     </div>
 
+<div id="exportFilterModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 500px;">
+        <div class="close-btn" onclick="closeModal('exportFilterModal')">&times;</div>
+        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 20px;"><i class="fas fa-file-export" style="color: #10b981; margin-right: 8px;"></i>Умный экспорт</h3>
+
+        <form action="{% url 'export_lessons_csv' %}" method="GET" onsubmit="setTimeout(() => closeModal('exportFilterModal'), 500);">
+
+            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div style="flex: 1;">
+                    <label class="form-label" style="font-size: 12px; color: #64748b; font-weight: 700;">ПЕРИОД С</label>
+                    <input type="date" name="date_from" class="filter-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                </div>
+                <div style="flex: 1;">
+                    <label class="form-label" style="font-size: 12px; color: #64748b; font-weight: 700;">ПО</label>
+                    <input type="date" name="date_to" class="filter-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div style="flex: 1;">
+                    <label class="form-label" style="font-size: 12px; color: #64748b; font-weight: 700;">ПРЕДМЕТ</label>
+                    <select name="subject_id" class="filter-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                        <option value="">Все предметы</option>
+                        {% for item in my_subjects %}
+                            <option value="{{ item.subject.id }}">{{ item.subject.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label class="form-label" style="font-size: 12px; color: #64748b; font-weight: 700;">УЧЕНИК</label>
+                    <select name="student_id" class="filter-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                        <option value="">Все ученики</option>
+                        {% for st in tutor_students %}
+                            <option value="{{ st.id }}">{{ st.first_name }} {{ st.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+                <div style="flex: 1;">
+                    <label class="form-label" style="font-size: 12px; color: #64748b; font-weight: 700;">ОПЛАТА</label>
+                    <select name="pay_status" class="filter-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                        <option value="">Все</option>
+                        <option value="paid">Оплачено</option>
+                        <option value="debt">Долг</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label class="form-label" style="font-size: 12px; color: #64748b; font-weight: 700;">ФОРМАТ</label>
+                    <select name="lesson_type" class="filter-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                        <option value="">Все</option>
+                        <option value="individual">Индив.</option>
+                        <option value="group">Группы</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn" style="width: 100%; padding: 12px; background: #10b981; color: white; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; transition: 0.2s;">
+                <i class="fas fa-download"></i> Скачать отчет
+            </button>
+        </form>
+
+    </div>
+</div>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     const selectAll = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.lesson-checkbox');
     const hiddenIdsInput = document.getElementById('hidden-ids');
@@ -530,117 +654,120 @@
     }
 });
 
-        function toggleAllMaterials(source) {
-            document.querySelectorAll('#materials-edit-list .material-checkbox').forEach(cb => cb.checked = source.checked);
-        }
-        function toggleAllIn(source, modalId) {
-            document.querySelectorAll(`#${modalId} input[name="materials"]`).forEach(cb => cb.checked = source.checked);
-        }
+function toggleAllMaterials(source) {
+    document.querySelectorAll('#materials-edit-list .material-checkbox').forEach(cb => cb.checked = source.checked);
+}
+function toggleAllIn(source, modalId) {
+    document.querySelectorAll(`#${modalId} input[name="materials"]`).forEach(cb => cb.checked = source.checked);
+}
 
-        function openUniversalEdit(mode, id, data) {
-            const idsInput = document.getElementById('hidden-ids');
-            const title = document.getElementById('edit-modal-title');
+function openUniversalEdit(mode, id, data) {
+    const idsInput = document.getElementById('hidden-ids');
+    const title = document.getElementById('edit-modal-title');
 
-            document.querySelectorAll('.material-checkbox').forEach(cb => cb.checked = false);
-            if(document.getElementById('selectAllMaterials')) document.getElementById('selectAllMaterials').checked = false;
+    const displayContainer = document.getElementById('univ-selected-files');
+    const hiddenSelect = document.getElementById('univ-hidden-files');
+    if (displayContainer) displayContainer.innerHTML = '';
+    if (hiddenSelect) hiddenSelect.innerHTML = '';
 
-            if (mode === 'single') {
-                title.innerText = "Редактировать";
-                idsInput.value = id;
-                document.getElementById('m-date-select').value = data.date;
-                document.getElementById('m-time-select').value = data.time;
-                document.getElementById('m-subject-select').value = data.subject;
-                document.getElementById('m-price-select').value = data.price;
+    if (mode === 'single') {
+        title.innerText = "Редактировать";
+        idsInput.value = id;
+        document.getElementById('m-date-select').value = data.date;
+        document.getElementById('m-time-select').value = data.time;
+        document.getElementById('m-subject-select').value = data.subject;
+        document.getElementById('m-price-select').value = data.price;
 
-                if (data.materials) {
-                    data.materials.forEach(mId => {
-                        const cb = document.querySelector(`.material-checkbox[value="${mId}"]`);
-                        if(cb) cb.checked = true;
-                    });
-                }
-            } else {
-                title.innerText = "Массовая правка";
-                const checkedIds = Array.from(document.querySelectorAll('.lesson-checkbox:checked')).map(cb => cb.value);
-                idsInput.value = checkedIds.join(',');
-                document.querySelectorAll('#universalEditModal input:not([type="checkbox"]), #universalEditModal select').forEach(el => el.value = "");
-            }
-            openModal('universalEditModal');
-        }
-
-        function applyMassEdit() {
-            const timeVal = document.getElementById('m-time-select').value;
-            const dateVal = document.getElementById('m-date-select').value;
-            document.getElementById('m-subject-input').value = document.getElementById('m-subject-select').value;
-            document.getElementById('m-date-input').value = document.getElementById('m-date-select').value;
-            document.getElementById('m-time-input').value = document.getElementById('m-time-select').value;
-            document.getElementById('m-price-input').value = document.getElementById('m-price-select').value;
-            console.log("JS DEBUG - Date:", dateVal);
-            console.log("JS DEBUG - Time:", timeVal);
-
-            const container = document.getElementById('m-materials-container');
-            container.innerHTML = '';
-            document.querySelectorAll('#universalEditModal .material-checkbox:checked').forEach(cb => {
-                const hidden = document.createElement('input');
-                hidden.type = 'hidden'; hidden.name = 'materials'; hidden.value = cb.value;
-                container.appendChild(hidden);
-            });
-
-            document.getElementById('action-type').value = 'mass_edit';
-            document.getElementById('bulk-form').submit();
-        }
-
-        function openDeleteModal(id) {
-            document.getElementById('deleteForm').action = "/lesson/delete/" + id + "/";
-            openModal('deleteModal');
-        }
-
-        function submitBulk(action) {
-            const title = action === 'delete' ? 'Удалить занятия?' : 'Применить действие?';
-            const text = action === 'delete' ? 'Выбранные занятия будут удалены безвозвратно.' : 'Действие будет применено к выбранным занятиям.';
-            showConfirm(title, text, action === 'delete' ? 'Удалить' : 'Применить', function() {
-                document.getElementById('action-type').value = action;
-                document.getElementById('bulk-form').submit();
+        if (data.materials && data.materials.length > 0) {
+            data.materials.forEach(m => {
+                displayContainer.innerHTML += `<div style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 5px;"><i class="fas fa-file"></i> ${m.name}</div>`;
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.text = m.name;
+                opt.selected = true;
+                hiddenSelect.appendChild(opt);
             });
         }
+    } else {
+        title.innerText = "Массовая правка";
+        const checkedIds = Array.from(document.querySelectorAll('.lesson-checkbox:checked')).map(cb => cb.value);
+        idsInput.value = checkedIds.join(',');
+        document.querySelectorAll('#universalEditModal input:not([type="checkbox"]), #universalEditModal select:not(#univ-hidden-files)').forEach(el => el.value = "");
+    }
+    openModal('universalEditModal');
+}
 
-        function clearSelection() {
-            document.querySelectorAll('.lesson-checkbox').forEach(cb => cb.checked = false);
-            if(document.getElementById('selectAll')) document.getElementById('selectAll').checked = false;
-            document.getElementById('bulk-actions-bar').classList.remove('active');
-        }
+function applyMassEdit() {
+    document.getElementById('m-subject-input').value = document.getElementById('m-subject-select').value;
+    document.getElementById('m-date-input').value = document.getElementById('m-date-select').value;
+    document.getElementById('m-time-input').value = document.getElementById('m-time-select').value;
+    document.getElementById('m-price-input').value = document.getElementById('m-price-select').value;
 
-        function closeUniversalEdit() { closeModal('universalEditModal'); }
+    const selectedFiles = Array.from(document.getElementById('univ-hidden-files').options).map(opt => opt.value);
+    const mContainer = document.getElementById('m-materials-container');
+    mContainer.innerHTML = '';
+    mContainer.innerHTML += `<input type="hidden" name="materials_updated" value="1">`;
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const radios = document.querySelectorAll('input[name="lesson_type"]');
-            radios.forEach(r => r.addEventListener('change', () => {
-                const isGroup = document.querySelector('input[name="lesson_type"]:checked')?.value === 'group';
-                document.getElementById('block-student').style.display = isGroup ? 'none' : 'block';
-                document.getElementById('block-group').style.display = isGroup ? 'block' : 'none';
-            }));
-        });
+    selectedFiles.forEach(fileId => {
+        mContainer.innerHTML += `<input type="hidden" name="materials" value="${fileId}">`;
+    });
 
-        const globalTariffs = JSON.parse('{{ tariffs_json|safe }}');
-        function autoFill(sId, gId, subjId, targetInputId) {
-            const tariff = globalTariffs.find(t => (sId && t.student_id == sId && t.subject_id == subjId) || (gId && t.group_id == gId && t.subject_id == subjId));
-            if (tariff) document.getElementById(targetInputId).value = Math.round(tariff.price);
-        }
+    document.getElementById('action-type').value = 'mass_edit';
+    document.getElementById('bulk-form').submit();
+}
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const s = document.getElementById('id_student');
-            const g = document.getElementById('id_group');
-            const sub = document.getElementById('id_subject');
-            [s, g, sub].forEach(el => el?.addEventListener('change', () => autoFill(s?.value, g?.value, sub?.value, 'id_price')));
-        });
+function openDeleteModal(id) {
+    document.getElementById('deleteForm').action = "/lesson/delete/" + id + "/";
+    openModal('deleteModal');
+}
 
-        function togglePresence(el, attId) {
+function submitBulk(action) {
+    const title = action === 'delete' ? 'Удалить занятия?' : 'Применить действие?';
+    const text = action === 'delete' ? 'Выбранные занятия будут удалены безвозвратно.' : 'Действие будет применено к выбранным занятиям.';
+    showConfirm(title, text, action === 'delete' ? 'Удалить' : 'Применить', function() {
+        document.getElementById('action-type').value = action;
+        document.getElementById('bulk-form').submit();
+    });
+}
+
+function clearSelection() {
+    document.querySelectorAll('.lesson-checkbox').forEach(cb => cb.checked = false);
+    if(document.getElementById('selectAll')) document.getElementById('selectAll').checked = false;
+    document.getElementById('bulk-actions-bar').classList.remove('active');
+}
+
+function closeUniversalEdit() { closeModal('universalEditModal'); }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const radios = document.querySelectorAll('input[name="lesson_type"]');
+    radios.forEach(r => r.addEventListener('change', () => {
+        const isGroup = document.querySelector('input[name="lesson_type"]:checked')?.value === 'group';
+        document.getElementById('block-student').style.display = isGroup ? 'none' : 'block';
+        document.getElementById('block-group').style.display = isGroup ? 'block' : 'none';
+    }));
+});
+
+const globalTariffs = JSON.parse('{{ tariffs_json|safe }}');
+function autoFill(sId, gId, subjId, targetInputId) {
+    const tariff = globalTariffs.find(t => (sId && t.student_id == sId && t.subject_id == subjId) || (gId && t.group_id == gId && t.subject_id == subjId));
+    if (tariff) document.getElementById(targetInputId).value = Math.round(tariff.price);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const s = document.getElementById('id_student');
+    const g = document.getElementById('id_group');
+    const sub = document.getElementById('id_subject');
+    [s, g, sub].forEach(el => el?.addEventListener('change', () => autoFill(s?.value, g?.value, sub?.value, 'id_price')));
+});
+
+function togglePresence(el, attId) {
     if (el.classList.contains('ajax-loading')) return;
     el.classList.add('ajax-loading');
 
     fetch(`/toggle-presence/${attId}/`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': getCookie('csrftoken'),  // обязательно для POST
+            'X-CSRFToken': getCookie('csrftoken'),
             'Content-Type': 'application/json',
         },
     })
@@ -658,7 +785,6 @@
     });
 }
 
-// Добавь функцию для CSRF токена (если нет)
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -674,19 +800,19 @@ function getCookie(name) {
     return cookieValue;
 }
 
-        document.querySelector('input[name="is_recurring"]')?.addEventListener('change', function() {
-            document.getElementById('recurring-settings').style.display = this.checked ? 'block' : 'none';
-        });
-            document.addEventListener('DOMContentLoaded', function() {
-        const dateFromInput = document.querySelector('input[name="date_from"]');
+document.querySelector('input[name="is_recurring"]')?.addEventListener('change', function() {
+    document.getElementById('recurring-settings').style.display = this.checked ? 'block' : 'none';
+});
 
-        if (dateFromInput && !dateFromInput.value) {
-            const today = new Date().toISOString().split('T')[0];
-            dateFromInput.value = today;
-        }
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    const dateFromInput = document.querySelector('input[name="date_from"]');
+    if (dateFromInput && !dateFromInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateFromInput.value = today;
+    }
+});
 
-    function togglePay(btn, attendanceId) {
+function togglePay(btn, attendanceId) {
     fetch(`/toggle-attendance-pay/${attendanceId}/`, {
         method: 'POST',
         headers: {
@@ -716,11 +842,8 @@ function getCookie(name) {
         showToast(error.message, 'error');
     });
 }
-        function openSubmitModal(hwId) {
-    document.getElementById('submitHWForm').action = `/homework/submit/${hwId}/`;
-    openModal('submitHWModal');
-}
-        let currentPage = 1;
+
+let currentPage = 1;
 document.getElementById('load-more-btn')?.addEventListener('click', async function() {
     const btn = this;
     btn.disabled = true;
@@ -745,20 +868,16 @@ document.getElementById('load-more-btn')?.addEventListener('click', async functi
     }
 });
 
-        function setType(type) {
-    // 1. Переключаем активный класс визуальных вкладок
+function setType(type) {
     document.getElementById('tab-ind').classList.toggle('active', type === 'individual');
     document.getElementById('tab-group').classList.toggle('active', type === 'group');
 
-    // 2. Находим скрытый радио-баттон в форме и выбираем его
     const radio = document.querySelector(`input[name="lesson_type"][value="${type}"]`);
     if (radio) {
         radio.checked = true;
-        // Вручную вызываем событие change, если на радио висят другие обработчики
         radio.dispatchEvent(new Event('change'));
     }
 
-    // 3. Переключаем видимость блоков "Ученик" и "Группа"
     const studentBlock = document.getElementById('block-student');
     const groupBlock = document.getElementById('block-group');
 
@@ -770,12 +889,5 @@ document.getElementById('load-more-btn')?.addEventListener('click', async functi
         groupBlock.style.display = 'none';
     }
 }
-        document.getElementById('material-search')?.addEventListener('input', function(e) {
-    const text = e.target.value.toLowerCase();
-    document.querySelectorAll('.material-item').forEach(item => {
-        const name = item.querySelector('.file-name').innerText.toLowerCase();
-        item.style.display = name.includes(text) ? 'flex' : 'none';
-    });
-});
-    </script>
+</script>
 {% endblock %}

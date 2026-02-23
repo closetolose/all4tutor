@@ -124,6 +124,33 @@
             </div>
         </div>
     </div>
+    <div id="fileExplorerModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+    <div class="modal-window" style="background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column; position: relative;">
+
+        <div class="close-btn" onclick="closeFileExplorer()" style="cursor: pointer; position: absolute; top: 15px; right: 20px; font-size: 24px;">&times;</div>
+        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 20px;">Библиотека материалов</h3>
+
+        <input type="text" id="explorer-search" placeholder="Поиск файлов (начните вводить)..." style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; width: 100%; font-size: 14px; box-sizing: border-box;">
+
+        <div id="explorer-grid" class="file-explorer-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 15px; padding: 10px; max-height: 50vh; overflow-y: auto;"></div>
+
+        <div id="explorer-loader" style="display: none; text-align: center; padding: 10px; color: #64748b;">
+            <i class="fas fa-spinner fa-spin"></i> Загрузка файлов...
+        </div>
+
+        <button type="button" onclick="applyExplorerSelection()" class="btn btn-primary" style="padding: 12px; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 15px;">
+            Прикрепить выбранные (<span id="explorer-selected-count">0</span>)
+        </button>
+    </div>
+</div>
+    <style>
+    .file-icon-item { display: flex; flex-direction: column; align-items: center; padding: 15px 10px; border-radius: 8px; cursor: pointer; transition: 0.1s; border: 2px solid transparent; user-select: none; }
+    .file-icon-item:hover { background: #f1f5f9; }
+    .file-icon-item.selected { background: #e0e7ff; border-color: #6366f1; }
+    .file-icon-item i { font-size: 35px; color: #94a3b8; margin-bottom: 8px; pointer-events: none; }
+    .file-icon-item.selected i { color: #6366f1; }
+    .file-icon-item span { font-size: 12px; text-align: center; word-break: break-word; line-height: 1.2; pointer-events: none; }
+</style>
     {% if user.is_authenticated %}
     <script>
         const currentTz = "{{ user.profile.timezone }}";
@@ -278,7 +305,137 @@ function confirmSubmit(form, title, text) {
     });
     return false;
 }
+let explorerCurrentPage = 1;
+    let explorerHasNext = true;
+    let explorerIsLoading = false;
+    let explorerSearchQuery = '';
+    let selectedExplorerFiles = {};
+    let explorerTargetDisplay = '';
+    let explorerTargetSelect = '';
 
+    function openFilePickerModal(displayId, selectId) {
+        explorerTargetDisplay = displayId;
+        explorerTargetSelect = selectId;
+
+        selectedExplorerFiles = {};
+        const hiddenSelect = document.getElementById(selectId);
+        if (hiddenSelect) {
+            Array.from(hiddenSelect.options).forEach(opt => {
+                selectedExplorerFiles[opt.value] = opt.text;
+            });
+        }
+        updateSelectedCount();
+
+        document.getElementById('fileExplorerModal').style.display = 'flex';
+        document.getElementById('explorer-search').value = '';
+        loadExplorerFiles(1, '', true);
+    }
+
+    function closeFileExplorer() {
+        document.getElementById('fileExplorerModal').style.display = 'none';
+    }
+
+    async function loadExplorerFiles(page = 1, search = '', reset = false) {
+        if (explorerIsLoading || (!explorerHasNext && !reset)) return;
+
+        explorerIsLoading = true;
+        document.getElementById('explorer-loader').style.display = 'block';
+
+        const grid = document.getElementById('explorer-grid');
+        if (reset) {
+            grid.innerHTML = '';
+            explorerCurrentPage = 1;
+            explorerSearchQuery = search;
+        }
+
+        try {
+            const response = await fetch(`/api/user-files/?page=${page}&search=${search}`);
+            const data = await response.json();
+            explorerHasNext = data.has_next;
+
+            data.files.forEach(file => {
+                const item = document.createElement('div');
+                const isSelected = selectedExplorerFiles[file.id] ? 'selected' : '';
+                item.className = `file-icon-item ${isSelected}`;
+
+                let iconClass = 'fa-file-alt';
+                if (['pdf'].includes(file.ext)) iconClass = 'fa-file-pdf';
+                if (['jpg', 'jpeg', 'png'].includes(file.ext)) iconClass = 'fa-file-image';
+                if (['doc', 'docx'].includes(file.ext)) iconClass = 'fa-file-word';
+
+                item.innerHTML = `<i class="fas ${iconClass}"></i><span>${file.name}</span>`;
+
+                item.onclick = function() {
+                    this.classList.toggle('selected');
+                    if (this.classList.contains('selected')) {
+                        selectedExplorerFiles[file.id] = file.name;
+                    } else {
+                        delete selectedExplorerFiles[file.id];
+                    }
+                    updateSelectedCount();
+                };
+                grid.appendChild(item);
+            });
+            explorerCurrentPage++;
+        } catch (e) {
+            console.error("Ошибка загрузки файлов:", e);
+        } finally {
+            explorerIsLoading = false;
+            document.getElementById('explorer-loader').style.display = 'none';
+        }
+    }
+
+    function updateSelectedCount() {
+        document.getElementById('explorer-selected-count').innerText = Object.keys(selectedExplorerFiles).length;
+    }
+
+    function applyExplorerSelection() {
+        const displayContainer = document.getElementById(explorerTargetDisplay);
+        const hiddenSelect = document.getElementById(explorerTargetSelect);
+
+        if(displayContainer) displayContainer.innerHTML = '';
+        if(hiddenSelect) hiddenSelect.innerHTML = '';
+
+        for (const [id, name] of Object.entries(selectedExplorerFiles)) {
+            if(displayContainer) {
+                const badge = document.createElement('div');
+                badge.style.cssText = 'background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 5px;';
+                badge.innerHTML = `<i class="fas fa-file"></i> ${name}`;
+                displayContainer.appendChild(badge);
+            }
+
+            if(hiddenSelect) {
+                const option = document.createElement('option');
+                option.value = id;
+                option.text = name;
+                option.selected = true;
+                hiddenSelect.appendChild(option);
+            }
+        }
+        closeFileExplorer();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        let searchTimeout;
+        const searchInput = document.getElementById('explorer-search');
+        const gridBox = document.getElementById('explorer-grid');
+
+        if(searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => { loadExplorerFiles(1, e.target.value, true); }, 400);
+            });
+        }
+
+        if(gridBox) {
+            gridBox.addEventListener('scroll', (e) => {
+                const { scrollTop, scrollHeight, clientHeight } = e.target;
+                if (scrollHeight - scrollTop <= clientHeight + 50) {
+                    loadExplorerFiles(explorerCurrentPage, explorerSearchQuery, false);
+                }
+            });
+        }
+    });
     </script>
 
 
