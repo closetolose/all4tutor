@@ -56,6 +56,9 @@ def index(request):
     files = []
     active_hw_count = 0
     active_tutors = []
+    total_in_period = 0
+    done_in_period = 0
+    expected_income = 0
 
     try:
         user_profile = request.user.profile
@@ -84,6 +87,19 @@ def index(request):
             lessons_qs = lessons_qs.filter(start_time__date__lte=request.GET['date_to'])
         if request.GET.get('subject'):
             lessons_qs = lessons_qs.filter(subject_id=request.GET['subject'])
+
+
+        total_in_period = lessons_qs.count()
+        now = timezone.now()
+        done_in_period = LessonAttendance.objects.filter(
+            lesson__in=lessons_qs,
+            was_present=True
+        ).values('lesson').distinct().count()
+        expected_income = lessons_qs.filter(
+            start_time__gt=now
+        ).aggregate(
+            Sum('price')
+        )['price__sum'] or 0
 
         # Пагинация (первая порция данных)
         total_count = lessons_qs.count()
@@ -123,7 +139,7 @@ def index(request):
         # Ученик должен видеть и личные уроки, и уроки своих групп
         lessons_qs = Lessons.objects.filter(
             Q(student=user_profile) | Q(group__students=user_profile)
-        ).distinct().prefetch_related('attendances__student', 'subject').order_by('-start_time')
+        ).distinct().prefetch_related('attendances__student', 'subject').order_by('start_time')
 
         total_count = lessons_qs.count()
         lessons = lessons_qs[:per_page]  # Теперь переменная lessons заполнена!
@@ -186,6 +202,9 @@ def index(request):
         'attendance_map_json': attendance_map,
         'active_hw_count': active_hw_count,
         'active_tutors': active_tutors,
+        'dash_total_in_period': total_in_period,
+        'dash_done_in_period': done_in_period,
+        'dash_expected_income': float(expected_income),
     }
 
     return smart_render(request, 'core/index.html', context)
@@ -530,7 +549,7 @@ def delete_lesson(request, lesson_id):
                 "Критическая ошибка: Нельзя удалить прошедший урок, на котором отмечены ученики. "
                 "Это необходимо для сохранности истории оплат и балансов."
             )
-            return redirect('my_lessons')  # Или страница журнала
+            return redirect('index')  # Или страница журнала
 
         # Если урок будущий или на нем никого не было — удаляем
         lesson.delete()
@@ -610,9 +629,29 @@ def bulk_action_lessons(request):
         queryset = Lessons.objects.filter(id__in=id_list,tutor=request.user.profile).select_related('group', 'student', 'subject').prefetch_related('group__students')
 
         if action == 'delete':
-            count = queryset.count()
-            queryset.delete()
-            messages.success(request, f"Удалено занятий: {count}")
+            now = timezone.now()
+
+            # Находим те уроки, которые УЖЕ прошли И имеют посещаемость
+            protected_lessons = queryset.filter(
+                start_time__lt=now,
+                attendances__isnull=False
+            ).distinct()
+
+            if protected_lessons.exists():
+                # Если нашли хоть один такой урок — удаляем только безопасные (будущие)
+                safe_to_delete = queryset.exclude(id__in=protected_lessons.values_list('id', flat=True))
+                deleted_count = safe_to_delete.count()
+                safe_to_delete.delete()
+
+                messages.warning(
+                    request,
+                    f"Удалено {deleted_count} уроков. Прошедшие уроки с посещаемостью защищены от удаления для сохранения балансов."
+                )
+            else:
+                # Если все уроки будущие — удаляем всё
+                count = queryset.count()
+                queryset.delete()
+                messages.success(request, f"Удалено занятий: {count}")
 
 
         elif action == 'mass_edit':

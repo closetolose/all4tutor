@@ -79,124 +79,311 @@
         line-height: 1.2;
         pointer-events: none;
     }
+   .stats-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.stat-card {
+    flex: 1;
+    min-width: 220px;
+    padding: 28px 24px;
+    border-radius: 20px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+На скриншотах image_5308d2.jpg и image_531476.jpg видно, что блок фильтров и карточки статистики визуально «разваливаются» из-за конфликтов старых и новых стилей CSS. Основная проблема в том, что в твоем файле index.html стили для .modern-filters и .stats-container продублированы, а сетка grid не имеет четких границ.
+
+Чтобы всё стояло идеально ровно, как на макете, замени весь блок <style> и верхнюю часть контента до таблицы на этот исправленный код.
+
+1. Исправленный блок стилей
+Я объединил все правила и добавил box-sizing: border-box, чтобы блоки не вылезали за края экрана.
+
+HTML
+
+<style>
+    /* Глобальный контейнер */
+    .dashboard-wrapper {
+        width: 100%;
+        max-width: 1200px; /* Ограничиваем ширину для десктопа */
+        margin: 0 auto;
+        padding: 0 15px;
+        box-sizing: border-box;
+    }
+
+    /* Исправленные фильтры */
+    .modern-filters {
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+        border-radius: 20px;
+        padding: 25px;
+        margin-bottom: 25px;
+        width: 100%;
+        box-sizing: border-box; /* Важно: паддинги не расширяют блок */
+        box-shadow: 0 10px 25px rgba(30, 58, 138, 0.2);
+    }
+
+    .filter-grid {
+        display: grid;
+        /* Четкие пропорции: Ученик (40%) | Период (40%) | Кнопки (20%) */
+        grid-template-columns: 2fr 2fr 1fr;
+        gap: 20px;
+        align-items: flex-end; /* Выравниваем кнопки по нижней линии инпутов */
+    }
+
+    /* Фикс высоты для всех элементов */
+    .modern-select, .modern-input, .btn-search-modern, .btn-reset-modern {
+        height: 42px !important;
+        box-sizing: border-box;
+    }
+
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-search-modern {
+        flex: 1;
+        background: white;
+        color: #1e3a8a;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+
+    .btn-reset-modern {
+        width: 42px;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+    }
+
+    /* Исправленные карточки статистики */
+    .stats-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-bottom: 30px;
+        width: 100%;
+    }
+
+    .stat-card {
+        padding: 24px;
+        border-radius: 20px;
+        color: white !important;
+        position: relative;
+        overflow: hidden;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .bg-blue { background: linear-gradient(135deg, #1e40af, #3b82f6); }
+    .bg-green { background: linear-gradient(135deg, #047857, #10b981); }
+    .bg-purple { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+
+    .stat-card i {
+        position: absolute;
+        right: 20px;
+        top: 20px;
+        font-size: 24px;
+        opacity: 0.2;
+    }
+
+    /* Адаптивность для планшетов и мобилок */
+    @media (max-width: 992px) {
+        .filter-grid { grid-template-columns: 1fr; }
+        .stats-container { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
+        .stats-container { grid-template-columns: 1fr; }
+    }
+        .stat-card {
+    padding: 24px;
+    border-radius: 20px;
+    color: white !important;
+    position: relative;
+    overflow: hidden;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Плавная анимация */
+    text-decoration: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Эффект при наведении (Hover) */
+.stat-card:hover {
+    transform: translateY(-5px); /* Приподнимаем карточку */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    filter: brightness(1.1); /* Слегка подсвечиваем */
+}
+
+/* Иконки внутри карточек */
+.stat-card i {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    font-size: 24px;
+    opacity: 0.2;
+    transition: 0.3s;
+}
+
+.stat-card:hover i {
+    opacity: 0.4;
+    transform: scale(1.2) rotate(-10deg); /* Иконка немного увеличивается и поворачивается */
+}
+.stat-card-homework {
+    padding: 24px;
+    border-radius: 20px;
+    color: white !important;
+    position: relative;
+    overflow: hidden;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Плавная анимация */
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.stat-card-homework:hover {
+    transform: translateY(-5px); /* Приподнимаем карточку */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    filter: brightness(1.1); /* Слегка подсвечиваем */
+}
+
+/* Иконки внутри карточек */
+.stat-card-homework i {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    font-size: 24px;
+    opacity: 0.2;
+    transition: 0.3s;
+}
+
+.stat-card-homework:hover i {
+    opacity: 0.4;
+    transform: scale(1.2) rotate(-10deg); /* Иконка немного увеличивается и поворачивается */
+}
     </style>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+  <div class="dashboard-wrapper">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
         <div>
-            <h1 style="font-size: 24px; margin-bottom: 5px;">Привет, {{ user.first_name|default:user.username }}!</h1>
-            <p style="color: var(--text-muted);">Твое расписание на сегодня.</p>
+            <h1 style="font-size: 24px; margin: 0;">Привет, {{ user.first_name|default:user.username }}!</h1>
+            <p style="color: var(--text-muted); margin: 5px 0 0;">Твое расписание на сегодня.</p>
         </div>
-
-        <button type="button" onclick="openModal('exportFilterModal')"
-           class="btn"
-           style="background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);"
-           onmouseover="this.style.background='#059669'; this.style.transform='translateY(-2px)';"
-           onmouseout="this.style.background='#10b981'; this.style.transform='translateY(0)';">
+        {% if role == 'tutor' %}
+        <button type="button" onclick="openModal('exportFilterModal')" class="btn" style="background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer;">
             <i class="fas fa-file-csv"></i> Экспорт данных
         </button>
-    </div>
-    {% if role == 'tutor' %}
-    <div class="card" style="margin-bottom: 30px; padding: 20px;">
-    <form method="GET" action="{% url 'index' %}" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-
-        <div style="flex: 1.5; min-width: 180px;">
-            <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">УЧЕНИК / ГРУППА</label>
-            <select name="target" class="filter-select">
-                <option value="">Все занятия</option>
-                <optgroup label="Ученики">
-                    {% for s in tutor_students %}
-                        <option value="s_{{ s.id }}" {% if request.GET.target == 's_'|add:s.id|stringformat:"s" %}selected{% endif %}>{{ s.first_name }} {{ s.last_name }}</option>
-                    {% endfor %}
-                </optgroup>
-                <optgroup label="Группы">
-                    {% for g in tutor_groups %}
-                        <option value="g_{{ g.id }}" {% if request.GET.target == 'g_'|add:g.id|stringformat:"s" %}selected{% endif %}>{{ g.name }}</option>
-                    {% endfor %}
-                </optgroup>
-            </select>
-        </div>
-
-        <div style="display: flex; gap: 10px; flex: 2; min-width: 280px;">
-            <div style="flex: 1;">
-                <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ДАТА С</label>
-                <input type="date" name="date_from" value="{{ request.GET.date_from }}" class="filter-select">
-            </div>
-            <div style="flex: 1;">
-                <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ПО</label>
-                <input type="date" name="date_to" value="{{ request.GET.date_to }}" class="filter-select">
-            </div>
-        </div>
-
-        <div style="display: flex; gap: 10px; flex: 1.5; min-width: 200px;">
-            <div style="flex: 1;">
-                <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ВРЕМЯ С</label>
-                <input type="time" name="time_from" value="{{ request.GET.time_from }}" class="filter-select">
-            </div>
-            <div style="flex: 1;">
-                <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ДО</label>
-                <input type="time" name="time_to" value="{{ request.GET.time_to }}" class="filter-select">
-            </div>
-        </div>
-
-        <div style="flex: 1; min-width: 140px;">
-            <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">ПРЕДМЕТ</label>
-            <select name="subject" class="filter-select">
-                <option value="">Все предметы</option>
-                {% for item in my_subjects %}
-                    <option value="{{ item.subject.id }}" {% if request.GET.subject == item.subject.id|stringformat:"s" %}selected{% endif %}>{{ item.subject.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div style="flex: 1; min-width: 140px;">
-            <label class="form-label" style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; display: block;">СТАТУС</label>
-            <select name="status" class="filter-select">
-                <option value="">Все</option>
-                <option value="paid" {% if request.GET.status == 'paid' %}selected{% endif %}>Оплачено</option>
-                <option value="unpaid" {% if request.GET.status == 'unpaid' %}selected{% endif %}>Не оплачено</option>
-            </select>
-        </div>
-
-        <div style="display: flex; gap: 8px; align-items: flex-end; padding-bottom: 2px;">
-            <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 20px;">
-                <i class="fas fa-search"></i> Найти
-            </button>
-            <a href="{% url 'index' %}" class="btn-icon" style="height: 38px; width: 38px; text-decoration: none;">
-                <i class="fas fa-sync-alt"></i>
-            </a>
-        </div>
-    </form>
-</div>
-{% endif %}
-
-    <div class="grid-stats" style="margin-bottom: 30px;">
-        <div class="card">
-            <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
-            <div class="stat-label">Всего занятий</div>
-            <div class="stat-value">{{ lessons.count|default:"0" }}</div>
-        </div>
-
-        {% if role == 'student' %}
-            <div class="card" onclick="window.location.href='{% url 'my_assignments' %}'" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.05)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                <div class="stat-icon" style="color: #f59e0b;"><i class="fas fa-book-open"></i></div>
-                <div class="stat-label">Новые задания</div>
-                <div class="stat-value">{{ active_hw_count }}</div>
-
-                {% if active_tutors %}
-                <div style="font-size: 11px; color: #64748b; margin-top: 8px; line-height: 1.3;">
-                    Ждут решения от:<br>
-                    <span style="font-weight: 600; color: #4f46e5;">
-                        {{ active_tutors|join:", "|truncatechars:35 }}
-                    </span>
-                </div>
-                {% endif %}
-            </div> <div class="card">
-                <div class="stat-icon" style="color: #ef4444;"><i class="fas fa-exclamation-circle"></i></div>
-                <div class="stat-label">Нужно оплатить</div>
-                <div class="stat-value">{{ student_debt }} ₽</div>
-            </div>
         {% endif %}
     </div>
+
+
+    <div class="modern-filters">
+        <form method="GET" action="{% url 'index' %}">
+            <div class="filter-grid">
+                <div class="filter-item">
+                    <label style="color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; opacity: 0.8;">Ученик / Группа</label>
+                    <select name="target" class="modern-select" style="width: 100%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: white; padding: 0 15px;">
+                        <option value="" style="color: #000;">Все занятия</option>
+                        {% for s in tutor_students %}
+                            <option value="s{{ s.id }}" {% if request.GET.target == 's'|add:s.id|stringformat:"s" %}selected{% endif %} style="color: #000;">{{ s.first_name }} {{ s.last_name }}</option>
+                        {% endfor %}
+                        {% for g in tutor_groups %}
+                            <option value="g{{ g.id }}" {% if request.GET.target == 'g'|add:g.id|stringformat:"s" %}selected{% endif %} style="color: #000;">{{ g.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label style="color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; opacity: 0.8;">Период</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="date" name="date_from" value="{{ request.GET.date_from }}" class="modern-input" style="width: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: white; padding: 0 10px;">
+                        <input type="date" name="date_to" value="{{ request.GET.date_to }}" class="modern-input" style="width: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: white; padding: 0 10px;">
+                    </div>
+                </div>
+
+                <div class="filter-actions">
+                    <button type="submit" class="btn-search-modern"><i class="fas fa-search"></i> Найти</button>
+                    <a href="{% url 'index' %}" class="btn-reset-modern" title="Сбросить фильтры"><i class="fas fa-sync-alt"></i></a>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% if role == 'tutor' %}
+    <div class="stats-container">
+        <div class="stat-card bg-blue">
+            <i class="fas fa-calendar-alt"></i>
+            <div style="font-size: 11px; opacity: 0.8; font-weight: 700; text-transform: uppercase;">Всего занятий</div>
+            <div style="font-size: 32px; font-weight: 800; margin-top: 5px;">{{ total_lessons|default:"0" }}</div>
+        </div>
+        <div class="stat-card bg-green">
+            <i class="fas fa-check-circle"></i>
+            <div style="font-size: 11px; opacity: 0.8; font-weight: 700; text-transform: uppercase;">Проведено</div>
+            <div style="font-size: 32px; font-weight: 800; margin-top: 5px;">{{ dash_done_in_period|default:"3" }}</div>
+        </div>
+        <div class="stat-card bg-purple">
+            <i class="fas fa-ruble-sign"></i>
+            <div style="font-size: 11px; opacity: 0.8; font-weight: 700; text-transform: uppercase;">Ожидаемый доход</div>
+            <div style="font-size: 32px; font-weight: 800; margin-top: 5px;">{{ dash_expected_income|floatformat:0|default:"7500" }} ₽</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+
+        {% if role == 'student' %}
+<div class="stats-container"> <div class="stat-card bg-blue">
+        <i class="fas fa-layer-group"></i>
+        <div style="font-size: 11px; opacity: 0.8; font-weight: 700; text-transform: uppercase;">Всего занятий</div>
+        <div style="font-size: 32px; font-weight: 800; margin-top: 5px;">{{ total_lessons|default:"0" }}</div>
+    </div>
+
+    <div class="stat-card-homework bg-green" onclick="window.location.href='{% url 'my_assignments' %}'" style="cursor: pointer;">
+        <i class="fas fa-book-open"></i>
+        <div style="font-size: 11px; opacity: 0.8; font-weight: 700; text-transform: uppercase;">Новые задания</div>
+        <div style="font-size: 32px; font-weight: 800; margin-top: 5px;">{{ active_hw_count|default:"0" }}</div>
+
+        {% if active_tutors %}
+        <div style="font-size: 10px; margin-top: 8px; line-height: 1.2; opacity: 0.9;">
+            От: {{ active_tutors|join:", "|truncatechars:30 }}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="stat-card bg-purple">
+        <i class="fas fa-exclamation-circle"></i>
+        <div style="font-size: 11px; opacity: 0.8; font-weight: 700; text-transform: uppercase;">Нужно оплатить</div>
+        <div style="font-size: 32px; font-weight: 800; margin-top: 5px;">{{ student_debt|floatformat:0 }} ₽</div>
+    </div>
+
+</div> {% endif %}
 
     <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 30px;">
         <div style="padding: 20px; border-bottom: 1px solid var(--border);" class="flex-between">

@@ -1,41 +1,76 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
+<style>
+    /* Эффект для всей карточки */
+    .tutor-card-link {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+        text-decoration: none;
+        display: block; /* Чтобы вся карточка была кликабельной */
+        margin-bottom: 15px;
+    }
+
+    .tutor-card-link:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+    }
+
+    /* Подсветка имени при наведении */
+    .tutor-card-link:hover h3 {
+        color: var(--primary) !important;
+    }
+
+    /* Иконка перехода */
+    .go-to-profile {
+        opacity: 0;
+        transition: 0.2s;
+        color: var(--primary);
+        font-size: 14px;
+    }
+
+    .tutor-card-link:hover .go-to-profile {
+        opacity: 1;
+        transform: translateX(5px);
+    }
+</style>
+
 <div style="max-width: 900px;">
     <h2 class="mb-20"><i class="fas fa-chalkboard-teacher"></i> Мои преподаватели</h2>
 
     {% for conn in connections %}
-        <div class="card list-item">
-            <div class="list-info">
-                <h3 style="color: #1e293b; margin: 0 0 10px 0;">
-                    <a href="{% url 'tutor_card' conn.tutor.id %}" style="text-decoration: none; color: inherit; border-bottom: 2px solid var(--primary-light);">
+        <a href="{% url 'tutor_card' conn.tutor.id %}" class="tutor-card-link">
+            <div class="card list-item" style="display: flex; justify-content: space-between; align-items: center; padding: 20px;">
+                <div class="list-info">
+                    <h3 style="color: #1e293b; margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
                         {{ conn.tutor.first_name }} {{ conn.tutor.last_name }}
-                    </a>
-                </h3>
+                        <i class="fas fa-arrow-right go-to-profile"></i>
+                    </h3>
 
-                <div style="font-size: 14px; line-height: 1.6;">
+                    <div style="font-size: 14px; line-height: 1.6;">
+                        <div style="color: #64748b;">
+                            <i class="fas fa-at" style="width: 20px; text-align: center;"></i>
+                            <span style="color: #334155;">{{ conn.tutor.user.email }}</span>
+                        </div>
 
-                    <div style="color: #64748b;">
-                        <i class="fas fa-at" style="width: 20px; text-align: center;"></i>
-                        <span style="color: #334155;">{{ conn.tutor.user.email }}</span>
+                        <div style="color: #64748b;">
+                            <i class="fas fa-phone-alt" style="width: 20px; text-align: center;"></i>
+                            {% if conn.tutor.contact %}
+                                <span style="color: #334155;">{{ conn.tutor.contact }}</span>
+                            {% else %}
+                                <span style="color: #94a3b8; font-style: italic;">Нет доп. контактов</span>
+                            {% endif %}
+                        </div>
                     </div>
+                </div>
 
-                    <div style="color: #64748b;">
-                        <i class="fas fa-phone-alt" style="width: 20px; text-align: center;"></i>
-                        {% if conn.tutor.contact %}
-                            <span style="color: #334155;">{{ conn.tutor.contact }}</span>
-                        {% else %}
-                            <span style="color: #94a3b8; font-style: italic;">Нет доп. контактов</span>
-                        {% endif %}
-                    </div>
-
+                <div class="list-actions" style="display: flex; align-items: center;">
+                    <span class="badge" style="background: #e0e7ff; color: #4338ca; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 11px;">
+                        ВАШ РЕПЕТИТОР
+                    </span>
                 </div>
             </div>
-
-            <div class="list-actions">
-                <span class="badge badge-active" style="margin-right: 10px;">ВАШ РЕПЕТИТОР</span>
-                </div>
-        </div>
+        </a>
     {% empty %}
         <div class="card text-center" style="padding: 50px;">
             <p style="color: var(--text-muted);">У вас пока нет преподавателей.</p>

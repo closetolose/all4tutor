@@ -36,9 +36,16 @@ def breadcrumbs(request):
         'student-card': {'name': 'Мои ученики', 'url_name': 'my_students'},
         'finances': {'name': 'Финансы', 'url_name': 'finances'},
         'my-assignments': {'name': 'Мои задания', 'url_name': 'my_assignments'},
-        'files-library': {'name': 'Мои файлы', 'url_name': 'files_library'},
+        'my-files': {'name': 'Мои файлы', 'url_name': 'files_library'},
         'my-subjects': {'name': 'Мои предметы', 'url_name': 'my_subjects'},
         'edit-profile': {'name': 'Профиль', 'url_name': 'edit_profile'},
+        'subjects': {'name': 'Мои предметы', 'url_name': 'my_subjects'},
+        'faq': {'name': 'FAQ', 'url_name': 'faq'},
+        'confirmations': {'name': 'Подтверждения', 'url_name': 'confirmations'},
+        'my-tutors': {'name': 'Мои репетиторы', 'url_name': 'my_tutors'},
+        'tutor-card': {'name': 'Мои репетиторы', 'url_name': 'my_tutors'},
+        'homework': {'name': 'Мои задания', 'url_name': 'my_assignments'},
+
     }
 
     accumulated_url = ''
@@ -46,14 +53,38 @@ def breadcrumbs(request):
         accumulated_url += f'/{segment}/'
 
         # Случай А: Это ID (цифра) после сегмента, связанного с карточкой ученика
-        if segment.isdigit() and i > 0 and path_segments[i - 1] in ['student', 'student-card']:
-            try:
-                # Тянем реальное имя из базы
-                student = Users.objects.get(id=segment)
-                name = f"{student.first_name} {student.last_name}"
-            except Users.DoesNotExist:
-                name = "Ученик"
-            # Для конечной точки (имени) используем текущий полный URL
+        if segment.isdigit() and i > 0:
+            prev_segment = path_segments[i - 1]
+
+            # Обработка ученика (уже была у тебя)
+            if prev_segment in ['student', 'student-card']:
+                try:
+                    student = Users.objects.get(id=segment)
+                    name = f"{student.first_name} {student.last_name}"
+                except Users.DoesNotExist:
+                    name = "Ученик"
+
+            # НОВОЕ: Обработка репетитора
+            elif prev_segment == 'tutor-card':
+                try:
+                    # Ищем репетитора в модели Users
+                    tutor = Users.objects.get(id=segment, role='tutor')
+                    name = f"{tutor.first_name} {tutor.last_name}"
+                except Users.DoesNotExist:
+                    name = "Репетитор"
+            elif prev_segment == 'homework':
+                try:
+                    # Импортируй модель Homework внутри функции или в начале файла
+                    from .models import Homework
+                    hw = Homework.objects.get(id=segment)
+                    # Отображаем предмет, по которому задано ДЗ
+                    name = f"ДЗ: {hw.subject.name}"
+                except Exception:
+                    name = "Задание"
+
+            else:
+                name = segment  # Если это другой ID (например, страница пагинации)
+
             crumbs.append({'name': name, 'url': accumulated_url})
 
         # Случай Б: Сегмент описан в нашем словаре TITLES

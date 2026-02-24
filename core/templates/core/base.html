@@ -15,7 +15,9 @@
     {% if user.is_authenticated %}
     <aside class="sidebar">
         <div class="sidebar-header">
-            <h3>All4Tutors</h3>
+            <a href="{% url 'index' %}" style="text-decoration: none; color: inherit; display: block;">
+                <h3>All4Tutors</h3>
+            </a>
         </div>
 
         <nav class="nav-list">
