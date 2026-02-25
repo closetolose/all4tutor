@@ -5,44 +5,50 @@
 {% endblock %}
 
 {% block header_right %}
-    <button type="submit" form="lessonForm" style="background:none; border:none; color: var(--tg-blue); font-weight:600; font-size: 16px;">
-        Готово
+    <button type="submit" form="editLessonForm" style="background:none; border:none; color: var(--tg-blue); font-weight:600; font-size: 16px; padding: 10px 15px;">
+        Сохранить
     </button>
 {% endblock %}
 
 {% block content %}
-<form method="post" id="lessonForm" class="tg-form-container">
+<form method="post" action="{% url 'edit_lesson' lesson.id %}" id="editLessonForm" class="lesson-form-wrap">
     {% csrf_token %}
 
-    <div class="segment-control">
-        <div class="segment-option active" onclick="setLessonType('individual', this)">
-            Индивидуально
+    <div class="lesson-form-header">
+        <div class="lesson-form-title">
+            <i class="fas fa-edit"></i>
+            <span>Редактировать занятие</span>
         </div>
-        <div class="segment-option" onclick="setLessonType('group', this)">
-            Группа
-        </div>
-        <input type="hidden" name="lesson_type" id="lesson_type_input" value="individual">
     </div>
 
-    <div class="tg-section">
-        <div class="tg-input-row" id="field-student">
-            <div class="tg-label">Ученик</div>
+    <div class="segment-control">
+        <div class="segment-option {% if lesson.student_id %}active{% endif %}" id="seg-individual" onclick="setEditLessonType('individual', this)">
+            <i class="fas fa-user"></i> Индивидуально
+        </div>
+        <div class="segment-option {% if lesson.group_id %}active{% endif %}" id="seg-group" onclick="setEditLessonType('group', this)">
+            <i class="fas fa-users"></i> Группа
+        </div>
+        <input type="hidden" name="lesson_type" id="edit_lesson_type_input" value="{% if lesson.student_id %}individual{% else %}group{% endif %}">
+    </div>
+
+    <div class="lesson-card">
+        <div class="lesson-card-title"><i class="fas fa-user-graduate"></i> Кто и что</div>
+        <div class="tg-input-row" id="edit-field-student" style="{% if lesson.group_id %}display: none;{% endif %}">
+            <div class="tg-label"><i class="fas fa-user"></i> Ученик</div>
             <div class="tg-field-wrap">
                 {{ form.student }}
             </div>
             <i class="fas fa-chevron-right tg-arrow"></i>
         </div>
-
-        <div class="tg-input-row" id="field-group" style="display: none;">
-            <div class="tg-label">Группа</div>
+        <div class="tg-input-row" id="edit-field-group" style="{% if lesson.student_id %}display: none;{% endif %}">
+            <div class="tg-label"><i class="fas fa-users"></i> Группа</div>
             <div class="tg-field-wrap">
                 {{ form.group }}
             </div>
             <i class="fas fa-chevron-right tg-arrow"></i>
         </div>
-
-        <div class="tg-input-row">
-            <div class="tg-label">Предмет</div>
+        <div class="tg-input-row tg-input-row-last">
+            <div class="tg-label"><i class="fas fa-book"></i> Предмет</div>
             <div class="tg-field-wrap">
                 {{ form.subject }}
             </div>
@@ -50,170 +56,179 @@
         </div>
     </div>
 
-    <div class="tg-section">
+    <div class="lesson-card">
+        <div class="lesson-card-title"><i class="fas fa-clock"></i> Время и стоимость</div>
         <div class="tg-input-row">
-            <div class="tg-label">Начало</div>
+            <div class="tg-label"><i class="fas fa-calendar-alt"></i> Начало</div>
             <div class="tg-field-wrap">
                 <input type="datetime-local" name="start_time" class="tg-native-input"
                        value="{{ form.start_time.value|date:'Y-m-d\TH:i' }}">
             </div>
         </div>
-
         <div class="tg-input-row">
-            <div class="tg-label">Цена (₽)</div>
+            <div class="tg-label"><i class="fas fa-ruble-sign"></i> Цена</div>
             <div class="tg-field-wrap">
                 {{ form.price }}
             </div>
         </div>
-
-        <div class="tg-input-row">
-            <div class="tg-label">Длит. (мин)</div>
+        <div class="tg-input-row tg-input-row-last">
+            <div class="tg-label"><i class="fas fa-hourglass-half"></i> Длительность</div>
             <div class="tg-field-wrap">
                 {{ form.duration }}
             </div>
         </div>
     </div>
 
-    <div class="tg-section">
+    <div class="lesson-card">
+        <div class="lesson-card-title"><i class="fas fa-map-marker-alt"></i> Формат и место</div>
         <div class="tg-input-row">
-            <div class="tg-label">Повторять</div>
-            <div class="tg-field-wrap" style="display: flex; justify-content: flex-end;">
-                <label class="tg-switch">
-                    {{ form.is_recurring }}
-                    <span class="slider round"></span>
-                </label>
+            <div class="tg-label"><i class="fas fa-video"></i> Формат</div>
+            <div class="tg-field-wrap">
+                {{ form.format }}
             </div>
         </div>
-
-        <div id="recurring-options" class="recurring-box">
-            <div class="weekdays-selector">
-                <label class="tg-sublabel">Дни недели</label>
-                <div class="days-grid">
-                    {% for checkbox in form.weekdays %}
-                    <label class="day-checkbox">
-                        {{ checkbox.tag }}
-                        <span class="day-bubble">{{ checkbox.choice_label }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
+        <div class="tg-input-row">
+            <div class="tg-label"><i class="fas fa-link"></i> Место / Ссылка</div>
+            <div class="tg-field-wrap">
+                {{ form.location }}
             </div>
-
-            <div class="tg-input-row no-border">
-                <div class="tg-label">Кол-во недель</div>
-                <div class="tg-field-wrap">
-                    {{ form.repeat_count }}
-                </div>
+        </div>
+        <div class="tg-input-row notes-row tg-input-row-last">
+            <div class="tg-label"><i class="fas fa-sticky-note"></i> Заметки</div>
+            <div class="tg-field-wrap">
+                {{ form.notes }}
             </div>
         </div>
     </div>
 
+    <div class="lesson-card">
+        <div class="lesson-card-title"><i class="fas fa-paperclip"></i> Материалы</div>
+        <button type="button" class="mobile-fp-trigger-addlesson" onclick="openMobileFilePicker('edit-lesson-materials-display', 'edit-lesson-materials-select')">
+            <i class="fas fa-folder-open"></i> Прикрепить файлы из библиотеки
+        </button>
+        <div id="edit-lesson-materials-display" class="materials-chips">
+            {% for m in lesson.materials.all %}
+            <span class="material-chip" data-id="{{ m.id }}"><i class="fas fa-file"></i> {{ m.file_name }} <i class="fas fa-times chip-remove" onclick="removeChip(this)"></i></span>
+            {% endfor %}
+        </div>
+        <select id="edit-lesson-materials-select" name="materials" multiple hidden>
+            {% for m in lesson.materials.all %}
+            <option value="{{ m.id }}" selected>{{ m.file_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <textarea name="homework" style="display:none; width:0; height:0; border:0; padding:0; margin:0;">{{ form.homework.value|default:'' }}</textarea>
+
+    <div class="lesson-form-footer">
+        <button type="submit" class="mobile-submit-btn">
+            <i class="fas fa-check-circle"></i> Сохранить изменения
+        </button>
+    </div>
 </form>
 
 <style>
-    .tg-form-container { padding-top: 20px; padding-bottom: 50px; }
-    .mobile-final-form { padding-top: 15px; }
-
+    .lesson-form-wrap { padding: 16px 15px 50px; }
+    .lesson-form-header { margin-bottom: 20px; }
+    .lesson-form-title {
+        display: flex; align-items: center; gap: 12px;
+        font-size: 22px; font-weight: 800; color: var(--tg-text);
+    }
+    .lesson-form-title i {
+        width: 44px; height: 44px; border-radius: 14px;
+        background: linear-gradient(135deg, var(--tg-active) 0%, #4f46e5 100%);
+        color: white; display: flex; align-items: center; justify-content: center;
+        font-size: 18px;
+    }
     .segment-control {
-        display: flex;
-        background: var(--tg-body-bg);
-        margin: 0 15px 20px;
-        padding: 2px;
-        border-radius: 9px;
-        border: 1px solid #333;
+        display: flex; gap: 0; margin: 0 0 20px; padding: 4px;
+        background: var(--tg-card-bg); border-radius: 14px;
+        border: 1px solid var(--tg-separator);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
     .segment-option {
-        flex: 1;
-        text-align: center;
-        padding: 8px;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--tg-hint);
-        border-radius: 7px;
-        cursor: pointer;
-        transition: 0.2s;
+        flex: 1; text-align: center; padding: 12px 10px;
+        font-size: 13px; font-weight: 600; color: var(--tg-hint);
+        border-radius: 11px; transition: 0.2s;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
     }
+    .segment-option i { font-size: 14px; opacity: 0.8; }
     .segment-option.active {
-        background: #3a3a3c;
-        color: var(--tg-text);
-        font-weight: 600;
+        background: var(--tg-active); color: white;
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
     }
-
-    .tg-section {
-        background: var(--tg-header);
-        margin-bottom: 30px;
-        border-top: 1px solid var(--tg-separator);
-        border-bottom: 1px solid var(--tg-separator);
+    .lesson-card {
+        background: var(--tg-card-bg); border-radius: 18px; margin-bottom: 16px;
+        padding: 0 16px; border: 1px solid var(--tg-separator);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow: hidden;
     }
-
+    .lesson-card-title {
+        font-size: 12px; font-weight: 800; text-transform: uppercase;
+        letter-spacing: 0.5px; color: var(--tg-hint);
+        padding: 14px 0 8px; display: flex; align-items: center; gap: 8px;
+    }
+    .lesson-card-title i { color: var(--tg-active); font-size: 13px; }
     .tg-input-row {
-        display: flex; align-items: center;
-        margin-left: 15px; padding-right: 15px;
-        min-height: 48px;
+        display: flex; align-items: center; min-height: 52px;
         border-bottom: 1px solid var(--tg-separator);
-        position: relative;
     }
-    .tg-input-row:last-child { border-bottom: none; }
-    .tg-input-row.no-border { border-bottom: none; margin-left: 0; padding-left: 15px; }
-
-    .tg-label { width: 110px; color: var(--tg-text); font-size: 16px; }
-
-    .tg-field-wrap { flex-grow: 1; display: flex; justify-content: flex-end; }
-
+    .tg-input-row-last { border-bottom: none; }
+    .tg-label {
+        flex-shrink: 0; width: 120px;
+        font-size: 15px; font-weight: 600; color: var(--tg-text);
+        display: flex; align-items: center; gap: 8px;
+    }
+    .tg-label i { color: var(--tg-hint); font-size: 13px; width: 18px; text-align: center; }
+    .tg-field-wrap { flex: 1; display: flex; justify-content: flex-end; min-width: 0; }
     .tg-field-wrap input, .tg-field-wrap select {
         background: transparent; border: none;
-        color: var(--tg-blue); font-size: 16px;
+        color: var(--tg-active); font-size: 15px; font-weight: 600;
         text-align: right; width: 100%; outline: none;
-        appearance: none;
+        -webkit-appearance: none; appearance: none;
     }
-
-    .tg-native-input { color: var(--tg-blue); font-family: inherit; }
-
-    .tg-arrow { color: #555; font-size: 12px; margin-left: 10px; }
-
-    .tg-switch { position: relative; display: inline-block; width: 50px; height: 30px; }
-    .tg-switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3a3a3c; transition: .4s; border-radius: 34px; }
-    .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
-    input:checked + .slider { background-color: var(--tg-green); }
-    input:checked + .slider:before { transform: translateX(20px); }
-
-    .recurring-box {
-        display: none;
-        background: var(--tg-bg);
-        border-top: 1px solid var(--tg-separator);
-        padding-bottom: 10px;
+    .tg-field-wrap select option { background: var(--tg-sidebar); color: var(--tg-text); }
+    .tg-field-wrap textarea {
+        background: transparent; border: none; color: var(--tg-text); font-size: 14px;
+        text-align: right; width: 100%; outline: none; resize: none; font-family: inherit; min-height: 44px;
     }
-
-    .weekdays-selector { padding: 15px; border-bottom: 1px solid var(--tg-separator); }
-    .tg-sublabel { display: block; font-size: 13px; color: var(--tg-hint); margin-bottom: 10px; text-transform: uppercase; }
-
-    .days-grid { display: flex; justify-content: space-between; gap: 5px; }
-
-    .day-checkbox input { display: none; }
-    .day-bubble {
-        display: flex; align-items: center; justify-content: center;
-        width: 36px; height: 36px;
-        background: #2b2b2b; color: var(--tg-text);
-        border-radius: 50%; font-size: 12px; font-weight: 600;
-        transition: 0.2s; border: 1px solid #333;
+    .notes-row { align-items: flex-start; padding: 12px 0; }
+    .notes-row .tg-label { padding-top: 2px; }
+    .tg-native-input { color: var(--tg-active) !important; font-weight: 600; }
+    .tg-arrow { color: var(--tg-hint); font-size: 11px; margin-left: 8px; flex-shrink: 0; }
+    .materials-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .material-chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(99, 102, 241, 0.12); color: var(--tg-active);
+        padding: 6px 10px; border-radius: 10px; font-size: 12px; font-weight: 600;
     }
-
-    .day-checkbox input:checked + .day-bubble {
-        background: var(--tg-blue); border-color: var(--tg-blue);
+    .material-chip .chip-remove { cursor: pointer; opacity: 0.7; margin-left: 4px; }
+    .mobile-fp-trigger-addlesson {
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        padding: 14px; background: rgba(99, 102, 241, 0.08);
+        border: 1px dashed var(--tg-active); border-radius: 14px;
+        color: var(--tg-active); font-size: 14px; font-weight: 700; transition: 0.2s;
     }
-
+    .mobile-fp-trigger-addlesson:active { background: rgba(99, 102, 241, 0.15); }
+    .lesson-form-footer { padding: 24px 0 0; }
+    .mobile-submit-btn {
+        width: 100%; padding: 18px;
+        background: linear-gradient(135deg, var(--tg-active) 0%, #4f46e5 100%);
+        color: white; border: none; border-radius: 16px;
+        font-size: 16px; font-weight: 800;
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4); transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .mobile-submit-btn:active { transform: scale(0.98); }
+    .mobile-submit-btn i { font-size: 18px; }
 </style>
 
 <script>
-    function setLessonType(type, element) {
-        document.querySelectorAll('.segment-option').forEach(el => el.classList.remove('active'));
+    function setEditLessonType(type, element) {
+        document.querySelectorAll('.segment-option').forEach(function(el) { el.classList.remove('active'); });
         element.classList.add('active');
-
-        document.getElementById('lesson_type_input').value = type;
-
-        const studentRow = document.getElementById('field-student');
-        const groupRow = document.getElementById('field-group');
-
+        document.getElementById('edit_lesson_type_input').value = type;
+        var studentRow = document.getElementById('edit-field-student');
+        var groupRow = document.getElementById('edit-field-group');
         if (type === 'individual') {
             studentRow.style.display = 'flex';
             groupRow.style.display = 'none';
@@ -223,28 +238,15 @@
         }
     }
 
-    const recurringSwitch = document.querySelector('.tg-switch input');
-    const recurringBox = document.getElementById('recurring-options');
-
-    if (recurringSwitch) {
-        recurringSwitch.addEventListener('change', function() {
-            if (this.checked) {
-                recurringBox.style.display = 'block';
-            } else {
-                recurringBox.style.display = 'none';
-            }
-        });
-
-        if (recurringSwitch.checked) {
-            recurringBox.style.display = 'block';
+    function removeChip(el) {
+        var chip = el.closest('.material-chip');
+        var id = chip.getAttribute('data-id');
+        chip.remove();
+        var sel = document.getElementById('edit-lesson-materials-select');
+        if (sel) {
+            var opt = sel.querySelector('option[value="' + id + '"]');
+            if (opt) opt.remove();
         }
     }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const inputs = document.querySelectorAll('#lessonForm input:not([type="checkbox"]):not([type="radio"]), #lessonForm select');
-        inputs.forEach(input => {
-            input.style.textAlign = 'right';
-        });
-    });
 </script>
 {% endblock %}

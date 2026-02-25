@@ -12,14 +12,19 @@
     .subject-pill {
         display: inline-flex; align-items: center; gap: 8px;
         background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
-        padding: 10px 16px; border-radius: 20px;
+        padding: 10px 12px; border-radius: 20px;
         color: var(--tg-text); font-size: 14px; font-weight: 600;
     }
-    .subject-delete {
-        color: var(--tg-hint); text-decoration: none; font-size: 16px;
-        line-height: 1; transition: 0.2s;
+    .subject-pill-actions { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; }
+    .subject-action-btn {
+        width: 32px; height: 32px; border-radius: 50%;
+        border: none; background: var(--tg-bg); color: var(--tg-hint);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 14px; padding: 0; line-height: 1;
     }
-    .subject-delete:active { color: var(--tg-red); }
+    .subject-action-btn:active { opacity: 0.8; }
+    .subject-action-btn.edit { color: var(--tg-active); }
+    .subject-action-btn.delete { color: #ef4444; }
     .add-form {
         background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
         border-radius: 16px; padding: 15px;
@@ -49,8 +54,14 @@
         <div class="subjects-list">
             {% for subject in subjects %}
                 <div class="subject-pill">
-                    {{ subject.name }}
-                    <a href="{% url 'delete_subject' subject.id %}" class="subject-delete">&times;</a>
+                    <span>{{ subject.name }}</span>
+                    <div class="subject-pill-actions">
+                        <button type="button" class="subject-action-btn edit" onclick="openEditModal({{ subject.id }}, '{{ subject.name|escapejs }}')" title="Изменить"><i class="fas fa-edit"></i></button>
+                        <form action="{% url 'delete_subject' subject.id %}" method="post" style="display:inline;" onsubmit="return confirm('Удалить предмет?');">
+                            {% csrf_token %}
+                            <button type="submit" class="subject-action-btn delete" title="Удалить"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </div>
                 </div>
             {% endfor %}
         </div>
@@ -72,4 +83,35 @@
         </form>
     </div>
 </div>
+
+<div id="editSubjectModal" class="tg-modal" onclick="if(event.target===this)closeModal('editSubjectModal')" style="display:none; align-items: flex-end;">
+    <div class="tg-modal-content" style="border-radius: 20px 20px 0 0; width: 100%;">
+        <div class="tg-modal-header">
+            <h3>Изменить предмет</h3>
+            <button type="button" onclick="closeModal('editSubjectModal')" class="close-modal">&times;</button>
+        </div>
+        <form id="editSubjectForm" method="post" style="padding: 20px;">
+            {% csrf_token %}
+            <label style="display:block; font-size: 13px; font-weight: 700; color: var(--tg-hint); margin-bottom: 8px;">Новое название</label>
+            <input type="text" name="name" id="edit-subject-input" class="add-input" required style="width: 100%; box-sizing: border-box; margin-bottom: 20px;">
+            <button type="submit" class="add-btn" style="width: 100%;">Сохранить</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'flex';
+    }
+    function closeModal(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    }
+    function openEditModal(id, currentName) {
+        document.getElementById('editSubjectForm').action = '/subjects/edit/' + id + '/';
+        document.getElementById('edit-subject-input').value = currentName;
+        openModal('editSubjectModal');
+    }
+</script>
 {% endblock %}

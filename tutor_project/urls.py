@@ -54,6 +54,7 @@ urlpatterns = [
     path('homework/<int:hw_id>/files/', views.download_homework_all, name='download_homework_all'),
     path('homework/response/<int:response_id>/download/', views.download_homework_response, name='download_homework_response'),
     path('toggle-attendance-pay/<int:attendance_id>/', views.toggle_attendance_pay, name='toggle_attendance_pay'),
+    path('transaction/delete/<int:transaction_id>/', views.delete_transaction, name='delete_transaction'),
     path('load-more-lessons/', views.load_more_lessons, name='load_more_lessons'),
     path('logout-all/', views.logout_all_devices, name='logout_all_devices'),
     path('tutor-card/<int:tutor_id>/', views.tutor_card, name='tutor_card'),

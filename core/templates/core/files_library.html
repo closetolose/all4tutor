@@ -1,31 +1,28 @@
 {% extends 'core/base.html' %}
 {% block content %}
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; gap: 20px; flex-wrap: wrap;">
-
-    <h2 style="margin: 0; white-space: nowrap;">
-        <i class="fas fa-folder-open" style="color: #4f46e5;"></i> Мои материалы
-    </h2>
-
-    <div style="flex-grow: 1; max-width: 500px;">
-        <form id="search-form" onsubmit="return false;" style="display: flex; gap: 8px; width: 100%;">
-            <div style="position: relative; flex-grow: 1;">
-                <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                <input type="text" id="search-input" name="q" value="{{ query|default:'' }}"
-                       placeholder="Поиск по названию..." autocomplete="off"
-                       style="width: 100%; height: 42px; padding: 0 10px 0 35px; border-radius: 10px; border: 1px solid var(--border); outline: none; box-sizing: border-box;">
-            </div>
-            {% if query %}
-                <a href="{% url 'files_library' %}" style="width: 42px; height: 42px; background: #f1f5f9; color: #64748b; border-radius: 10px; display: flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid var(--border);">
-                    <i class="fas fa-times"></i>
-                </a>
-            {% endif %}
-        </form>
+<div style="margin-bottom: 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; flex-wrap: wrap;">
+        <h2 style="margin: 0; white-space: nowrap;">
+            <i class="fas fa-folder-open" style="color: #4f46e5;"></i> Мои материалы
+        </h2>
+        <button onclick="openModal('uploadFileModal')" class="btn btn-primary" style="height: 42px; padding: 0 20px; border-radius: 10px; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-plus"></i> Добавить файл
+        </button>
     </div>
-
-    <button onclick="openModal('uploadFileModal')" class="btn btn-primary" style="height: 42px; padding: 0 20px; border-radius: 10px; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
-        <i class="fas fa-plus"></i> Добавить файл
-    </button>
+    <form id="search-form" onsubmit="return false;" style="display: flex; gap: 8px; align-items: center; max-width: 560px;">
+        <div style="position: relative; flex-grow: 1;">
+            <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;"></i>
+            <input type="text" id="search-input" name="q" value="{{ query|default:'' }}"
+                   placeholder="Поиск по названию..." autocomplete="off"
+                   style="width: 100%; height: 44px; padding: 0 14px 0 40px; border-radius: 10px; border: 1px solid var(--border); outline: none; box-sizing: border-box; font-size: 15px;">
+        </div>
+        {% if query %}
+            <a href="{% url 'files_library' %}" class="btn btn-secondary" style="width: 44px; height: 44px; padding: 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; text-decoration: none; flex-shrink: 0;" title="Сбросить поиск">
+                <i class="fas fa-times"></i>
+            </a>
+        {% endif %}
+    </form>
 </div>
 
 <div id="files-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; transition: opacity 0.2s;">

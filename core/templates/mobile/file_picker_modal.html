@@ -1,0 +1,183 @@
+<div id="mobile-file-picker-modal" class="mobile-fp-modal" style="display: none;">
+    <div class="mobile-fp-backdrop" onclick="closeMobileFilePicker()"></div>
+    <div class="mobile-fp-sheet">
+        <div class="mobile-fp-header">
+            <h3>Файлы из библиотеки</h3>
+            <button type="button" class="mobile-fp-close" onclick="closeMobileFilePicker()">&times;</button>
+        </div>
+        <input type="text" id="mobile-fp-search" class="mobile-fp-search" placeholder="Поиск по названию..." autocomplete="off">
+        <div id="mobile-fp-list" class="mobile-fp-list"></div>
+        <div id="mobile-fp-loader" class="mobile-fp-loader" style="display: none;">
+            <i class="fas fa-spinner fa-spin"></i> Загрузка...
+        </div>
+        <div class="mobile-fp-actions">
+            <button type="button" class="mobile-fp-done" onclick="applyMobileFilePickerSelection()">
+                Готово (<span id="mobile-fp-selected-count">0</span>)
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .mobile-fp-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 5000; display: flex; align-items: flex-end; }
+    .mobile-fp-backdrop { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay-bg); }
+    .mobile-fp-sheet {
+        position: relative; width: 100%; max-height: 85vh; background: var(--tg-sidebar);
+        border-radius: 20px 20px 0 0; display: flex; flex-direction: column;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    }
+    .mobile-fp-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid var(--tg-separator); }
+    .mobile-fp-header h3 { margin: 0; font-size: 18px; font-weight: 800; color: var(--tg-text); }
+    .mobile-fp-close { background: none; border: none; font-size: 24px; color: var(--tg-hint); padding: 0; width: 36px; height: 36px; }
+    .mobile-fp-search {
+        margin: 12px 15px; padding: 12px 14px; border: 1px solid var(--tg-separator); border-radius: 12px;
+        background: var(--tg-bg); color: var(--tg-text); font-size: 15px; outline: none; box-sizing: border-box; width: calc(100% - 30px);
+    }
+    .mobile-fp-search::placeholder { color: var(--tg-hint); }
+    .mobile-fp-list { flex: 1; overflow-y: auto; padding: 0 15px 15px; max-height: 45vh; }
+    .mobile-fp-item {
+        display: flex; align-items: center; gap: 12px; padding: 14px 12px; border-radius: 12px; margin-bottom: 6px;
+        background: var(--tg-card-bg); border: 2px solid transparent; transition: 0.2s;
+    }
+    .mobile-fp-item:active { opacity: 0.9; }
+    .mobile-fp-item.selected { border-color: var(--tg-active); background: rgba(99, 102, 241, 0.08); }
+    .mobile-fp-item i { font-size: 22px; color: var(--tg-hint); flex-shrink: 0; }
+    .mobile-fp-item.selected i { color: var(--tg-active); }
+    .mobile-fp-item span { font-size: 14px; font-weight: 600; color: var(--tg-text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mobile-fp-loader { text-align: center; padding: 15px; color: var(--tg-hint); font-size: 14px; }
+    .mobile-fp-actions { padding: 15px; border-top: 1px solid var(--tg-separator); }
+    .mobile-fp-done {
+        width: 100%; padding: 16px; border: none; border-radius: 14px; background: var(--tg-active); color: white;
+        font-size: 16px; font-weight: 700;
+    }
+    .mobile-fp-done:active { opacity: 0.9; }
+</style>
+
+<script>
+(function() {
+    var mobileFpPage = 1;
+    var mobileFpHasNext = true;
+    var mobileFpLoading = false;
+    var mobileFpSearchQuery = '';
+    var mobileFpSelected = {};
+    var mobileFpTargetDisplay = '';
+    var mobileFpTargetSelect = '';
+
+    window.openMobileFilePicker = function(displayId, selectId) {
+        mobileFpTargetDisplay = displayId;
+        mobileFpTargetSelect = selectId;
+        mobileFpSelected = {};
+        var selectEl = document.getElementById(selectId);
+        if (selectEl) {
+            if (selectEl.tagName === 'SELECT' && selectEl.multiple) {
+                Array.from(selectEl.options).forEach(function(opt) {
+                    mobileFpSelected[opt.value] = opt.text;
+                });
+            }
+        }
+        document.getElementById('mobile-fp-selected-count').textContent = Object.keys(mobileFpSelected).length;
+        document.getElementById('mobile-file-picker-modal').style.display = 'flex';
+        document.getElementById('mobile-fp-search').value = '';
+        mobileFpPage = 1;
+        mobileFpHasNext = true;
+        mobileFpSearchQuery = '';
+        loadMobileFpFiles(1, '', true);
+    };
+
+    window.closeMobileFilePicker = function() {
+        document.getElementById('mobile-file-picker-modal').style.display = 'none';
+    };
+
+    function loadMobileFpFiles(page, search, reset) {
+        if (mobileFpLoading || (!mobileFpHasNext && !reset)) return;
+        mobileFpLoading = true;
+        document.getElementById('mobile-fp-loader').style.display = 'block';
+        var listEl = document.getElementById('mobile-fp-list');
+        if (reset) {
+            listEl.innerHTML = '';
+            mobileFpPage = 1;
+            mobileFpSearchQuery = search;
+        }
+
+        fetch('/api/user-files/?page=' + page + '&search=' + encodeURIComponent(search))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                mobileFpHasNext = data.has_next;
+                data.files.forEach(function(file) {
+                    var isSelected = mobileFpSelected[file.id] ? ' selected' : '';
+                    var iconClass = 'fa-file-alt';
+                    if (['pdf'].indexOf(file.ext) !== -1) iconClass = 'fa-file-pdf';
+                    if (['jpg', 'jpeg', 'png'].indexOf(file.ext) !== -1) iconClass = 'fa-file-image';
+                    if (['doc', 'docx'].indexOf(file.ext) !== -1) iconClass = 'fa-file-word';
+                    var div = document.createElement('div');
+                    div.className = 'mobile-fp-item' + isSelected;
+                    div.innerHTML = '<i class="fas ' + iconClass + '"></i><span>' + escapeHtml(file.name) + '</span>';
+                    div.onclick = function() {
+                        this.classList.toggle('selected');
+                        if (mobileFpSelected[file.id]) {
+                            delete mobileFpSelected[file.id];
+                        } else {
+                            mobileFpSelected[file.id] = file.name;
+                        }
+                        document.getElementById('mobile-fp-selected-count').textContent = Object.keys(mobileFpSelected).length;
+                    };
+                    listEl.appendChild(div);
+                });
+                mobileFpPage++;
+            })
+            .catch(function(e) { console.error('Mobile file picker:', e); })
+            .finally(function() {
+                mobileFpLoading = false;
+                document.getElementById('mobile-fp-loader').style.display = 'none';
+            });
+    }
+
+    function escapeHtml(s) {
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    window.applyMobileFilePickerSelection = function() {
+        var displayEl = document.getElementById(mobileFpTargetDisplay);
+        var selectEl = document.getElementById(mobileFpTargetSelect);
+        if (displayEl) displayEl.innerHTML = '';
+        if (selectEl) {
+            if (selectEl.tagName === 'SELECT') {
+                selectEl.innerHTML = '';
+                for (var id in mobileFpSelected) {
+                    var opt = document.createElement('option');
+                    opt.value = id;
+                    opt.text = mobileFpSelected[id];
+                    opt.selected = true;
+                    selectEl.appendChild(opt);
+                }
+            }
+        }
+        if (displayEl) {
+            for (var id in mobileFpSelected) {
+                var chip = document.createElement('span');
+                chip.className = 'mobile-fp-chip';
+                chip.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; background: rgba(99, 102, 241, 0.15); color: var(--tg-active); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; margin: 4px 4px 4px 0;';
+                chip.innerHTML = '<i class="fas fa-file"></i> ' + escapeHtml(mobileFpSelected[id]);
+                displayEl.appendChild(chip);
+            }
+        }
+        closeMobileFilePicker();
+    };
+
+    document.getElementById('mobile-fp-search').addEventListener('input', function() {
+        var q = this.value.trim();
+        mobileFpPage = 1;
+        mobileFpHasNext = true;
+        loadMobileFpFiles(1, q, true);
+    });
+
+    document.getElementById('mobile-fp-list').addEventListener('scroll', function() {
+        var el = this;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 80 && mobileFpHasNext && !mobileFpLoading) {
+            loadMobileFpFiles(mobileFpPage, mobileFpSearchQuery, false);
+        }
+    });
+})();
+</script>

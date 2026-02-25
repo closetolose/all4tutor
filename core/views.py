@@ -26,6 +26,7 @@ from django.utils.http import urlsafe_base64_decode
 from django.views.decorators.http import require_POST
 from django.http import FileResponse
 from django.template.loader import render_to_string
+from django.core.exceptions import ValidationError
 
 from .forms import AddLessonForm, AddSubjectForm, ProfileUpdateForm, RegistrationForm, StudyGroupForm
 from .models import (
@@ -34,7 +35,7 @@ from .models import (
     Transaction, TutorStudentNote, TutorSubjects, Users, StudentBalance,
 )
 from .utils import send_telegram_notification, send_verification_email
-#from ratelimit.decorators import ratelimit
+# from ratelimit.decorators import ratelimit  # установите django-ratelimit и пересоберите Docker-образ
 from django.db.models import ProtectedError
 from django.core.paginator import Paginator
 
@@ -257,11 +258,13 @@ def index(request):
         'current_date_to': final_end_date,
         'student_tutors': student_tutors,
         'student_groups': student_groups,
+        'current_filter_target': request.GET.get('target'),
+        'current_filter_subject': request.GET.get('subject'),
     }
 
     return smart_render(request, 'core/index.html', context)
 
-#@ratelimit(key='ip', rate='5/m', block=True)
+# @ratelimit(key='ip', rate='5/m', block=True)
 def register(request):
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
@@ -309,7 +312,7 @@ def edit_profile(request):
 
     return smart_render(request, 'core/edit_profile.html', {'form': form})
 
-#@ratelimit(key='ip', rate='5/m', block=True)
+# @ratelimit(key='ip', rate='5/m', block=True)
 def user_login(request):
     if request.method == 'POST':
         form = AuthenticationForm(data=request.POST)
@@ -369,7 +372,6 @@ def reject_request(request, request_id):
 def my_students(request):
     user_profile = request.user.profile
 
-    # Твоя логика сохранения тарифов (оставляем без изменений)
     if request.method == 'POST' and 'save_tariff' in request.POST:
         StudentTariff.objects.update_or_create(
             tutor=user_profile,
@@ -378,12 +380,12 @@ def my_students(request):
             subject_id=request.POST.get('t_subject'),
             defaults={'price': request.POST.get('t_price')}
         )
-        return smart_render(request, 'core/my_students.html')
-
+        messages.success(request, 'Тариф сохранён.')
+        return redirect('my_students')
 
     # Твои активные связи
     connections = ConnectionRequest.objects.filter(tutor=user_profile, status='confirmed').select_related('student')
-    groups = StudyGroups.objects.filter(tutor=user_profile)
+    groups = StudyGroups.objects.filter(tutor=user_profile).select_related('subject').prefetch_related('students')
     my_subjects = TutorSubjects.objects.filter(tutor=user_profile).select_related('subject')
 
     return smart_render(request, 'core/my_students.html', {
@@ -429,11 +431,12 @@ def add_student(request):
                 messages.error(request, "Этот пользователь не является учеником.")
 
         except AuthUser.DoesNotExist:
-            messages.error(request, f"Пользователь с логином '{target_username}' не найден.")
+            messages.error(request, "Пользователь не найден или уже добавлен.")
 
     return smart_render(request, 'core/add_student.html')
 
 
+@login_required
 #@ratelimit(key='ip', rate='5/m', block=True)
 def add_lesson(request):
     if request.user.profile.role != 'tutor':
@@ -448,7 +451,7 @@ def add_lesson(request):
             # Фикс 1: Останавливаем выполнение, если данные неверны
             if not (15 <= duration <= 600):
                 messages.error(request, "Введите корректную длительность занятия (15-600 мин)")
-                return render(request, 'core/add_lesson.html', {'form': form})
+                return smart_render(request, 'core/add_lesson.html', {'form': form})
 
             is_recurring = form.cleaned_data.get('is_recurring')
             new_series_id = uuid.uuid4() if is_recurring else None
@@ -645,7 +648,6 @@ def remove_student(request, connection_id):
 
 
 @login_required
-@require_POST
 def add_group(request):
     if request.method == 'POST':
         form = StudyGroupForm(request.POST, tutor=request.user.profile)
@@ -714,8 +716,10 @@ def bulk_action_lessons(request):
             new_subject = request.POST.get('mass_subject')
             new_duration = request.POST.get('mass_duration')
             new_price = request.POST.get('mass_price')
-            selected_materials = request.POST.getlist('materials')
+            new_format = request.POST.get('mass_format')
+            new_location = request.POST.get('mass_location')
             new_notes = request.POST.get('notes')
+            selected_materials = request.POST.getlist('materials')
 
             with transaction.atomic():
                 for lesson in queryset:
@@ -740,6 +744,10 @@ def bulk_action_lessons(request):
                         lesson.duration = int(new_duration)
                     if new_price:
                         lesson.price = Decimal(new_price)
+                    if new_format:
+                        lesson.format = new_format
+                    if new_location:
+                        lesson.location = new_location
                     if new_notes:
                         lesson.notes = new_notes
 
@@ -942,14 +950,52 @@ def student_card(request, student_id):
 
 
 @login_required
+@require_POST
+def delete_transaction(request, transaction_id):
+    """Удаление транзакции с корректировкой баланса (и снятием отметки об оплате, если это списание за урок)."""
+    tutor = request.user.profile
+    tx = get_object_or_404(Transaction, id=transaction_id, tutor=tutor)
+    student = tx.student
+
+    with transaction.atomic():
+        balance_obj, _ = StudentBalance.objects.select_for_update().get_or_create(
+            tutor=tutor,
+            student=student,
+        )
+        if tx.type == 'deposit':
+            balance_obj.balance -= tx.amount
+        else:
+            balance_obj.balance += tx.amount
+            if tx.attendance_id:
+                att = LessonAttendance.objects.filter(id=tx.attendance_id).first()
+                if att:
+                    att.is_paid = False
+                    att.save(update_fields=['is_paid'])
+        balance_obj.save()
+        tx.delete()
+
+    messages.success(request, "Транзакция удалена, баланс обновлён.")
+    return redirect('student_card', student_id=student.id)
+
+
+@login_required
 #@ratelimit(key='ip', rate='5/m', block=True)
 def add_homework(request, student_id):
     if request.method == 'POST':
         tutor = request.user.profile
         student = get_object_or_404(Users, id=student_id)
 
+        has_access = ConnectionRequest.objects.filter(
+            tutor=tutor,
+            student=student,
+            status__in=['confirmed', 'archived']
+        ).exists()
+        if not has_access:
+            messages.error(request, "Ошибка доступа: это не ваш ученик.")
+            return redirect('my_students')
+
         subject_id = request.POST.get('subject')
-        subject_obj = get_object_or_404(Subjects, id=subject_id)
+        subject_obj = get_object_or_404(Subjects, id=subject_id, tutor=tutor)
 
         deadline_raw = request.POST.get('deadline')
         description = request.POST.get('description')
@@ -999,9 +1045,28 @@ def files_library(request):
     user_profile = request.user.profile
     MAX_SIZE = 10 * 1024 * 1024
 
-    # --- ОБРАБОТКА ЗАГРУЗКИ (остается твоя) ---
-    if request.method == 'POST' and request.FILES.get('file'):
-        # ... твой код загрузки ...
+    # --- ОБРАБОТКА ЗАГРУЗКИ ---
+    if request.method == 'POST':
+        file_name = (request.POST.get('file_name') or '').strip()
+        uploaded = request.FILES.get('file')
+        if not file_name:
+            messages.error(request, 'Укажите название файла.')
+            return redirect('files_library')
+        if not uploaded:
+            messages.error(request, 'Выберите файл для загрузки.')
+            return redirect('files_library')
+        if uploaded.size > MAX_SIZE:
+            messages.error(request, 'Максимальный размер файла — 10 МБ.')
+            return redirect('files_library')
+        try:
+            FilesLibrary.objects.create(
+                tutor=user_profile,
+                file_name=file_name[:30],
+                file=uploaded,
+            )
+            messages.success(request, 'Файл успешно загружен.')
+        except ValidationError as e:
+            messages.error(request, str(e))
         return redirect('files_library')
 
     # --- ЛОГИКА ПОИСКА ---
@@ -1181,8 +1246,7 @@ def edit_homework(request, hw_id):
             hw.tutor_comment = request.POST.get('tutor_comment')
 
         file_ids = request.POST.getlist('files')
-        if file_ids:
-            hw.files.set(file_ids)
+        hw.files.set(file_ids)
 
         hw.save()
         messages.success(request, "Задание обновлено")
@@ -1657,6 +1721,15 @@ def archived_students(request):
 def restore_student(request, student_id):
     tutor = request.user.profile
     student = get_object_or_404(Users, id=student_id, role='student')
+
+    archived_connection = ConnectionRequest.objects.filter(
+        tutor=tutor,
+        student=student,
+        status='archived'
+    ).first()
+    if not archived_connection:
+        messages.error(request, "Ошибка доступа: этого ученика нельзя восстановить.")
+        return redirect('archived_students')
 
     # Создаем или обновляем связь, ставя статус 'confirmed'
     ConnectionRequest.objects.update_or_create(

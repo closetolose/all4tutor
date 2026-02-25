@@ -1,8 +1,9 @@
 from django.utils import timezone
 
-from .models import Lessons, Users
-from django.urls import resolve, reverse,NoReverseMatch
+from .models import Homework, Lessons, StudyGroups, Users
+from django.urls import resolve, reverse, NoReverseMatch
 from django.db.models import Q
+
 
 def next_lesson_processor(request):
     if not request.user.is_authenticated:
@@ -13,13 +14,11 @@ def next_lesson_processor(request):
         now = timezone.now()
 
         if user_profile.role == 'tutor':
-            # Логика для репетитора
             next_lesson = Lessons.objects.filter(
                 tutor=user_profile,
                 start_time__gt=now
             ).order_by('start_time').first()
         else:
-            # Логика для ученика (индивидуально или группа)
             next_lesson = Lessons.objects.filter(
                 Q(student=user_profile) | Q(group__students=user_profile),
                 start_time__gt=now
@@ -30,95 +29,113 @@ def next_lesson_processor(request):
         return {'next_lesson': None}
 
 
+# Цепочка breadcrumb: url_name -> (название страницы, родитель url_name или None)
+BREADCRUMB_CHAIN = {
+    'index': ('Главная', None),
+    'my_students': ('Мои ученики', 'index'),
+    'student_card': (None, 'my_students'),  # название подставим из БД
+    'add_student': ('Добавить ученика', 'my_students'),
+    'add_lesson': ('Новое занятие', 'index'),
+    'edit_lesson': ('Редактирование занятия', 'index'),
+    'add_group': ('Создать группу', 'my_students'),
+    'edit_group': (None, 'my_students'),  # название подставим из БД
+    'group_card': (None, 'my_students'),
+    'files_library': ('Мои файлы', 'index'),
+    'edit_file': ('Редактирование файла', 'files_library'),
+    'finances': ('Финансы', 'index'),
+    'my_assignments': ('Мои задания', 'index'),
+    'homework_detail': (None, 'my_assignments'),
+    'edit_homework': ('Редактирование ДЗ', 'my_assignments'),
+    'my_subjects': ('Мои предметы', 'index'),
+    'edit_subject': ('Редактирование предмета', 'my_subjects'),
+    'delete_subject': ('Мои предметы', 'my_subjects'),
+    'edit_profile': ('Профиль', 'index'),
+    'confirmations': ('Подтверждения', 'index'),
+    'my_tutors': ('Мои репетиторы', 'index'),
+    'tutor_card': (None, 'my_tutors'),
+    'faq': ('FAQ', 'index'),
+    'archived_students': ('Архив учеников', 'my_students'),
+    'accept_request': ('Подтверждения', 'confirmations'),
+    'reject_request': ('Подтверждения', 'confirmations'),
+}
+
+
 def breadcrumbs(request):
-    # Если пользователь не залогинен, крошки не нужны
     if not request.user.is_authenticated:
         return {'auto_breadcrumbs': []}
 
-    # Получаем сегменты пути, игнорируя пустые строки: /student/5/ -> ['student', '5']
-    path_segments = [s for s in request.path.split('/') if s]
-    crumbs = []
+    try:
+        match = resolve(request.path)
+    except Exception:
+        return {'auto_breadcrumbs': [{'name': 'Главная', 'url': reverse('index')}]}
 
-    # 1. Всегда начинаем с Главной
-    crumbs.append({'name': 'Главная', 'url': reverse('index')})
+    url_name = match.url_name
+    kwargs = match.kwargs
 
-    # 2. Словарь "красивых" имен и ПРАВИЛЬНЫХ ссылок.
-    # Если URL содержит 'student' или 'student-card', ссылка будет вести на 'my_students'
-    TITLES = {
-        'my-students': {'name': 'Мои ученики', 'url_name': 'my_students'},
-        'student': {'name': 'Мои ученики', 'url_name': 'my_students'},
-        'student-card': {'name': 'Мои ученики', 'url_name': 'my_students'},
-        'finances': {'name': 'Финансы', 'url_name': 'finances'},
-        'my-assignments': {'name': 'Мои задания', 'url_name': 'my_assignments'},
-        'my-files': {'name': 'Мои файлы', 'url_name': 'files_library'},
-        'my-subjects': {'name': 'Мои предметы', 'url_name': 'my_subjects'},
-        'edit-profile': {'name': 'Профиль', 'url_name': 'edit_profile'},
-        'subjects': {'name': 'Мои предметы', 'url_name': 'my_subjects'},
-        'faq': {'name': 'FAQ', 'url_name': 'faq'},
-        'confirmations': {'name': 'Подтверждения', 'url_name': 'confirmations'},
-        'my-tutors': {'name': 'Мои репетиторы', 'url_name': 'my_tutors'},
-        'tutor-card': {'name': 'Мои репетиторы', 'url_name': 'my_tutors'},
-        'homework': {'name': 'Мои задания', 'url_name': 'my_assignments'},
+    if url_name not in BREADCRUMB_CHAIN:
+        return {'auto_breadcrumbs': [{'name': 'Главная', 'url': reverse('index')}]}
 
-    }
+    # Собираем цепочку от текущей страницы к корню
+    chain = []
+    current = url_name
+    while current:
+        if current not in BREADCRUMB_CHAIN:
+            break
+        label, parent = BREADCRUMB_CHAIN[current]
+        try:
+            url = reverse(current, kwargs=kwargs if current == url_name else {})
+        except NoReverseMatch:
+            url = request.path
+        chain.append((label, url, current))
+        if parent is None:
+            if current != 'index':
+                chain.append(('Главная', reverse('index'), 'index'))
+            break
+        current = parent
 
-    accumulated_url = ''
-    for i, segment in enumerate(path_segments):
-        accumulated_url += f'/{segment}/'
-
-        # Случай А: Это ID (цифра) после сегмента, связанного с карточкой ученика
-        if segment.isdigit() and i > 0:
-            prev_segment = path_segments[i - 1]
-
-            # Обработка ученика (уже была у тебя)
-            if prev_segment in ['student', 'student-card']:
-                try:
-                    student = Users.objects.get(id=segment)
-                    name = f"{student.first_name} {student.last_name}"
-                except Users.DoesNotExist:
-                    name = "Ученик"
-
-            # НОВОЕ: Обработка репетитора
-            elif prev_segment == 'tutor-card':
-                try:
-                    # Ищем репетитора в модели Users
-                    tutor = Users.objects.get(id=segment, role='tutor')
-                    name = f"{tutor.first_name} {tutor.last_name}"
-                except Users.DoesNotExist:
-                    name = "Репетитор"
-            elif prev_segment == 'homework':
-                try:
-                    # Импортируй модель Homework внутри функции или в начале файла
-                    from .models import Homework
-                    hw = Homework.objects.get(id=segment)
-                    # Отображаем предмет, по которому задано ДЗ
-                    name = f"ДЗ: {hw.subject.name}"
-                except Exception:
-                    name = "Задание"
-
-            else:
-                name = segment  # Если это другой ID (например, страница пагинации)
-
-            crumbs.append({'name': name, 'url': accumulated_url})
-
-        # Случай Б: Сегмент описан в нашем словаре TITLES
-        elif segment in TITLES:
-            mapping = TITLES[segment]
+    # Название текущей страницы из БД, если нужно
+    if chain and chain[0][0] is None:
+        first_label, first_url, first_name = chain[0]
+        if first_name == 'student_card' and kwargs.get('student_id'):
             try:
-                # Пытаемся получить URL через reverse по имени из словаря
-                target_url = reverse(mapping['url_name'])
-            except NoReverseMatch:
-                target_url = accumulated_url
-
-            # Проверяем, нет ли уже такого названия в цепочке (защита от дублей)
-            if not any(c['name'] == mapping['name'] for c in crumbs):
-                crumbs.append({'name': mapping['name'], 'url': target_url})
-
-        # Случай В: Обычные текстовые сегменты (запасной вариант)
+                student = Users.objects.get(id=kwargs['student_id'])
+                first_label = f"{student.first_name} {student.last_name}"
+            except Users.DoesNotExist:
+                first_label = "Ученик"
+        elif first_name == 'tutor_card' and kwargs.get('tutor_id'):
+            try:
+                tutor = Users.objects.get(id=kwargs['tutor_id'], role='tutor')
+                first_label = f"{tutor.first_name} {tutor.last_name}"
+            except Users.DoesNotExist:
+                first_label = "Репетитор"
+        elif first_name == 'group_card' and kwargs.get('group_id'):
+            try:
+                group = StudyGroups.objects.get(id=kwargs['group_id'])
+                first_label = group.name
+            except StudyGroups.DoesNotExist:
+                first_label = "Группа"
+        elif first_name == 'edit_group' and kwargs.get('group_id'):
+            try:
+                group = StudyGroups.objects.get(id=kwargs['group_id'])
+                first_label = f"Редактирование: {group.name}"
+            except StudyGroups.DoesNotExist:
+                first_label = "Редактирование группы"
+        elif first_name == 'homework_detail' and kwargs.get('hw_id'):
+            try:
+                hw = Homework.objects.get(id=kwargs['hw_id'])
+                first_label = f"ДЗ: {hw.subject.name}"
+            except Exception:
+                first_label = "Задание"
         else:
-            name = segment.replace('-', ' ').replace('_', ' ').capitalize()
-            crumbs.append({'name': name, 'url': accumulated_url})
+            first_label = first_name.replace('_', ' ').capitalize()
+        chain[0] = (first_label, first_url, first_name)
 
+    # Строим список крошек: от Главной к текущей (chain от текущей к корню)
+    crumbs = []
+    for i in range(len(chain) - 1, -1, -1):
+        label, url, _ = chain[i]
+        if label:
+            crumbs.append({'name': label, 'url': url})
+
+    # Последний элемент — текущая страница, ссылку не даём (уже в шаблоне last не ссылка)
     return {'auto_breadcrumbs': crumbs}
-
-

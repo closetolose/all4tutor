@@ -348,6 +348,7 @@
                         <th style="padding: 15px;">Дата</th>
                         <th>Описание</th>
                         <th style="text-align: right; padding-right: 20px;">Сумма</th>
+                        <th style="padding: 15px; width: 80px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -364,9 +365,15 @@
                                 </span>
                             {% endif %}
                         </td>
+                        <td style="padding: 15px;">
+                            <form action="{% url 'delete_transaction' tx.id %}" method="post" style="display:inline;" onsubmit="return confirm('Удалить транзакцию? Баланс будет пересчитан.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline btn-sm" style="color: #ef4444; border-color: #fecaca;" title="Удалить транзакцию"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="3" style="text-align: center; padding: 40px; color: #94a3b8;">Истории пока нет</td></tr>
+                    <tr><td colspan="4" style="text-align: center; padding: 40px; color: #94a3b8;">Истории пока нет</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -395,7 +402,7 @@
     if (files && files.length > 0) {
         files.forEach(m => {
             // Создаем бейджик
-            displayContainer.innerHTML += `<div style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 5px;"><i class="fas fa-file"></i> ${m.name}</div>`;
+            displayContainer.innerHTML += `<div style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 5px;"><i class="fas fa-file"></i> ${escapeHtml(m.name)}</div>`;
             // Записываем в скрытый селект
             const opt = document.createElement('option');
             opt.value = m.id;

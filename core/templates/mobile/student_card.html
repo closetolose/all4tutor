@@ -20,7 +20,7 @@
     <div class="b-cards-row">
         <div class="b-card positive">
             <span class="b-label">БАЛАНС</span>
-            <div class="b-value">{{ student.balance }} ₽</div>
+            <div class="b-value">{{ balance|floatformat:0 }} ₽</div>
         </div>
         <div class="b-card negative">
             <span class="b-label">ДОЛГ</span>
@@ -152,6 +152,14 @@
                 <label>Срок</label>
                 <input type="datetime-local" name="deadline" id="edit_hw_deadline" class="tg-modal-input">
             </div>
+            <div class="tg-input-group">
+                <label>Файлы из библиотеки</label>
+                <button type="button" class="mobile-fp-trigger" onclick="openMobileFilePicker('edit-hw-files-display', 'edit-hw-files-select')">
+                    <i class="fas fa-paperclip"></i> Прикрепить файлы
+                </button>
+                <div id="edit-hw-files-display" class="hw-chips-wrap" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
+                <select id="edit-hw-files-select" name="files" multiple hidden></select>
+            </div>
             <button type="submit" class="tg-modal-btn">Сохранить</button>
         </form>
     </div>
@@ -215,8 +223,14 @@
                     <strong>{{ tx.get_type_display }}</strong>
                     <span>{{ tx.date|date:"d.m.Y" }} • {{ tx.description|default:"-" }}</span>
                 </div>
-                <div class="tx-amount {% if tx.type == 'deposit' %}txt-green{% else %}txt-red{% endif %}">
-                    {% if tx.type == 'deposit' %}+{% else %}-{% endif %}{{ tx.amount }} ₽
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="tx-amount {% if tx.type == 'deposit' %}txt-green{% else %}txt-red{% endif %}">
+                        {% if tx.type == 'deposit' %}+{% else %}-{% endif %}{{ tx.amount }} ₽
+                    </div>
+                    <form action="{% url 'delete_transaction' tx.id %}" method="post" style="display:inline;" onsubmit="return confirm('Удалить транзакцию? Баланс будет пересчитан.');">
+                        {% csrf_token %}
+                        <button type="submit" class="tx-delete-btn" title="Удалить"><i class="fas fa-trash"></i></button>
+                    </form>
                 </div>
             </div>
             {% empty %}
@@ -250,13 +264,11 @@
             </div>
             <div class="tg-input-group">
                 <label>Файлы из библиотеки</label>
-                <div class="modal-files-list">
-                    {% for f in tutor_files %}
-                    <label class="file-check"><input type="checkbox" name="files" value="{{ f.id }}"> {{ f.file_name }}</label>
-                    {% empty %}
-                    <span class="empty-msg" style="font-size: 12px;">Нет файлов в библиотеке</span>
-                    {% endfor %}
-                </div>
+                <button type="button" class="mobile-fp-trigger" onclick="openMobileFilePicker('hw-files-display', 'hw-files-select')">
+                    <i class="fas fa-paperclip"></i> Прикрепить файлы
+                </button>
+                <div id="hw-files-display" class="hw-chips-wrap" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
+                <select id="hw-files-select" name="files" multiple hidden></select>
             </div>
             <button type="submit" class="tg-modal-btn">Задать задание</button>
         </form>
@@ -359,12 +371,18 @@
     .tg-input-group label { display: block; color: var(--tg-hint); font-size: 12px; margin-bottom: 5px; font-weight: 700; }
     .tg-modal-input { width: 100%; background: var(--tg-bg); border: 1px solid var(--tg-separator); color: var(--tg-text); padding: 12px; border-radius: 10px; box-sizing: border-box; outline: none; font-size: 15px; }
     .tg-modal-btn { width: 100%; background: var(--tg-active); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: 700; font-size: 16px; margin-top: 10px; }
-    .modal-files-list { max-height: 150px; overflow-y: auto; background: var(--tg-bg); border-radius: 10px; padding: 10px; }
-    .file-check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; color: var(--tg-text); }
+    .mobile-fp-trigger {
+        display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+        padding: 12px; background: var(--tg-bg); border: 1px dashed var(--tg-separator);
+        border-radius: 12px; color: var(--tg-active); font-size: 14px; font-weight: 600;
+    }
+    .mobile-fp-trigger:active { opacity: 0.9; }
     .tx-scroll-area { max-height: 60vh; overflow-y: auto; }
     .tx-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--tg-separator); }
     .tx-info strong { display: block; font-size: 14px; color: var(--tg-text); }
     .tx-info span { font-size: 11px; color: var(--tg-hint); }
+    .tx-delete-btn { width: 36px; height: 36px; border: none; background: rgba(239, 68, 68, 0.12); color: #ef4444; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+    .tx-delete-btn:active { opacity: 0.8; }
 </style>
 
 <script>

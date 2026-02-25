@@ -9,11 +9,31 @@
             {% csrf_token %}
             
             {% for field in form %}
+                {% if field.name != 'materials' %}
             <div class="mb-20">
                 <label style="display: block; font-weight: 600; margin-bottom: 5px;">{{ field.label }}</label>
-                {{ field }} 
-                </div>
+                {{ field }}
+            </div>
+                {% endif %}
             {% endfor %}
+
+            <div class="mb-20">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px;"><i class="fas fa-paperclip"></i> Материалы к занятию</label>
+                <button type="button" onclick="openFilePickerModal('edit-lesson-materials-display', 'edit-lesson-materials-select')"
+                        class="btn btn-outline" style="width: 100%; padding: 10px; border: 1px dashed #cbd5e1; border-radius: 8px; color: var(--primary); font-weight: 600;">
+                    <i class="fas fa-plus-circle"></i> Выбрать файлы из библиотеки
+                </button>
+                <div id="edit-lesson-materials-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;">
+                    {% for m in lesson.materials.all %}
+                    <span style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-size: 12px;"><i class="fas fa-file"></i> {{ m.file_name }}</span>
+                    {% endfor %}
+                </div>
+                <select id="edit-lesson-materials-select" name="materials" multiple style="display: none;">
+                    {% for m in lesson.materials.all %}
+                    <option value="{{ m.id }}" selected>{{ m.file_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button type="submit" class="btn btn-primary">Сохранить</button>

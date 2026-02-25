@@ -199,10 +199,12 @@
                         </span>
 
                         {% if role == 'tutor' %}
-                        <div class="attendance-dots" onclick="event.stopPropagation();">
+
+
+                        <div class="attendance-dots">
                             {% for att in lesson.attendances.all %}
                             <div id="att-{{ att.id }}" class="att-dot {% if att.was_present %}present{% endif %}"
-                                 onclick="quickTogglePresence(this, {{ att.id }})">
+                                 data-att-id="{{ att.id }}">
                                 {{ att.student.first_name|first }}
                             </div>
                             {% endfor %}

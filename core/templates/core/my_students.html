@@ -82,15 +82,25 @@
                     <tbody>
                         {% for group in groups %}
                         <tr>
-                            <td style="font-weight: 600;">{{ group.name }}</td>
+                            <td>
+                                <a href="{% url 'group_card' group.id %}" class="group-name-link" title="Открыть карточку группы">
+                                    <span class="hover-info-container group-name-link-inner">
+                                        <i class="fas fa-users"></i> {{ group.name }}
+                                        <span class="hover-tooltip-content" style="display: none;">
+                                            <strong>Предмет:</strong> {{ group.subject.name }}<br>
+                                            <strong>Участники:</strong> {% for s in group.students.all %}{{ s.first_name }} {{ s.last_name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+                                        </span>
+                                    </span>
+                                </a>
+                            </td>
                             <td>{{ group.students.count }}</td>
                             <td>
                                 <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                                    <button onclick="openTariffModal('{{ group.id }}', '{{ group.name }}', 'group')"
+                                    <button onclick="openTariffModal('{{ group.id }}', '{{ group.name|escapejs }}', 'group')"
                                             class="btn btn-outline btn-sm" title="Тариф группы">
                                         <i class="fas fa-ruble-sign"></i>
                                     </button>
-                                    <a href="#" class="btn btn-outline btn-sm"><i class="fas fa-edit"></i></a>
+                                    <a href="{% url 'edit_group' group.id %}" class="btn btn-outline btn-sm" title="Редактировать группу"><i class="fas fa-edit"></i></a>
                                 </div>
                             </td>
                         </tr>
@@ -105,9 +115,9 @@
 </div>
 
 <div id="tariffModal" class="modal-overlay">
-    <div class="modal-box" style="max-width: 400px;">
-        <span class="close-modal" onclick="closeTariffModal()">&times;</span>
-        <h3 id="t-title">Настройка тарифа</h3>
+    <div class="modal-window" style="max-width: 400px;">
+        <span class="close-btn" onclick="closeTariffModal()" style="cursor: pointer;">&times;</span>
+        <h3 id="t-title" class="modal-title" style="margin-bottom: 8px;">Настройка тарифа</h3>
         <p id="t-display-name" style="font-weight: 700; color: var(--primary); margin-bottom: 20px;"></p>
 
         <form method="post">

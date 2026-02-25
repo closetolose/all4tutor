@@ -95,16 +95,13 @@
         color: var(--tg-text); padding: 12px; border-radius: 10px; font-size: 15px;
         width: 100%; outline: none; box-sizing: border-box; margin-bottom: 15px;
     }
-    .modal-files {
-        max-height: 120px; overflow-y: auto; border: 1px solid var(--tg-separator);
-        border-radius: 10px; padding: 10px; margin-bottom: 20px;
+    .mobile-fp-trigger-group {
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        padding: 12px; background: var(--tg-bg); border: 1px dashed var(--tg-separator);
+        border-radius: 12px; color: var(--tg-active); font-size: 14px; font-weight: 600;
+        width: 100%; margin-bottom: 15px; box-sizing: border-box;
     }
-    .modal-file-item {
-        display: flex; align-items: center; gap: 10px;
-        margin-bottom: 8px; font-size: 13px; color: var(--tg-text);
-    }
-    .modal-file-item:last-child { margin-bottom: 0; }
-    .modal-file-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--tg-active); }
+    .mobile-fp-trigger-group:active { opacity: 0.9; }
     .modal-submit {
         background: var(--tg-active); color: white; border: none;
         padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px; width: 100%;
@@ -185,16 +182,11 @@
             <label class="modal-label">Срок сдачи</label>
             <input type="datetime-local" name="deadline" class="modal-input">
             <label class="modal-label">Прикрепить файлы</label>
-            <div class="modal-files">
-                {% for f in tutor_files %}
-                    <label class="modal-file-item">
-                        <input type="checkbox" name="files" value="{{ f.id }}">
-                        <span>{{ f.file_name }}</span>
-                    </label>
-                {% empty %}
-                    <div style="text-align: center; color: var(--tg-hint); font-size: 12px; padding: 10px;">В библиотеке нет файлов</div>
-                {% endfor %}
-            </div>
+            <button type="button" class="mobile-fp-trigger-group" onclick="openMobileFilePicker('group-hw-files-display', 'group-hw-files-select')">
+                <i class="fas fa-paperclip"></i> Прикрепить файлы из библиотеки
+            </button>
+            <div id="group-hw-files-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
+            <select id="group-hw-files-select" name="files" multiple hidden></select>
             <button type="submit" class="modal-submit">Разослать всем ученикам</button>
         </form>
         <button class="modal-close-btn" onclick="document.getElementById('hwModal').classList.remove('active')">Отмена</button>

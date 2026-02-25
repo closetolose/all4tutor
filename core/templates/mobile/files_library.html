@@ -28,7 +28,10 @@
         <div class="fl-file-actions">
             <a href="{{ f.file.url }}" target="_blank" class="fl-action-btn"><i class="fas fa-download"></i></a>
             <button onclick="prepareEditModal('{{ f.id }}', '{{ f.file_name|escapejs }}')" class="fl-action-btn"><i class="fas fa-edit"></i></button>
-            <a href="{% url 'delete_file' f.id %}" class="fl-action-btn fl-delete" onclick="return confirm('Удалить файл навсегда?')"><i class="fas fa-trash"></i></a>
+            <form method="post" action="{% url 'delete_file' f.id %}" style="display: inline;" onsubmit="return confirm('Удалить файл «{{ f.file_name|escapejs }}» навсегда?');">
+                {% csrf_token %}
+                <button type="submit" class="fl-action-btn fl-delete" title="Удалить"><i class="fas fa-trash"></i></button>
+            </form>
         </div>
     </div>
     {% empty %}

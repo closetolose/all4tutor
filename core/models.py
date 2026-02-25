@@ -47,7 +47,7 @@ class Users(models.Model):
 
 
 class FilesLibrary(models.Model):
-    tutor = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='materials', default="")
+    tutor = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='materials')
     file = models.FileField(
         upload_to='tutor_materials/%Y/%m/%d/',
         null=True,

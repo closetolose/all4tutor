@@ -1,3 +1,26 @@
+<style>
+    .mass-edit-fp-trigger {
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        padding: 14px; background: rgba(99, 102, 241, 0.08);
+        border: 1px dashed var(--tg-active);
+        border-radius: 14px; color: var(--tg-active);
+        font-size: 14px; font-weight: 700; width: 100%; box-sizing: border-box;
+    }
+    .mass-edit-fp-trigger:active { background: rgba(99, 102, 241, 0.15); }
+    .mass-edit-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    #mass-edit-modal .segment-control {
+        display: flex; background: var(--tg-separator); padding: 4px; border-radius: 12px;
+        margin: 0 0 16px 0; gap: 4px;
+    }
+    #mass-edit-modal .segment-option {
+        flex: 1; text-align: center; padding: 10px; border-radius: 10px;
+        font-size: 14px; font-weight: 700; color: var(--tg-hint); transition: 0.2s; cursor: pointer;
+    }
+    #mass-edit-modal .segment-option.active {
+        background: var(--tg-card-bg); color: var(--tg-text);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+</style>
 <div id="mass-edit-modal" class="tg-modal" onclick="if(event.target===this)closeMassEditModal()">
     <div class="tg-modal-content">
         <div class="tg-modal-header">
@@ -5,21 +28,19 @@
             <button onclick="closeMassEditModal()" class="close-modal">&times;</button>
         </div>
         <div class="tg-modal-scroll">
+            <div class="segment-control">
+                <div class="segment-option active" id="m_mass_tab_ind" onclick="setMassEditType('individual')">
+                    <i class="fas fa-user"></i> Индивидуально
+                </div>
+                <div class="segment-option" id="m_mass_tab_group" onclick="setMassEditType('group')">
+                    <i class="fas fa-users"></i> Группа
+                </div>
+            </div>
+
             <div class="tg-section-title">Основное</div>
             <div class="tg-section no-margin">
-                <div class="tg-input-row">
-                    <div class="tg-label">Предмет</div>
-                    <div class="tg-field-wrap">
-                        <select id="m_subject">
-                            <option value="">Не менять</option>
-                            {% for s in my_subjects %}
-                            <option value="{{ s.subject.id }}">{{ s.subject.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="tg-input-row">
-                    <div class="tg-label">Ученик</div>
+                <div class="tg-input-row" id="m_mass_row_student">
+                    <div class="tg-label"><i class="fas fa-user"></i> Ученик</div>
                     <div class="tg-field-wrap">
                         <select id="m_student">
                             <option value="">Не менять</option>
@@ -29,13 +50,24 @@
                         </select>
                     </div>
                 </div>
-                <div class="tg-input-row last">
-                    <div class="tg-label">Группа</div>
+                <div class="tg-input-row last" id="m_mass_row_group" style="display: none;">
+                    <div class="tg-label"><i class="fas fa-users"></i> Группа</div>
                     <div class="tg-field-wrap">
                         <select id="m_group">
                             <option value="">Не менять</option>
                             {% for g in tutor_groups %}
                             <option value="{{ g.id }}">{{ g.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="tg-input-row last">
+                    <div class="tg-label"><i class="fas fa-book"></i> Предмет</div>
+                    <div class="tg-field-wrap">
+                        <select id="m_subject">
+                            <option value="">Не менять</option>
+                            {% for s in my_subjects %}
+                            <option value="{{ s.subject.id }}">{{ s.subject.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -62,19 +94,14 @@
                 </div>
             </div>
 
-            {% if files %}
             <div class="tg-section-title">Материалы</div>
             <div class="tg-section no-margin">
-                <div class="materials-grid">
-                    {% for f in files %}
-                    <label class="material-item {% if forloop.last %}last{% endif %}">
-                        <input type="checkbox" name="m_files" value="{{ f.id }}">
-                        <span>{{ f.file_name }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
+                <button type="button" class="mass-edit-fp-trigger" onclick="openMobileFilePicker('mass-edit-files-display', 'mass-edit-files-select')">
+                    <i class="fas fa-paperclip"></i> Прикрепить файлы из библиотеки
+                </button>
+                <div id="mass-edit-files-display" class="mass-edit-chips"></div>
+                <select id="mass-edit-files-select" multiple hidden></select>
             </div>
-            {% endif %}
 
             <button onclick="confirmMassEdit()" class="tg-modal-btn">Применить изменения</button>
         </div>
@@ -197,6 +224,15 @@
         document.getElementById('mass-edit-modal').style.display = 'flex';
     }
 
+    function setMassEditType(type) {
+        document.getElementById('m_mass_tab_ind').classList.toggle('active', type === 'individual');
+        document.getElementById('m_mass_tab_group').classList.toggle('active', type === 'group');
+        document.getElementById('m_mass_row_student').style.display = type === 'individual' ? '' : 'none';
+        document.getElementById('m_mass_row_group').style.display = type === 'group' ? '' : 'none';
+        if (type === 'group') document.getElementById('m_student').value = '';
+        else document.getElementById('m_group').value = '';
+    }
+
     function closeMassEditModal() {
         document.getElementById('mass-edit-modal').style.display = 'none';
     }
@@ -206,10 +242,11 @@
         document.getElementById('lesson_ids_input').value = Array.from(selectedLessons).join(',');
         document.getElementById('action_type_input').value = 'mass_edit';
 
+        var isGroup = document.getElementById('m_mass_tab_group').classList.contains('active');
         const fields = {
             'mass_subject': document.getElementById('m_subject').value,
-            'mass_student': document.getElementById('m_student').value,
-            'mass_group': document.getElementById('m_group').value,
+            'mass_student': isGroup ? '' : document.getElementById('m_student').value,
+            'mass_group': isGroup ? document.getElementById('m_group').value : '',
             'mass_date': document.getElementById('m_date').value,
             'mass_time': document.getElementById('m_time').value,
             'mass_price': document.getElementById('m_price').value,
@@ -224,11 +261,20 @@
             }
         }
 
-        document.querySelectorAll('input[name="m_files"]:checked').forEach(cb => {
-            let input = document.createElement('input');
-            input.type = 'hidden'; input.name = 'materials'; input.value = cb.value;
-            form.appendChild(input);
-        });
+        const materialsSelect = document.getElementById('mass-edit-files-select');
+        if (materialsSelect) {
+            const options = materialsSelect.options;
+            if (options.length > 0) {
+                const updatedInput = document.createElement('input');
+                updatedInput.type = 'hidden'; updatedInput.name = 'materials_updated'; updatedInput.value = '1';
+                form.appendChild(updatedInput);
+            }
+            for (let i = 0; i < options.length; i++) {
+                const input = document.createElement('input');
+                input.type = 'hidden'; input.name = 'materials'; input.value = options[i].value;
+                form.appendChild(input);
+            }
+        }
 
         form.submit();
     }
@@ -307,4 +353,18 @@ let currentPage = 1;
             document.getElementById('lazy-loader').style.display = 'none';
         }
     }
+
+    // Делегирование кликов по точкам посещаемости: перехват в capture-фазе,
+    // чтобы клик по точке не всплывал до карточки и не открывал редактирование
+    document.addEventListener('click', (e) => {
+        const attDot = e.target.closest('.att-dot');
+        const dotsContainer = e.target.closest('.attendance-dots');
+        if (dotsContainer || attDot) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+        if (attDot && attDot.dataset.attId) {
+            quickTogglePresence(attDot, attDot.dataset.attId);
+        }
+    }, true);
 </script>
