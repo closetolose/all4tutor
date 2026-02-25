@@ -1,9 +1,6 @@
 {% extends 'core/auth_base.html' %}
 
 {% block content %}
-<form method="POST">
-    {% csrf_token %}
-    <input type="hidden" name="browser_timezone" id="browser_timezone">
 <div class="auth-container">
     <div class="auth-card">
         <div style="text-align: center; margin-bottom: 24px;">
@@ -22,6 +19,7 @@
 
         <form method="post">
             {% csrf_token %}
+            <input type="hidden" name="browser_timezone" id="browser_timezone">
 
             <div class="auth-form-group">
                 <label class="auth-label">Имя пользователя</label>
@@ -63,5 +61,11 @@ function togglePassword(inputId, btn) {
     }
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+    const tzInput = document.getElementById('browser_timezone');
+    if (tzInput) {
+        tzInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
+});
 </script>
 {% endblock %}

@@ -1,31 +1,49 @@
 {% extends 'core/base.html' %}
 {% block content %}
 
-<div class="flex-between mb-20">
-    <h2><i class="fas fa-folder-open"></i> Мои материалы</h2>
-    <button onclick="openModal('uploadFileModal')" class="btn btn-primary">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; gap: 20px; flex-wrap: wrap;">
+
+    <h2 style="margin: 0; white-space: nowrap;">
+        <i class="fas fa-folder-open" style="color: #4f46e5;"></i> Мои материалы
+    </h2>
+
+    <div style="flex-grow: 1; max-width: 500px;">
+        <form id="search-form" onsubmit="return false;" style="display: flex; gap: 8px; width: 100%;">
+            <div style="position: relative; flex-grow: 1;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                <input type="text" id="search-input" name="q" value="{{ query|default:'' }}"
+                       placeholder="Поиск по названию..." autocomplete="off"
+                       style="width: 100%; height: 42px; padding: 0 10px 0 35px; border-radius: 10px; border: 1px solid var(--border); outline: none; box-sizing: border-box;">
+            </div>
+            {% if query %}
+                <a href="{% url 'files_library' %}" style="width: 42px; height: 42px; background: #f1f5f9; color: #64748b; border-radius: 10px; display: flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid var(--border);">
+                    <i class="fas fa-times"></i>
+                </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <button onclick="openModal('uploadFileModal')" class="btn btn-primary" style="height: 42px; padding: 0 20px; border-radius: 10px; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
         <i class="fas fa-plus"></i> Добавить файл
     </button>
 </div>
 
-<div id="files-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;">
-
+<div id="files-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; transition: opacity 0.2s;">
     {% include 'core/files_rows.html' %}
 
     {% if not files %}
-    <div style="grid-column: 1/-1;">
-        <div class="empty-state" style="border: 2px dashed var(--border); border-radius: 16px;">
-            <div class="empty-state-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+    <div id="empty-state-container" style="grid-column: 1/-1;">
+        <div class="empty-state" style="border: 2px dashed var(--border); border-radius: 16px; padding: 40px; text-align: center;">
+            <div class="empty-state-icon" style="font-size: 40px; color: #cbd5e1; margin-bottom: 15px;"><i class="fas fa-cloud-upload-alt"></i></div>
             <h3>Библиотека пуста</h3>
-            <p>Загрузите свои методички, книги или тесты для удобного доступа</p>
-            <button onclick="openModal('uploadFileModal')" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Загрузить файл</button>
+            <p style="color: #64748b;">Загрузите свои методички, книги или тесты для удобного доступа</p>
+            <button onclick="openModal('uploadFileModal')" class="btn btn-primary btn-sm" style="margin-top: 15px;"><i class="fas fa-plus"></i> Загрузить файл</button>
         </div>
     </div>
     {% endif %}
-
 </div>
 
-<div id="lazy-loader" style="display: none; text-align: center; padding: 30px; color: #94a3b8; grid-column: 1/-1;">
+<div id="lazy-loader" style="display: none; text-align: center; padding: 30px; color: #94a3b8;">
     <i class="fas fa-spinner fa-spin fa-2x"></i>
     <div style="margin-top: 10px; font-size: 14px;">Загружаем ещё файлы...</div>
 </div>
@@ -38,11 +56,11 @@
             {% csrf_token %}
             <div class="mb-15">
                 <label class="form-label">Название (видят ученики)</label>
-                <input type="text" name="file_name" class="filter-select" placeholder="Например: ЕГЭ 2024 Вариант 1">
+                <input type="text" name="file_name" class="filter-select" placeholder="Например: ЕГЭ 2024 Вариант 1" required>
             </div>
             <div class="mb-20">
                 <label class="form-label">Выберите файл</label>
-                <input type="file" name="file" required class="filter-select" style="border: 1px dashed var(--border);">
+                <input type="file" name="file" required class="filter-select" style="border: 1px dashed var(--border); padding: 20px;">
             </div>
             <button type="submit" class="btn btn-primary btn-full">Загрузить</button>
         </form>
@@ -53,72 +71,75 @@
     <div class="modal-window" style="max-width: 450px;">
         <div class="close-btn" onclick="closeModal('editFileModal')">&times;</div>
         <h3 class="modal-title">Редактировать файл</h3>
-
         <form id="editFileForm" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="mb-15">
                 <label class="form-label">Название</label>
                 <input type="text" name="file_name" id="editFileNameInput" class="filter-select" required>
             </div>
-
-            <div class="mb-20" style="background: #f8fafc; padding: 10px; border-radius: 8px;">
-                <label class="form-label" style="margin-bottom: 5px;">Заменить файл (опционально)</label>
-                <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">Если хотите оставить старый файл, не выбирайте ничего.</div>
+            <div class="mb-20" style="background: #f8fafc; padding: 15px; border-radius: 8px;">
+                <label class="form-label">Заменить файл (опционально)</label>
                 <input type="file" name="file" class="filter-select">
             </div>
-
             <button type="submit" class="btn btn-primary btn-full">Сохранить изменения</button>
         </form>
     </div>
 </div>
 
 <script>
-    function prepareEditModal(id, currentName) {
-        const form = document.getElementById('editFileForm');
-        const nameInput = document.getElementById('editFileNameInput');
-        nameInput.value = currentName;
-        form.action = `/files/edit/${id}/`;
-        openModal('editFileModal');
-    }
+    // ЖИВОЙ ПОИСК (AJAX)
+    const searchInput = document.getElementById('search-input');
+    const filesGrid = document.getElementById('files-grid');
+    let searchTimeout = null;
 
-    // ==== НОВЫЙ КОД ДЛЯ ЛЕНИВОЙ ЗАГРУЗКИ ====
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(async () => {
+            const query = searchInput.value;
+            filesGrid.style.opacity = '0.5';
+            try {
+                const response = await fetch(`?q=${query}`, { headers: {'X-Requested-With': 'XMLHttpRequest'} });
+                const data = await response.json();
+                filesGrid.innerHTML = data.html;
+                currentPage = 1;
+                hasMore = data.has_more;
+            } catch (error) { console.error("Ошибка поиска:", error); }
+            finally { filesGrid.style.opacity = '1'; }
+        }, 300);
+    });
+
+    // ЛЕНИВАЯ ЗАГРУЗКА
     let currentPage = 1;
     let isLoading = false;
-    let hasMore = true;
-
-    // Если изначально загрузилось меньше 20 файлов, значит грузить больше нечего
-    {% if files|length < 20 %}
-        hasMore = false;
-    {% endif %}
+    let hasMore = {% if files|length < 20 %}false{% else %}true{% endif %};
 
     window.addEventListener('scroll', () => {
         if (isLoading || !hasMore) return;
-
-        // Если доскроллили почти до низа страницы (за 200px до конца)
-        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {
-            loadMoreFiles();
-        }
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) { loadMoreFiles(); }
     });
 
     async function loadMoreFiles() {
         isLoading = true;
         document.getElementById('lazy-loader').style.display = 'block';
         currentPage++;
-
         try {
-            const response = await fetch(`/load-more-files/?page=${currentPage}`);
+            const params = new URLSearchParams(window.location.search);
+            params.set('page', currentPage);
+            const response = await fetch(`/load-more-files/?${params.toString()}`);
             const data = await response.json();
-
             hasMore = data.has_more;
-
-            // Вставляем новый HTML в конец сетки
-            document.getElementById('files-grid').insertAdjacentHTML('beforeend', data.html);
-        } catch (error) {
-            console.error("Ошибка ленивой загрузки:", error);
-        } finally {
+            filesGrid.insertAdjacentHTML('beforeend', data.html);
+        } catch (error) { console.error("Ошибка загрузки:", error); }
+        finally {
             isLoading = false;
             document.getElementById('lazy-loader').style.display = 'none';
         }
+    }
+
+    function prepareEditModal(id, currentName) {
+        document.getElementById('editFileNameInput').value = currentName;
+        document.getElementById('editFileForm').action = `/files/edit/${id}/`;
+        openModal('editFileModal');
     }
 </script>
 

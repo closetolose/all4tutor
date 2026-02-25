@@ -100,7 +100,7 @@
     backdrop-filter: blur(10px);
 }
 
-На скриншотах image_5308d2.jpg и image_531476.jpg видно, что блок фильтров и карточки статистики визуально «разваливаются» из-за конфликтов старых и новых стилей CSS. Основная проблема в том, что в твоем файле index.html стили для .modern-filters и .stats-container продублированы, а сетка grid не имеет четких границ.
+/* REMOVED STRAY TEXT: На скриншотах image_5308d2.jpg и image_531476.jpg видно, что блок фильтров и карточки статистики визуально «разваливаются» из-за конфликтов старых и новых стилей CSS. Основная проблема в том, что в твоем файле index.html стили для .modern-filters и .stats-container продублированы, а сетка grid не имеет четких границ.
 
 Чтобы всё стояло идеально ровно, как на макете, замени весь блок <style> и верхнюю часть контента до таблицы на этот исправленный код.
 
@@ -109,72 +109,85 @@
 
 HTML
 
-<style>
+ */
+/* (CSS continued) */
     /* Глобальный контейнер */
     .dashboard-wrapper {
         width: 100%;
-        max-width: 1200px; /* Ограничиваем ширину для десктопа */
-        margin: 0 auto;
         padding: 0 15px;
         box-sizing: border-box;
     }
 
-    /* Исправленные фильтры */
-    .modern-filters {
+  .modern-filters {
         background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
         border-radius: 20px;
         padding: 25px;
         margin-bottom: 25px;
-        width: 100%;
-        box-sizing: border-box; /* Важно: паддинги не расширяют блок */
-        box-shadow: 0 10px 25px rgba(30, 58, 138, 0.2);
+        position: relative; /* Чтобы кнопка была в контексте наслоения */
     }
 
     .filter-grid {
         display: grid;
-        /* Четкие пропорции: Ученик (40%) | Период (40%) | Кнопки (20%) */
-        grid-template-columns: 2fr 2fr 1fr;
-        gap: 20px;
-        align-items: flex-end; /* Выравниваем кнопки по нижней линии инпутов */
+        /* Ученик | Предмет | Даты | Кнопки */
+        grid-template-columns: 1.2fr 1.2fr 1.8fr 120px;
+        gap: 15px;
+        align-items: flex-end;
     }
 
-    /* Фикс высоты для всех элементов */
-    .modern-select, .modern-input, .btn-search-modern, .btn-reset-modern {
+    /* ФИКС: Чтобы текст в выпадающем списке был виден */
+    .modern-select option {
+        background-color: white !important;
+        color: #1a1a2e !important;
+    }
+
+    /* Единая высота для всех элементов */
+    .modern-select, .btn-search-modern, .btn-reset-modern {
         height: 42px !important;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        color: white;
+        padding: 0 10px;
         box-sizing: border-box;
-    }
 
+    }
+    .filter-select {
+        height: 42px !important;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+
+        padding: 0 10px;
+        box-sizing: border-box;
+
+    }
 
     .filter-actions {
         display: flex;
-        gap: 10px;
+        gap: 8px;
+        z-index: 10; /* Кнопки всегда сверху */
     }
 
     .btn-search-modern {
         flex: 1;
-        background: white;
-        color: #1e3a8a;
-        border: none;
-        border-radius: 10px;
+        background: white !important;
+        color: #1e3a8a !important;
         font-weight: 700;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        margin-bottom: 15px;
+        border: none !important;
+        position: relative;
+        margin-bottom: 16px;
     }
 
     .btn-reset-modern {
         width: 42px;
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-        border: none;
-        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        text-decoration: none;
+    }
+
+    @media (max-width: 1024px) {
+        .filter-grid { grid-template-columns: 1fr 1fr; }
     }
 
     /* Исправленные карточки статистики */
@@ -185,6 +198,18 @@ HTML
         margin-bottom: 30px;
         width: 100%;
     }
+    .modern-select option {
+    background-color: var(--tg-sidebar); /* Цвет фона из твоей темы */
+    color: black;               /* Цвет текста из твоей темы */
+}
+
+.modern-select {
+    color: white !important;
+}
+
+
+
+
 
     .stat-card {
         padding: 24px;
@@ -305,37 +330,80 @@ HTML
     </div>
 
 
-    <div class="modern-filters">
-        <form method="GET" action="{% url 'index' %}">
-            <div class="filter-grid">
-                <div class="filter-item">
-                    <label style="color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; opacity: 0.8;">Ученик / Группа</label>
-                    <select name="target" class="modern-select" style="width: 100%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: white; padding: 0 15px;">
-                        <option value="" style="color: #000;">Все занятия</option>
+   <div class="modern-filters">
+    <form method="GET" action="{% url 'index' %}" id="filter-form">
+        <div class="filter-grid">
+            <div class="filter-item">
+                <label style="color:white; font-size:10px; font-weight:700; text-transform:uppercase; display:block; margin-bottom:8px;">
+                    {% if role == 'tutor' %}
+                        Ученик | Группа
+                    {% else %}
+                        Репетитор | Группа
+                    {% endif %}
+                </label>
+                <select name="target" class="modern-select">
+                    <option value="">Все</option>
+                    {% if role == 'tutor' %}
                         {% for s in tutor_students %}
-                            <option value="s{{ s.id }}" {% if request.GET.target == 's'|add:s.id|stringformat:"s" %}selected{% endif %} style="color: #000;">{{ s.first_name }} {{ s.last_name }}</option>
+                            <option value="s{{ s.id }}"
+                                {% if request.GET.target == 's'|add:s.id|stringformat:"s" %}selected{% endif %}>
+                                {{ s.first_name }} {{ s.last_name }}
+                            </option>
                         {% endfor %}
                         {% for g in tutor_groups %}
-                            <option value="g{{ g.id }}" {% if request.GET.target == 'g'|add:g.id|stringformat:"s" %}selected{% endif %} style="color: #000;">{{ g.name }}</option>
+                            <option value="g{{ g.id }}"
+                                {% if request.GET.target == 'g'|add:g.id|stringformat:"s" %}selected{% endif %}>
+                                {{ g.name }}
+                            </option>
                         {% endfor %}
-                    </select>
-                </div>
+                    {% else %} {# student #}
+                        {% for t in student_tutors %}
+                            <option value="t{{ t.id }}"
+                                {% if request.GET.target == 't'|add:t.id|stringformat:"s" %}selected{% endif %}>
+                                {{ t.first_name }} {{ t.last_name }}
+                            </option>
+                        {% endfor %}
+                        {% for g in student_groups %}
+                            <option value="g{{ g.id }}"
+                                {% if request.GET.target == 'g'|add:g.id|stringformat:"s" %}selected{% endif %}>
+                                {{ g.name }}
+                            </option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
 
-                <div class="filter-item">
-                    <label style="color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; opacity: 0.8;">Период</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="date" name="date_from" value="{{ request.GET.date_from }}" class="modern-input" style="width: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: white; padding: 0 10px;">
-                        <input type="date" name="date_to" value="{{ request.GET.date_to }}" class="modern-input" style="width: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: white; padding: 0 10px;">
-                    </div>
-                </div>
+            <div class="filter-item">
+                <label style="color:white; font-size:10px; font-weight:700; text-transform:uppercase; display:block; margin-bottom:8px;">Предмет</label>
+                <select name="subject" class="modern-select">
+                    <option value="">Все предметы</option>
+                    {% for item in my_subjects %}
+                        <option value="{{ item.subject.id }}" {% if request.GET.subject == item.subject.id|stringformat:"s" %}selected{% endif %}>{{ item.subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-                <div class="filter-actions">
-                    <button type="submit" class="btn-search-modern"><i class="fas fa-search"></i> Найти</button>
-                    <a href="{% url 'index' %}" class="btn-reset-modern" title="Сбросить фильтры"><i class="fas fa-sync-alt"></i></a>
+            <div class="filter-item">
+                <label style="color:white; font-size:10px; font-weight:700; text-transform:uppercase; display:block; margin-bottom:8px;">Период</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="date" name="date_from" class="filter-select" value="{{ current_date_from|date:'Y-m-d'|default:current_date_from }}">
+                    <input type="date" name="date_to" class="filter-select" value="{{ current_date_to|date:'Y-m-d'|default:current_date_to }}">
                 </div>
             </div>
-        </form>
-    </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="btn-search-modern">
+                    <i class="fas fa-search"></i>
+                </button>
+                <a href="{% url 'index' %}" class="btn-reset-modern">
+                    <i class="fas fa-sync-alt"></i>
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+
     {% if role == 'tutor' %}
     <div class="stats-container">
         <div class="stat-card bg-blue">

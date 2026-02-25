@@ -53,7 +53,6 @@ urlpatterns = [
     path('lesson/<int:lesson_id>/materials/', views.download_lesson_materials, name='download_lesson_materials'),
     path('homework/<int:hw_id>/files/', views.download_homework_all, name='download_homework_all'),
     path('homework/response/<int:response_id>/download/', views.download_homework_response, name='download_homework_response'),
-    path('toggle-presence/<int:attendance_id>/', views.toggle_presence, name='toggle_presence'),
     path('toggle-attendance-pay/<int:attendance_id>/', views.toggle_attendance_pay, name='toggle_attendance_pay'),
     path('load-more-lessons/', views.load_more_lessons, name='load_more_lessons'),
     path('logout-all/', views.logout_all_devices, name='logout_all_devices'),
@@ -97,4 +96,5 @@ urlpatterns = [
          name='password_reset_complete'),
 
     path('faq/', views.faq, name='faq'),
+    path('update-timezone/', views.update_timezone, name='update_timezone'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

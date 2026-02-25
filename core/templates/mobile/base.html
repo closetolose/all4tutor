@@ -6,14 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>All4Tutors</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --tg-bg: #f0f2f5;
+            --tg-bg: #f8fafc;
             --tg-sidebar: #ffffff;
             --tg-active: #6366f1;
-            --tg-text: #1a1a2e;
-            --tg-hint: #65748b;
+            --tg-blue: #6366f1;
+            --tg-text: #1e1b4b;
+            --tg-hint: #64748b;
             --tg-separator: #e2e8f0;
             --tg-red: #ef4444;
             --tg-green: #16a34a;
@@ -23,15 +26,15 @@
             --tg-header-bg: rgba(255, 255, 255, 0.92);
             --tg-card-active: #f1f5f9;
             --tg-input-bg: #f8fafc;
-            --tg-shadow: rgba(0, 0, 0, 0.06);
-            --tg-body-bg: #f0f2f5;
+            --tg-body-bg: #f1f5f9;
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.05);
         }
-
         [data-theme="dark"] {
             --tg-bg: #0f172a;
             --tg-sidebar: #1e293b;
             --tg-active: #6366f1;
-            --tg-text: #ffffff;
+            --tg-blue: #6366f1;
+            --tg-text: #f8fafc;
             --tg-hint: #94a3b8;
             --tg-separator: #334155;
             --tg-red: #f87171;
@@ -42,252 +45,155 @@
             --tg-header-bg: rgba(30, 41, 59, 0.95);
             --tg-card-active: #28364d;
             --tg-input-bg: #1e293b;
-            --tg-shadow: rgba(0, 0, 0, 0.3);
             --tg-body-bg: #000000;
         }
 
+        /* БАЗОВЫЕ НАСТРОЙКИ */
         body {
-            background-color: var(--tg-body-bg);
+            background: var(--tg-body-bg);
             color: var(--tg-text);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
+            font-family: 'Inter', sans-serif;
+            margin: 0; padding: 0;
             -webkit-tap-highlight-color: transparent;
-            transition: background-color 0.3s, color 0.3s;
+            overflow-x: hidden;
         }
+        a { text-decoration: none; }
+        * { box-sizing: border-box; }
 
+        /* ШАПКА — единственное определение */
         .tg-header {
-            background-color: var(--tg-header-bg);
+            background: var(--tg-header-bg);
             backdrop-filter: blur(10px);
-            height: 56px;
+            height: 60px;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
             position: sticky;
             top: 0;
             z-index: 1000;
             border-bottom: 1px solid var(--tg-separator);
+            padding: 0 15px;
             font-weight: 700;
             font-size: 18px;
         }
-
+        .header-logo-link { color: var(--tg-text); font-weight: 800; font-size: 20px; }
         .header-icon {
-            position: absolute;
-            padding: 10px 15px;
-            color: var(--tg-text);
-            font-size: 20px;
-            cursor: pointer;
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
+            cursor: pointer;
         }
+        .header-icon i { font-size: 20px; color: var(--tg-text); }
+        .header-icon a { color: var(--tg-text); display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 
-        .h-left { left: 0; }
-        .h-right { right: 0; }
-
-        .header-logo-link {
-            color: var(--tg-text) !important;
-            text-decoration: none !important;
-            font-weight: 700;
-            font-size: 18px;
-        }
-
-        .drawer-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--overlay-bg);
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease;
-            z-index: 2000;
-            backdrop-filter: blur(4px);
-        }
-
+        /* БОКОВОЕ МЕНЮ (DRAWER) */
         .drawer {
-            position: fixed;
-            top: 0;
-            left: -85%;
-            width: 85%;
-            max-width: 320px;
-            height: 100%;
-            background: var(--tg-sidebar);
-            z-index: 2100;
-            transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid var(--tg-separator);
+            position: fixed; top: 0; left: -300px; width: 280px; height: 100%;
+            background: var(--tg-sidebar); z-index: 2000;
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
         }
-
-        body.menu-open .drawer-overlay { opacity: 1; visibility: visible; }
-        body.menu-open .drawer { transform: translateX(100%); }
-
-        .drawer-header {
-            padding: 40px 20px 20px;
-            border-bottom: 1px solid var(--tg-separator);
+        .drawer-overlay {
+            position: fixed; inset: 0; background: var(--overlay-bg);
+            z-index: 1500; display: none; backdrop-filter: blur(3px);
+            transition: opacity 0.3s; opacity: 0;
         }
+        .menu-open .drawer { left: 0; }
+        .menu-open .drawer-overlay { display: block; opacity: 1; }
+        .menu-open body { overflow: hidden; }
 
-        .brand-title {
-            font-size: 22px;
-            font-weight: 800;
-            color: var(--tg-text);
-            margin-bottom: 25px;
-        }
-
-        .user-card {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: var(--tg-bg);
-            padding: 12px;
-            border-radius: 12px;
-        }
-
-        .user-avatar {
-            width: 42px;
-            height: 42px;
-            border-radius: 10px;
-            background: var(--tg-active);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 18px;
-        }
-
-        .user-info h4 { margin: 0; font-size: 15px; color: var(--tg-text); }
-        .user-info p { margin: 2px 0 0; font-size: 12px; color: var(--tg-hint); }
-
-        .drawer-nav {
-            padding: 20px 15px;
-            flex-grow: 1;
-            overflow-y: auto;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 16px;
-            color: var(--tg-hint);
-            text-decoration: none;
-            font-size: 15px;
-            font-weight: 600;
-            border-radius: 12px;
-            margin-bottom: 5px;
-            transition: 0.2s;
-        }
-
-        .nav-item i { width: 24px; text-align: center; font-size: 18px; }
-
-        .nav-item.active {
-            background-color: var(--tg-active);
-            color: white;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-        }
-
+        .drawer-header { padding: 20px; border-bottom: 1px solid var(--tg-separator); font-size: 22px; font-weight: 800; }
+        .drawer-nav { padding: 15px 10px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 15px; color: var(--tg-text); font-weight: 600; border-radius: 12px; display: flex; align-items: center; gap: 12px; font-size: 15px; }
+        .nav-item i { width: 20px; text-align: center; color: var(--tg-hint); }
+        .nav-item.active { background: var(--tg-active); color: white; }
         .nav-item.active i { color: white; }
-        .nav-item:not(.active):active { background: var(--tg-card-active); }
 
-        .drawer-footer {
-            padding: 20px 20px 40px;
-            border-top: 1px solid var(--tg-separator);
+        .drawer-footer { padding: 15px; border-top: 1px solid var(--tg-separator); display: flex; flex-direction: column; gap: 10px; }
+        .footer-link, .theme-toggle { padding: 10px; background: none; border: none; color: var(--tg-text); font-weight: 600; display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; border-radius: 10px; }
+        .bot-status { padding: 12px; border-radius: 12px; font-weight: 700; text-align: center; font-size: 14px; margin-bottom: 5px; }
+        .bot-status.active { background: var(--tg-green-bg); color: var(--tg-green); }
+        .bot-status.inactive { background: rgba(239, 68, 68, 0.08); color: var(--tg-red); }
+
+        /* ПРОФИЛЬ В МЕНЮ */
+        .logout-btn { width: 100%; background: var(--tg-bg); border: 1px solid var(--tg-separator); padding: 12px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .logout-user-avatar { width: 36px; height: 36px; background: var(--tg-active); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
+        .logout-username { font-weight: 700; color: var(--tg-text); font-size: 14px; }
+        .logout-role { font-size: 11px; color: var(--tg-hint); font-weight: 500; }
+
+        /* МОДАЛЬНЫЕ ОКНА (ВСПЛЫВАЮТ СНИЗУ) */
+        .tg-modal {
+            display: none; position: fixed; inset: 0; background: var(--overlay-bg);
+            z-index: 3000; align-items: flex-end; justify-content: center;
+        }
+        .tg-modal-content {
+            background: var(--tg-card-bg); width: 100%; max-height: 90vh;
+            border-radius: 24px 24px 0 0; display: flex; flex-direction: column;
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .tg-modal-header { padding: 20px; border-bottom: 1px solid var(--tg-separator); display: flex; justify-content: space-between; align-items: center; }
+        .tg-modal-header h3 { margin: 0; font-size: 18px; font-weight: 800; }
+        .close-modal { background: var(--tg-bg); border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 18px; color: var(--tg-hint); display: flex; align-items: center; justify-content: center; }
+        .tg-modal-scroll { padding: 20px; overflow-y: auto; flex-grow: 1; }
+
+        /* ЭЛЕМЕНТЫ ФОРМ И ФИЛЬТРОВ */
+        .tg-section-title { font-size: 12px; color: var(--tg-hint); text-transform: uppercase; font-weight: 800; margin: 0 0 8px 15px; letter-spacing: 0.5px; }
+        .tg-section { background: var(--tg-card-bg); border-radius: 16px; margin: 0 15px 20px; overflow: hidden; border: 1px solid var(--tg-separator); }
+        .tg-section.no-margin { margin: 0 0 20px 0; }
+        .tg-input-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--tg-separator); background: var(--tg-card-bg); }
+        .tg-input-row.last { border-bottom: none; }
+        .tg-label { font-size: 15px; font-weight: 600; color: var(--tg-text); }
+        .tg-field-wrap { flex-grow: 1; display: flex; justify-content: flex-end; position: relative; }
+        .tg-field-wrap select, .tg-field-wrap input {
+            -webkit-appearance: none; appearance: none;
+            background: transparent; border: none; outline: none;
+            text-align: right; color: var(--tg-active); font-size: 15px; font-weight: 700; width: 100%;
         }
 
-        .footer-link {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: var(--tg-hint);
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 15px;
+        /* КНОПКИ В МОДАЛКАХ */
+        .modal-actions-row { display: flex; gap: 12px; margin-top: 20px; padding-bottom: 20px; }
+        .btn-primary-modal, .btn-secondary, .tg-modal-btn { flex: 1; padding: 16px; border-radius: 14px; font-weight: 700; text-align: center; border: none; font-size: 16px; }
+        .btn-primary-modal, .tg-modal-btn { background: var(--tg-active); color: white; }
+        .btn-secondary { background: var(--tg-bg); color: var(--tg-text); border: 1px solid var(--tg-separator); }
+
+        /* КНОПКА ПЛАВАЮЩЕГО ДОБАВЛЕНИЯ (FAB) */
+        .fab-btn {
+            position: fixed; bottom: 25px; right: 25px; width: 56px; height: 56px;
+            background: var(--tg-active); color: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.4);
+            z-index: 1000; transition: transform 0.2s;
         }
+        .fab-btn:active { transform: scale(0.9); }
 
-        .footer-link i { font-size: 16px; }
-
-        .theme-toggle {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: var(--tg-hint);
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 15px;
-            cursor: pointer;
-            background: none;
-            border: none;
-            padding: 0;
-            font-family: inherit;
+        /* СЕГМЕНТНЫЙ КОНТРОЛ */
+        .segment-control {
+            background: var(--tg-separator); padding: 4px; border-radius: 12px;
+            display: flex; margin: 15px; gap: 4px;
         }
-
-        .theme-toggle i { font-size: 16px; width: 16px; text-align: center; }
-
-        .bot-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--tg-green-bg);
-            color: var(--tg-green);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 20px;
+        .segment-btn {
+            flex: 1; text-align: center; padding: 10px; border-radius: 10px;
+            font-size: 14px; font-weight: 700; color: var(--tg-hint); transition: 0.2s;
         }
-
-        .logout-btn {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            background: none;
-            border: none;
-            color: var(--tg-hint);
-            font-size: 15px;
-            font-weight: 600;
-            padding: 0;
-            cursor: pointer;
-        }
-
-        .logout-btn i { color: var(--tg-hint); }
-
-        .logout-user-avatar {
-            background: var(--tg-active);
-            width: 30px;
-            height: 30px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 12px;
-        }
-
-        .logout-username { color: var(--tg-text); font-size: 14px; }
-        .logout-role { font-size: 11px; color: var(--tg-hint); }
-
-        .main-content { padding-bottom: 50px; }
+        .segment-btn.active { background: var(--tg-card-bg); color: var(--tg-text); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body id="app-body">
 
     <header class="tg-header">
-        <div class="header-icon h-left">
+        <div class="header-icon">
             {% block header_left %}
-                <i class="fas fa-bars" onclick="toggleMenu()"></i>
+            <i class="fas fa-bars" onclick="toggleMenu()"></i>
             {% endblock %}
         </div>
-
         <a href="{% url 'index' %}" class="header-logo-link">All4Tutors</a>
-
-        <div class="header-icon h-right">
-            {% block header_right %}
-            {% endblock %}
+        <div class="header-icon">
+            {% block header_right %}{% endblock %}
         </div>
     </header>
 
@@ -295,27 +201,23 @@
 
     <aside class="drawer">
         <div class="drawer-header">
-            <div class="brand-title">All4Tutors</div>
+            All4Tutors
         </div>
 
         <nav class="drawer-nav">
             <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
                 <i class="fas fa-chart-pie"></i> Дашборд
             </a>
-
             <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
                 <i class="fas fa-folder"></i> Мои Файлы
             </a>
-
             {% if user.profile.role == 'tutor' %}
                 <a href="{% url 'my_students' %}" class="nav-item {% if request.resolver_match.url_name == 'my_students' %}active{% endif %}">
                     <i class="fas fa-user-graduate"></i> Мои ученики
                 </a>
-
                 <a href="{% url 'my_subjects' %}" class="nav-item {% if request.resolver_match.url_name == 'my_subjects' %}active{% endif %}">
                     <i class="fas fa-book"></i> Мои предметы
                 </a>
-
                 <a href="{% url 'finances' %}" class="nav-item {% if request.resolver_match.url_name == 'finances' %}active{% endif %}">
                     <i class="fas fa-wallet"></i> Финансы
                 </a>
@@ -323,11 +225,9 @@
                 <a href="{% url 'confirmations' %}" class="nav-item {% if request.resolver_match.url_name == 'confirmations' %}active{% endif %}">
                     <i class="fas fa-user-check"></i> Подтверждение
                 </a>
-
                 <a href="{% url 'my_assignments' %}" class="nav-item {% if request.resolver_match.url_name == 'my_assignments' %}active{% endif %}">
                     <i class="fas fa-tasks"></i> Мои задания
                 </a>
-
                 <a href="{% url 'my_tutors' %}" class="nav-item {% if request.resolver_match.url_name == 'my_tutors' %}active{% endif %}">
                     <i class="fas fa-chalkboard-teacher"></i> Мои репетиторы
                 </a>
@@ -338,34 +238,30 @@
             <a href="{% url 'faq' %}" class="footer-link">
                 <i class="far fa-question-circle"></i> Помощь и FAQ
             </a>
-
-            <a href="{% url 'edit_profile' %}" class="footer-link">
-                <i class="fas fa-cog"></i> Настройки профиля
-            </a>
-
             <button type="button" class="theme-toggle" onclick="toggleTheme()">
                 <i id="theme-icon" class="fas fa-sun"></i>
                 <span id="theme-label">Тёмная тема</span>
             </button>
-
-            <div class="bot-status">
+            {% if user.profile.telegram_id %}
+            <div class="bot-status active">
                 <i class="fab fa-telegram-plane"></i> Бот активен
             </div>
-
-            <form action="{% url 'logout' %}" method="post" style="margin: 0;">{% csrf_token %}
+            {% else %}
+            <div class="bot-status inactive">
+                <i class="fab fa-telegram-plane"></i> Бот не подключён
+            </div>
+            {% endif %}
+            <form action="{% url 'logout' %}" method="post" style="margin: 0;">
+                {% csrf_token %}
                 <button type="submit" class="logout-btn">
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <div class="logout-user-avatar">
-                            {{ user.first_name|first }}
-                        </div>
+                        <div class="logout-user-avatar">{{ user.first_name|first|default:user.username|first }}</div>
                         <div style="text-align:left;">
                             <div class="logout-username">{{ user.username }}</div>
-                            <div class="logout-role">
-                                {% if user.profile.role == 'tutor' %}Репетитор{% else %}Ученик{% endif %}
-                            </div>
+                            <div class="logout-role">{% if user.profile.role == 'tutor' %}Репетитор{% else %}Ученик{% endif %}</div>
                         </div>
                     </div>
-                    <i class="fas fa-sign-out-alt"></i>
+                    <i class="fas fa-sign-out-alt" style="color: var(--tg-red);"></i>
                 </button>
             </form>
         </div>
@@ -377,7 +273,9 @@
 
     <script>
         function toggleMenu() {
-            document.getElementById('app-body').classList.toggle('menu-open');
+            const body = document.getElementById('app-body');
+            body.classList.toggle('menu-open');
+            document.body.style.overflow = body.classList.contains('menu-open') ? 'hidden' : '';
         }
 
         function applyTheme(theme) {
@@ -404,18 +302,6 @@
             var saved = localStorage.getItem('theme') || 'light';
             applyTheme(saved);
         })();
-
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                var fixElements = document.querySelectorAll('.type-selector-grid, .m-week-grid, .segment-control, .tg-input-row');
-                fixElements.forEach(function(el) {
-                    var currentDisplay = window.getComputedStyle(el).display;
-                    el.style.display = 'none';
-                    el.offsetHeight;
-                    el.style.display = currentDisplay;
-                });
-            }, 50);
-        });
     </script>
 </body>
 </html>

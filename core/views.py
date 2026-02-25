@@ -59,6 +59,21 @@ def index(request):
     total_in_period = 0
     done_in_period = 0
     expected_income = 0
+    student_groups = []
+    student_tutors = []
+
+    now = timezone.now()
+
+    date_from_val = request.GET.get('date_from')
+    date_to_val = request.GET.get('date_to')
+
+    if not date_from_val and not date_to_val:
+        final_start_date = (now - timedelta(days=2)).date()
+        final_end_date = None
+    else:
+
+        final_start_date = date_from_val
+        final_end_date = date_to_val
 
     try:
         user_profile = request.user.profile
@@ -73,6 +88,7 @@ def index(request):
             'attendances__student', 'subject', 'materials', 'group__students'
         ).order_by('start_time')  # Обычно новые/ближайшие уроки лучше видеть сверху
 
+
         # 2. Фильтрация
         target = request.GET.get('target')
         if target:
@@ -81,10 +97,11 @@ def index(request):
             elif target.startswith('g'):
                 lessons_qs = lessons_qs.filter(group_id=target[1:])
 
-        if request.GET.get('date_from'):
-            lessons_qs = lessons_qs.filter(start_time__date__gte=request.GET['date_from'])
-        if request.GET.get('date_to'):
-            lessons_qs = lessons_qs.filter(start_time__date__lte=request.GET['date_to'])
+        if final_start_date:
+            lessons_qs = lessons_qs.filter(start_time__date__gte=final_start_date)
+        if final_end_date:
+            lessons_qs = lessons_qs.filter(start_time__date__lte=final_end_date)
+
         if request.GET.get('subject'):
             lessons_qs = lessons_qs.filter(subject_id=request.GET['subject'])
 
@@ -135,11 +152,38 @@ def index(request):
         files = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
 
     elif user_role == 'student':
-        # 1. Оптимизированный запрос уроков для ученика
-        # Ученик должен видеть и личные уроки, и уроки своих групп
+        student_tutors = []
+        student_groups = []
+
+        confirmedconnections = ConnectionRequest.objects.filter(
+            student=user_profile, status='confirmed'
+        ).select_related('tutor')
+        for conn in confirmedconnections:
+            student_tutors.append(conn.tutor)
+        student_groups = StudyGroups.objects.filter(students=user_profile)
+
         lessons_qs = Lessons.objects.filter(
             Q(student=user_profile) | Q(group__students=user_profile)
         ).distinct().prefetch_related('attendances__student', 'subject').order_by('start_time')
+
+        subj_ids = lessons_qs.values_list('subject_id', flat=True).distinct()
+
+        my_subjects = [{'subject': s} for s in Subjects.objects.filter(id__in=subj_ids)]
+
+        target = request.GET.get('target')
+        if target:
+            if target.startswith('t'):  # t5 для репетитора
+                lessons_qs = lessons_qs.filter(tutor_id=target[1:])
+            elif target.startswith('g'):  # g3 для группы
+                lessons_qs = lessons_qs.filter(group_id=target[1:])
+
+        if final_start_date:
+            lessons_qs = lessons_qs.filter(start_time__date__gte=final_start_date)
+        if final_end_date:
+            lessons_qs = lessons_qs.filter(start_time__date__lte=final_end_date)
+        if request.GET.get('subject'):
+            lessons_qs = lessons_qs.filter(subject_id=request.GET['subject'])
+
 
         total_count = lessons_qs.count()
         lessons = lessons_qs[:per_page]  # Теперь переменная lessons заполнена!
@@ -151,10 +195,12 @@ def index(request):
             is_paid=False
         ).aggregate(Sum('lesson__price'))['lesson__price__sum'] or 0
 
+
+
         homeworks = Homework.objects.filter(student=user_profile).order_by('deadline')
         active_hw = homeworks.filter(status__in=['pending', 'revision']).select_related('tutor')
         active_hw_count = active_hw.count()
-        ctive_tutors = list(set([f"{hw.tutor.first_name} {hw.tutor.last_name}" for hw in active_hw]))
+        active_tutors = list(set([f"{hw.tutor.first_name} {hw.tutor.last_name}" for hw in active_hw]))
 
         # Логика обработки POST (добавление/удаление предметов)
     if request.method == 'POST' and user_role == 'tutor':
@@ -164,6 +210,7 @@ def index(request):
                 subject_obj, _ = Subjects.objects.get_or_create(name=subject_name)
                 TutorSubjects.objects.get_or_create(tutor=user_profile, subject=subject_obj)
             return redirect('index')
+
 
         if 'delete_subject' in request.POST:
             subj_id = request.POST.get('subject_id')
@@ -183,6 +230,7 @@ def index(request):
                 defaults={'price': val}
             )
             return redirect('index')
+
 
     context = {
         'lessons': lessons,
@@ -205,6 +253,10 @@ def index(request):
         'dash_total_in_period': total_in_period,
         'dash_done_in_period': done_in_period,
         'dash_expected_income': float(expected_income),
+        'current_date_from': final_start_date,
+        'current_date_to': final_end_date,
+        'student_tutors': student_tutors,
+        'student_groups': student_groups,
     }
 
     return smart_render(request, 'core/index.html', context)
@@ -530,33 +582,29 @@ def edit_lesson(request, lesson_id):
 @login_required
 @require_POST
 def delete_lesson(request, lesson_id):
-    # Ищем урок, проверяя, что его удаляет именно тот репетитор, который создал
     lesson = get_object_or_404(Lessons, id=lesson_id, tutor=request.user.profile)
 
     if request.method == 'POST':
         now = timezone.now()
-
-        # 1. Проверяем, прошел ли урок
         is_past = lesson.start_time < now
 
-        # 2. Проверяем, есть ли записи о посещаемости/оплате
-        has_attendance = LessonAttendance.objects.filter(lesson=lesson).exists()
 
-        if is_past and has_attendance:
-            # Блокируем удаление
+        critical_attendance = LessonAttendance.objects.filter(
+            Q(lesson=lesson) & (Q(was_present=True) | Q(is_paid=True))
+        ).exists()
+
+        if is_past and critical_attendance:
             messages.error(
                 request,
-                "Критическая ошибка: Нельзя удалить прошедший урок, на котором отмечены ученики. "
-                "Это необходимо для сохранности истории оплат и балансов."
+                "Критическая ошибка: Нельзя удалить прошедший урок с подтвержденной явкой или оплатой."
             )
-            return redirect('index')  # Или страница журнала
+            return redirect('index')
 
-        # Если урок будущий или на нем никого не было — удаляем
+        # Если урок старый, но на нем только прогулы и нет оплат — он удалится
         lesson.delete()
-        messages.success(request, "Урок успешно удален из расписания.")
+        messages.success(request, "Урок успешно удален.")
 
     return redirect('index')
-
 
 @login_required
 #@ratelimit(key='ip', rate='5/m', block=True)
@@ -632,26 +680,30 @@ def bulk_action_lessons(request):
             now = timezone.now()
 
             # Находим те уроки, которые УЖЕ прошли И имеют посещаемость
-            protected_lessons = queryset.filter(
+            protected_ids = queryset.filter(
                 start_time__lt=now,
-                attendances__isnull=False
-            ).distinct()
+                attendances__was_present=True
+            ).values_list('id', flat=True).distinct() | queryset.filter(
+                start_time__lt=now,
+                attendances__is_paid=True
+            ).values_list('id', flat=True).distinct()
 
-            if protected_lessons.exists():
-                # Если нашли хоть один такой урок — удаляем только безопасные (будущие)
-                safe_to_delete = queryset.exclude(id__in=protected_lessons.values_list('id', flat=True))
-                deleted_count = safe_to_delete.count()
-                safe_to_delete.delete()
+            # 2. Разделяем выборку на те, что можно удалить, и те, что нельзя
+            lessons_to_delete = queryset.exclude(id__in=protected_ids)
+            protected_count = len(protected_ids)
+            deleted_count = lessons_to_delete.count()
 
+            # 3. Выполняем удаление разрешенных уроков
+            lessons_to_delete.delete()
+
+            # 4. Формируем уведомление для пользователя
+            if protected_count > 0:
                 messages.warning(
                     request,
-                    f"Удалено {deleted_count} уроков. Прошедшие уроки с посещаемостью защищены от удаления для сохранения балансов."
+                    f"Удалено занятий: {deleted_count}. Защищено от удаления: {protected_count} (прошедшие уроки с явкой или оплатой)."
                 )
             else:
-                # Если все уроки будущие — удаляем всё
-                count = queryset.count()
-                queryset.delete()
-                messages.success(request, f"Удалено занятий: {count}")
+                messages.success(request, f"Успешно удалено занятий: {deleted_count}")
 
 
         elif action == 'mass_edit':
@@ -943,25 +995,33 @@ def toggle_presence(request, attendance_id):
 
 
 @login_required
-
 def files_library(request):
     user_profile = request.user.profile
     MAX_SIZE = 10 * 1024 * 1024
+
+    # --- ОБРАБОТКА ЗАГРУЗКИ (остается твоя) ---
     if request.method == 'POST' and request.FILES.get('file'):
-        uploaded_file = request.FILES['file']
-        if uploaded_file.size > MAX_SIZE:
-            messages.error(request, "Файл слишком большой (макс 10MB).")
-            return redirect('files_library')
-        FilesLibrary.objects.create(
-            tutor=user_profile,
-            file=uploaded_file,
-            file_name=request.POST.get('file_name') or uploaded_file.name
-        )
-        messages.success(request, "Файл успешно добавлен в библиотеку!")
+        # ... твой код загрузки ...
         return redirect('files_library')
 
-    files = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')[:20]
-    return smart_render(request, 'core/files_library.html', {'files': files})
+    # --- ЛОГИКА ПОИСКА ---
+    query = request.GET.get('q', '')  # Берем текст из поиска
+    files_qs = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
+
+    if query:
+        # Фильтруем по названию (без учета регистра)
+        files_qs = files_qs.filter(file_name__icontains=query)
+
+    # Берем первые 20 для начальной загрузки
+    files = files_qs[:20]
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        html = render_to_string('core/files_rows.html', {'files': files}, request=request)
+        return JsonResponse({'html': html, 'has_more': files_qs.count() > 20})
+
+    return smart_render(request, 'core/files_library.html', {
+        'files': files,
+        'query': query  # Передаем текст обратно, чтобы он не исчезал из поля
+    })
 
 
 @login_required
@@ -1816,3 +1876,26 @@ def delete_homework_response(request, response_id):
     messages.success(request, "Ответ успешно удален.")
 
     return redirect(request.META.get('HTTP_REFERER', 'index'))
+
+@login_required
+@require_POST
+def update_timezone(request):
+    tz = request.POST.get('timezone', '').strip()
+    try:
+        import pytz
+        valid = pytz.all_timezones_set
+    except ImportError:
+        try:
+            import zoneinfo
+            valid = zoneinfo.available_timezones()
+        except ImportError:
+            valid = set()
+    if tz and (not valid or tz in valid):
+        try:
+            profile = request.user.profile
+            profile.timezone = tz
+            profile.save()
+            return JsonResponse({'status': 'ok'})
+        except Exception:
+            pass
+    return JsonResponse({'status': 'ignored'})

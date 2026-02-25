@@ -56,14 +56,37 @@
             </a>
 
             {% if next_lesson %}
-            <div class="next-lesson-card">
-                <div class="lesson-header">СЛЕДУЮЩИЙ УРОК</div>
-                <div class="lesson-time">
-                    <i class="far fa-clock"></i> {{ next_lesson.start_time|date:"H:i" }}
+                <div class="next-lesson-card">
+                    <div class="label">
+                        <i class="fas fa-bolt"></i> Следующий урок
+                    </div>
+
+                    <div class="name">
+                        {% if user.profile.role == 'tutor' %}
+                            <i class="fas fa-user-graduate" style="width: 16px;"></i>
+                            {% if next_lesson.student %}
+                                {{ next_lesson.student.first_name }} {{ next_lesson.student.last_name }}
+                            {% else %}
+                                {{ next_lesson.group.name }}
+                            {% endif %}
+                        {% else %}
+                            <i class="fas fa-chalkboard-teacher" style="width: 16px;"></i>
+                            {{ next_lesson.tutor.first_name }} {{ next_lesson.tutor.last_name }}
+                        {% endif %}
+                    </div>
+
+                    <div class="subject">
+                        <i class="fas fa-book-open" style="width: 16px;"></i> {{ next_lesson.subject.name }}
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="time-info">
+                        <span><i class="far fa-calendar-alt"></i> {{ next_lesson.start_time|date:"d.m" }}</span>
+                        <span><i class="far fa-clock"></i> {{ next_lesson.start_time|date:"H:i" }}</span>
+                    </div>
                 </div>
-                <div class="lesson-subject">{{ next_lesson.subject.name }}</div>
-            </div>
-            {% endif %}
+                {% endif %}
 
             <div class="tg-status {% if request.user.profile.telegram_id %}connected{% else %}disconnected{% endif %}">
                 <i class="fab fa-telegram"></i>
@@ -94,20 +117,27 @@
     {% endif %}
 
     <main class="{% if request.user.is_authenticated %}main-content{% else %}auth-content{% endif %}">
-            {% if user.is_authenticated and auto_breadcrumbs %}
+    {% if user.is_authenticated and auto_breadcrumbs %}
+    <div class="breadcrumb-wrapper">
         <nav class="breadcrumbs">
             {% for crumb in auto_breadcrumbs %}
-                {% if not forloop.last %}
-                    <a href="{{ crumb.url }}">{{ crumb.name }}</a>
-                    <i class="fas fa-chevron-right separator"></i>
-                {% else %}
-                    <span class="current">{{ crumb.name }}</span>
-                {% endif %}
+                <div class="breadcrumb-item">
+                    {% if not forloop.last %}
+                        <a href="{{ crumb.url }}">
+                            {% if forloop.first %}<i class="fas fa-home"></i>{% endif %}
+                            {{ crumb.name }}
+                        </a>
+                        <i class="fas fa-chevron-right separator"></i>
+                    {% else %}
+                        <span class="current">{{ crumb.name }}</span>
+                    {% endif %}
+                </div>
             {% endfor %}
         </nav>
-        {% endif %}
-        {% block content %}{% endblock %}
-    </main>
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
 
     <div id="global-tooltip"></div>
 
@@ -152,6 +182,105 @@
     .file-icon-item i { font-size: 35px; color: #94a3b8; margin-bottom: 8px; pointer-events: none; }
     .file-icon-item.selected i { color: #6366f1; }
     .file-icon-item span { font-size: 12px; text-align: center; word-break: break-word; line-height: 1.2; pointer-events: none; }
+        .next-lesson-card {
+    margin: 20px 15px;
+    padding: 18px;
+    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+    border-radius: 16px;
+    color: white;
+    box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
+}
+
+.next-lesson-card .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    font-weight: 800;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.next-lesson-card .name {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.next-lesson-card .subject {
+    font-size: 13px;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.next-lesson-card .divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 12px 0;
+}
+
+.next-lesson-card .time-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+}
+        .breadcrumb-container {
+    padding: 12px 20px;
+    margin: 15px;
+    background: var(--tg-card-bg);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 8px var(--tg-shadow);
+    list-style: none;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.breadcrumb-item a {
+    color: var(--tg-active);
+    text-decoration: none;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.breadcrumb-item a:hover {
+    opacity: 0.8;
+}
+
+.breadcrumb-item .separator {
+    margin: 0 10px;
+    color: var(--tg-hint);
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Последний элемент (текущая страница) делаем серым и некликабельным */
+.breadcrumb-item:last-child {
+    color: var(--tg-hint);
+    pointer-events: none;
+}
+
+.breadcrumb-item i.fa-home {
+    font-size: 16px;
+}
+
 </style>
     {% if user.is_authenticated %}
     <script>
@@ -159,7 +288,7 @@
         const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
         // Если пояс в базе не совпадает с тем, что в браузере — обновляем через AJAX
-        if (browser_tz && currentTz !== browserTz) {
+        if (browserTz && currentTz !== browserTz) {
             fetch('/update-timezone/', {
                 method: 'POST',
                 headers: {

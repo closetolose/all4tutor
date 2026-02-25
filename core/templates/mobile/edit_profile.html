@@ -95,7 +95,7 @@
 <script>
     function detectTimezone() {
         const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const selector = document.getElementById('tz-selector');
+        const selector = document.getElementById('id_timezone');
 
         if (detectedTz) {
             for (let i = 0; i < selector.options.length; i++) {

@@ -1,31 +1,230 @@
 {% extends 'mobile/base.html' %}
 
-
-
-
 {% block content %}
-{% if role == 'tutor' %}
-<div class="filter-bar-container" onclick="openModal('filter-modal')">
-    <div class="filter-main-row">
-        <div class="filter-status">
-            <i class="fas fa-sliders-h"></i>
-            <span>Параметры фильтрации</span>
-        </div>
-        <i class="fas fa-chevron-down"></i>
-    </div>
-</div>
-{% endif %}
+<style>
+    /* === 1. ВИДЖЕТЫ СТАТИСТИКИ (Горизонтальный скролл) === */
+    .mobile-stats-scroll {
+        display: flex; gap: 12px; padding: 15px 15px 5px;
+        overflow-x: auto; scrollbar-width: none;
+    }
+    .mobile-stats-scroll::-webkit-scrollbar { display: none; }
 
-<div id="selection-bar" class="selection-toolbar">
-    <div class="selection-info">
-        <button onclick="cancelSelection()" class="close-selection"><i class="fas fa-times"></i></button>
-        <span id="selected-count">Выбрано: 0</span>
+    .mobile-stat-card {
+        min-width: 145px; padding: 15px; border-radius: 18px; color: white;
+        display: flex; flex-direction: column; gap: 4px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1); flex-shrink: 0;
+    }
+    .m-bg-blue { background: linear-gradient(135deg, #1e40af, #3b82f6); }
+    .m-bg-green { background: linear-gradient(135deg, #047857, #10b981); }
+    .m-bg-purple { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+
+    .m-stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; opacity: 0.85; }
+    .m-stat-value { font-size: 22px; font-weight: 800; }
+
+    /* === 2. КНОПКА ФИЛЬТРА === */
+    .mobile-filter-trigger {
+        margin: 10px 15px 15px; background: var(--tg-card-bg);
+        padding: 14px 16px; border-radius: 14px;
+        border: 1px solid var(--tg-separator);
+        display: flex; justify-content: space-between; align-items: center;
+        font-weight: 600; font-size: 14px; color: var(--tg-text);
+        box-shadow: var(--tg-shadow);
+    }
+
+    /* === 3. КАРТОЧКИ УРОКОВ (Стили, которых не хватало) === */
+    .lesson-list { padding-bottom: 80px; }
+
+    .date-separator {
+        padding: 15px 20px 8px; font-size: 13px; font-weight: 700;
+        color: var(--tg-hint); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    .lesson-card {
+        background: var(--tg-card-bg);
+        margin: 0 15px 10px; padding: 16px; border-radius: 18px;
+        display: flex; align-items: center; gap: 15px;
+        border: 1px solid var(--tg-separator);
+        box-shadow: var(--tg-shadow);
+        transition: transform 0.15s, background-color 0.2s, border-color 0.2s;
+        position: relative; overflow: hidden;
+    }
+
+    /* Состояние выделения */
+    .lesson-card.selected {
+        background: rgba(99, 102, 241, 0.08);
+        border-color: var(--tg-green);
+        transform: scale(0.98);
+    }
+    .selection-indicator {
+        display: none;
+    }
+    .lesson-card.selected .selection-indicator { display: block; }
+    .lesson-card.selected .card-arrow { display: none; }
+
+    .card-time {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-width: 50px; border-right: 1px solid var(--tg-separator); padding-right: 15px;
+    }
+    .time-main { font-size: 17px; font-weight: 800; color: var(--tg-text); line-height: 1.1; }
+    .time-dur { font-size: 11px; color: var(--tg-hint); font-weight: 600; margin-top: 4px; }
+
+    .card-info { flex-grow: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .card-row-top { display: flex; justify-content: space-between; align-items: center; }
+    .student-name { font-size: 15px; font-weight: 700; color: var(--tg-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+    .price-tag { font-size: 14px; font-weight: 700; color: var(--tg-active); background: rgba(99, 102, 241, 0.1); padding: 2px 8px; border-radius: 6px; }
+    .subject-name { font-size: 12px; color: var(--tg-hint); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+    .card-arrow { color: var(--tg-separator); font-size: 14px; }
+
+    /* "Пульки" посещаемости */
+    .attendance-dots { display: flex; gap: -5px; margin-left: auto; }
+    .att-dot {
+        width: 26px; height: 26px; border-radius: 50%;
+        background: var(--tg-bg); color: var(--tg-hint);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 10px; font-weight: 800;
+        border: 2px solid var(--tg-card-bg);
+        margin-left: -8px; /* Наложение друг на друга */
+        transition: 0.2s;
+    }
+    .att-dot:first-child { margin-left: 0; }
+    .att-dot.present { background: var(--tg-green); color: white; border-color: var(--tg-card-bg); }
+
+    /* Панель массовых действий */
+    .selection-toolbar {
+        position: fixed; bottom: 20px; left: 15px; right: 15px;
+        background: #1e1b4b; color: white;
+        padding: 12px 20px; border-radius: 16px;
+        display: none; justify-content: space-between; align-items: center;
+        z-index: 2000; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    .selection-actions button {
+        background: rgba(255,255,255,0.2); border: none; color: white;
+        width: 36px; height: 36px; border-radius: 10px; margin-left: 8px;
+    }
+</style>
+
+<div class="dashboard-mobile">
+    <div style="padding: 15px 15px 0;">
+        <h1 style="font-size: 24px; margin: 0; letter-spacing: -0.5px;">Привет, {{ user.first_name|default:user.username }}!</h1>
+        <p style="color: var(--tg-hint); font-size: 13px; margin: 4px 0 0;">Твое расписание на сегодня</p>
     </div>
-    <div class="selection-actions">
-        <button onclick="submitBulkAction('delete')" class="btn-bulk-delete"><i class="fas fa-trash"></i></button>
-        <button onclick="openMassEdit()" class="btn-bulk-edit"><i class="fas fa-pen"></i></button>
+
+    <div class="mobile-stats-scroll">
+        {% if role == 'tutor' %}
+            <div class="mobile-stat-card m-bg-blue">
+                <span class="m-stat-label"><i class="fas fa-layer-group"></i> Всего занятий</span>
+                <span class="m-stat-value">{{ total_lessons|default:"0" }}</span>
+            </div>
+            <div class="mobile-stat-card m-bg-green">
+                <span class="m-stat-label"><i class="fas fa-check-circle"></i> Проведено</span>
+                <span class="m-stat-value">{{ dash_done_in_period|default:"0" }}</span>
+            </div>
+            <div class="mobile-stat-card m-bg-purple">
+                <span class="m-stat-label"><i class="fas fa-ruble-sign"></i> Доход</span>
+                <span class="m-stat-value">{{ dash_expected_income|floatformat:0 }} ₽</span>
+            </div>
+        {% else %}
+            <div class="mobile-stat-card m-bg-blue">
+                <span class="m-stat-label">Уроков</span>
+                <span class="m-stat-value">{{ total_lessons|default:"0" }}</span>
+            </div>
+            <div class="mobile-stat-card m-bg-green">
+                <span class="m-stat-label">ДЗ</span>
+                <span class="m-stat-value">{{ active_hw_count|default:"0" }}</span>
+            </div>
+            <div class="mobile-stat-card m-bg-purple">
+                <span class="m-stat-label">Долг</span>
+                <span class="m-stat-value">{{ student_debt|floatformat:0 }} ₽</span>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mobile-filter-trigger" onclick="openModal('filter-modal')">
+        <span style="display:flex; align-items:center;">
+            {% if request.GET.target or request.GET.date_from %}
+                <span style="width:8px; height:8px; background:var(--tg-active); border-radius:50%; margin-right:8px;"></span>
+            {% endif %}
+            <i class="fas fa-sliders-h" style="margin-right: 10px; color: var(--tg-active);"></i>
+            Параметры поиска
+        </span>
+        <i class="fas fa-chevron-right" style="font-size: 12px; color: var(--tg-hint);"></i>
+    </div>
+
+    <div id="selection-bar" class="selection-toolbar">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <i class="fas fa-times" onclick="cancelSelection()" style="cursor:pointer; opacity:0.7;"></i>
+            <span id="selected-count" style="font-weight:600;">Выбрано: 0</span>
+        </div>
+        <div class="selection-actions">
+            <button onclick="submitBulkAction('delete')" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5;"><i class="fas fa-trash"></i></button>
+            <button onclick="openMassEdit()"><i class="fas fa-pen"></i></button>
+        </div>
+    </div>
+
+    <div class="lesson-list">
+        {% for lesson in lessons %}
+            {% ifchanged lesson.start_time.date %}
+            <div class="date-separator">
+                {% if lesson.start_time.date == now.date %}Сегодня, {% endif %}
+                {{ lesson.start_time|date:"d E" }}
+            </div>
+            {% endifchanged %}
+
+            <div class="lesson-card" data-id="{{ lesson.id }}"
+                 ontouchstart="handleTouchStart(event, this)"
+                 ontouchend="handleTouchEnd(this)"
+                 onclick="handleCardClick(event, this)">
+
+                <div class="selection-indicator"><i class="fas fa-check-circle"></i></div>
+
+                <div class="card-time">
+                    <span class="time-main">{{ lesson.start_time|date:"H:i" }}</span>
+                    <span class="time-dur">{{ lesson.duration }}м</span>
+                </div>
+
+                <div class="card-info">
+                    <div class="card-row-top">
+                        <span class="student-name">
+                            {% if lesson.group %}{{ lesson.group.name }} (Группа){% else %}{{ lesson.student.first_name }} {{ lesson.student.last_name }}{% endif %}
+                        </span>
+                        {% if lesson.is_paid %}
+                            <i class="fas fa-check-circle" style="color:var(--tg-green); font-size:16px;"></i>
+                        {% else %}
+                            <span class="price-tag">{{ lesson.price|floatformat:0 }} ₽</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-row-bot" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="subject-name">
+                            <i class="fas fa-book" style="font-size:10px;"></i> {{ lesson.subject.name }}
+                        </span>
+
+                        {% if role == 'tutor' %}
+                        <div class="attendance-dots" onclick="event.stopPropagation();">
+                            {% for att in lesson.attendances.all %}
+                            <div id="att-{{ att.id }}" class="att-dot {% if att.was_present %}present{% endif %}"
+                                 onclick="quickTogglePresence(this, {{ att.id }})">
+                                {{ att.student.first_name|first }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card-arrow"><i class="fas fa-chevron-right"></i></div>
+            </div>
+        {% empty %}
+            <div style="text-align:center; padding: 40px 20px; color: var(--tg-hint);">
+                <i class="far fa-calendar-times" style="font-size: 40px; margin-bottom: 15px; opacity: 0.5;"></i>
+                <p>На этот период занятий не найдено</p>
+            </div>
+        {% endfor %}
     </div>
 </div>
+
+{% if role == 'tutor' %}
+    <a href="{% url 'add_lesson' %}" class="fab-btn"><i class="fas fa-plus"></i></a>
+{% endif %}
 
 <form id="bulk-action-form" method="POST" action="{% url 'bulk_action' %}" style="display: none;">
     {% csrf_token %}
@@ -33,703 +232,11 @@
     <input type="hidden" name="action_type" id="action_type_input">
 </form>
 
-<div class="lesson-list">
-    {% for lesson in lessons %}
-        {% ifchanged lesson.start_time.date %}
-        <div class="date-separator">
-            <span>{% if lesson.start_time.date == now.date %}Сегодня{% else %}{{ lesson.start_time|date:"d E, l" }}{% endif %}</span>
-        </div>
-        {% endifchanged %}
-
-        <div class="lesson-card"
-             data-id="{{ lesson.id }}"
-             oncontextmenu="return false;"
-             ontouchstart="handleTouchStart(event, this)"
-             ontouchend="handleTouchEnd(this)"
-             onclick="handleCardClick(event, this)">
-
-            <div class="selection-indicator"><i class="fas fa-check-circle"></i></div>
-
-            <div class="card-time">
-                <span class="time-main">{{ lesson.start_time|date:"H:i" }}</span>
-                <span class="time-dur">{{ lesson.duration }} мин</span>
-            </div>
-
-           <div class="card-info">
-    <div class="card-row-top">
-        <span class="student-name">
-            {% if lesson.group %}{{ lesson.group.name }}{% else %}{{ lesson.student.first_name }} {{ lesson.student.last_name }}{% endif %}
-        </span>
-
-        <div class="card-top-right" style="display: flex; align-items: center; gap: 8px;">
-            {% if lesson.materials.exists %}
-            <a href="{% url 'download_lesson_materials' lesson.id %}"
-               class="material-icon"
-               onclick="event.stopPropagation();"
-               style="color: var(--tg-active); font-size: 16px;">
-                <i class="fas fa-paperclip"></i>
-            </a>
-            {% endif %}
-
-            {% if lesson.is_paid %}
-                <i class="fas fa-check-circle status-paid"></i>
-            {% else %}
-                <span class="price-tag">{{ lesson.price|floatformat:0 }} ₽</span>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="card-row-bot">
-        <span class="subject-name">{{ lesson.subject.name|default:lesson.subject }}</span>
-
-        {% if role == 'tutor' %}
-        <div class="attendance-dots" style="display: flex; gap: 4px; margin-left: auto;" onclick="event.stopPropagation();">
-            {% for att in lesson.attendances.all %}
-            <div id="att-{{ att.id }}"
-                 class="att-dot {% if att.was_present %}present{% endif %}"
-                 onclick="quickTogglePresence(this, {{ att.id }})">
-                {{ att.student.first_name|first }}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </div>
-</div>
-            <div class="card-arrow"><i class="fas fa-chevron-right"></i></div>
-        </div>
-    {% empty %}
-        <div class="empty-state">
-            <div class="empty-icon"><i class="fas fa-mug-hot"></i></div>
-            <p>Уроков пока нет</p>
-            <span>Добавьте первый урок кнопкой ниже</span>
-        </div>
-    {% endfor %}
-</div>
-
-{% if user.profile.role == 'tutor' %}
-<a href="{% url 'add_lesson' %}" class="fab-btn"><i class="fas fa-plus"></i></a>
-{% endif %}
-
-<div id="mass-edit-modal" class="tg-modal" onclick="if(event.target===this)closeMassEditModal()">
-    <div class="tg-modal-content">
-        <div class="tg-modal-header">
-            <h3>Массовая правка</h3>
-            <button onclick="closeMassEditModal()" class="close-modal">&times;</button>
-        </div>
-        <div class="tg-modal-scroll">
-            <div class="tg-section-title">Основное</div>
-            <div class="tg-section no-margin">
-                <div class="tg-input-row">
-                    <div class="tg-label">Предмет</div>
-                    <div class="tg-field-wrap">
-                        <select id="m_subject">
-                            <option value="">Не менять</option>
-                            {% for s in my_subjects %}
-                            <option value="{{ s.subject.id }}">{{ s.subject.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="tg-input-row">
-                    <div class="tg-label">Ученик</div>
-                    <div class="tg-field-wrap">
-                        <select id="m_student">
-                            <option value="">Не менять</option>
-                            {% for s in tutor_students %}
-                            <option value="{{ s.id }}">{{ s.first_name }} {{ s.last_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="tg-input-row last">
-                    <div class="tg-label">Группа</div>
-                    <div class="tg-field-wrap">
-                        <select id="m_group">
-                            <option value="">Не менять</option>
-                            {% for g in tutor_groups %}
-                            <option value="{{ g.id }}">{{ g.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tg-section-title">Расписание и цена</div>
-            <div class="tg-section no-margin">
-                <div class="tg-input-row">
-                    <div class="tg-label">Дата</div>
-                    <div class="tg-field-wrap"><input type="date" id="m_date"></div>
-                </div>
-                <div class="tg-input-row">
-                    <div class="tg-label">Время</div>
-                    <div class="tg-field-wrap"><input type="time" id="m_time"></div>
-                </div>
-                <div class="tg-input-row">
-                    <div class="tg-label">Цена</div>
-                    <div class="tg-field-wrap"><input type="number" id="m_price" placeholder="₽"></div>
-                </div>
-                <div class="tg-input-row last">
-                    <div class="tg-label">Длит.</div>
-                    <div class="tg-field-wrap"><input type="number" id="m_duration" placeholder="мин"></div>
-                </div>
-            </div>
-
-            {% if files %}
-            <div class="tg-section-title">Материалы</div>
-            <div class="tg-section no-margin">
-                <div class="materials-grid">
-                    {% for f in files %}
-                    <label class="material-item {% if forloop.last %}last{% endif %}">
-                        <input type="checkbox" name="m_files" value="{{ f.id }}">
-                        <span>{{ f.file_name }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-            <button onclick="confirmMassEdit()" class="tg-modal-btn">Применить изменения</button>
-        </div>
+<div id="lazy-loader" style="display: none; text-align: center; padding: 20px; color: var(--tg-hint);">
+        <i class="fas fa-spinner fa-spin fa-2x"></i>
     </div>
 </div>
 
+{% include 'mobile/filter_modal.html' %}
 
-
-<div id="filter-modal" class="tg-modal" onclick="if(event.target===this)closeModal('filter-modal')">
-    <div class="tg-modal-content">
-        <div class="tg-modal-header">
-            <h3>Фильтры занятий</h3>
-            <button onclick="closeModal('filter-modal')" class="close-modal">&times;</button>
-        </div>
-        <form method="GET" action="{% url 'index' %}" class="tg-modal-scroll">
-
-            <div class="tg-section-title">Ученик или группа</div>
-            <div class="tg-section no-margin">
-                <div class="tg-input-row last">
-                    <div class="tg-field-wrap">
-                        <select name="target">
-                            <option value="">Все</option>
-                            <optgroup label="Ученики">
-                                {% for s in tutor_students %}
-                                <option value="s_{{ s.id }}" {% if request.GET.target == 's_'|add:s.id|stringformat:"s" %}selected{% endif %}>{{ s.first_name }} {{ s.last_name }}</option>
-                                {% endfor %}
-                            </optgroup>
-                            <optgroup label="Группы">
-                                {% for g in tutor_groups %}
-                                <option value="g_{{ g.id }}" {% if request.GET.target == 'g_'|add:g.id|stringformat:"s" %}selected{% endif %}>{{ g.name }}</option>
-                                {% endfor %}
-                            </optgroup>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tg-section-title">Предмет</div>
-            <div class="tg-section no-margin">
-                <div class="tg-input-row last">
-                    <div class="tg-field-wrap">
-                        <select name="subject">
-                            <option value="">Любой</option>
-                            {% for item in my_subjects %}
-                            <option value="{{ item.subject.id }}" {% if request.GET.subject == item.subject.id|stringformat:"i" %}selected{% endif %}>{{ item.subject.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tg-section-title">Период</div>
-            <div class="tg-section no-margin">
-                <div class="tg-input-row">
-                    <div class="tg-label">С</div>
-                    <div class="tg-field-wrap"><input type="date" name="date_from" value="{{ request.GET.date_from }}"></div>
-                </div>
-                <div class="tg-input-row last">
-                    <div class="tg-label">По</div>
-                    <div class="tg-field-wrap"><input type="date" name="date_to" value="{{ request.GET.date_to }}"></div>
-                </div>
-            </div>
-
-            <div class="modal-actions-row">
-                <a href="{% url 'index' %}" class="btn-secondary">Сбросить</a>
-                <button type="submit" class="btn-primary-modal">Применить</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<style>
-    .filter-bar-container {
-        background: var(--tg-body-bg);
-        padding: 10px 0;
-        position: sticky;
-        top: 56px;
-        z-index: 900;
-        border-bottom: 1px solid var(--tg-separator);
-    }
-    .filter-scroll {
-        display: flex; gap: 8px; padding: 0 15px;
-        overflow-x: auto; scrollbar-width: none;
-    }
-.modal-actions-row {
-    display: flex;
-    gap: 12px;
-    margin-top: 25px;
-    padding: 0 5px;
-}
-
-.btn-primary-modal {
-    flex: 2;
-    background: var(--tg-active);
-    color: white;
-    border: none;
-    padding: 14px;
-    border-radius: 12px;
-    font-weight: 700;
-    font-size: 15px;
-    cursor: pointer;
-}
-
-.btn-secondary {
-    flex: 1;
-    background: var(--tg-card-active);
-    color: var(--tg-hint);
-    border: 1px solid var(--tg-separator);
-    padding: 14px;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 15px;
-    text-align: center;
-    text-decoration: none;
-}
-
-.tg-modal-content select, .tg-modal-content input {
-    background: var(--tg-sidebar) !important;
-    color: var(--tg-text) !important;
-    border: 1px solid var(--tg-separator) !important;
-    border-radius: 8px;
-}
-    .filter-scroll::-webkit-scrollbar { display: none; }
-    .filter-chip {
-        display: inline-block; padding: 7px 16px;
-        background: var(--tg-sidebar); color: var(--tg-hint);
-        border: 1px solid var(--tg-separator);
-        border-radius: 20px; font-size: 13px; font-weight: 600;
-        text-decoration: none; white-space: nowrap; transition: 0.2s;
-    }
-    .filter-chip.active {
-        background: var(--tg-active); color: white;
-        border-color: var(--tg-active);
-        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35);
-    }
-
-    .lesson-list { padding: 5px 0 100px; }
-
-    .date-separator {
-        position: sticky; top: 105px;
-        z-index: 800; text-align: center;
-        margin: 18px 0 10px; pointer-events: none;
-    }
-    .date-separator span {
-        background: var(--tg-header-bg);
-        color: var(--tg-hint);
-        padding: 5px 14px; border-radius: 12px;
-        font-size: 11px; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 0.3px;
-        backdrop-filter: blur(8px); border: 1px solid var(--tg-separator);
-    }
-    .filter-bar-container {
-    background: #000;
-    padding: 12px 16px;
-    position: sticky;
-    top: 56px;
-    z-index: 900;
-    border-bottom: 1px solid var(--tg-separator);
-    cursor: pointer;
-}
-
-.filter-main-row {
-    background: var(--tg-sidebar);
-    border: 1px solid var(--tg-separator);
-    border-radius: 12px;
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: var(--tg-text);
-}
-
-.filter-status {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.filter-status i { color: var(--tg-active); }
-    .lesson-card {
-        position: relative;
-        display: flex; align-items: center; gap: 14px;
-        background: var(--tg-sidebar);
-        margin: 0 12px 8px; padding: 14px 15px;
-        border-radius: 16px; border: 1px solid var(--tg-separator);
-        transition: transform 0.1s, border-color 0.2s, background 0.2s;
-        cursor: pointer;
-        -webkit-user-select: none; user-select: none;
-    }
-    .lesson-card:active { transform: scale(0.97); background: var(--tg-card-active); }
-    .lesson-card.selected {
-        border-color: var(--tg-active);
-        background: rgba(99, 102, 241, 0.08);
-    }
-
-    .selection-indicator {
-        display: none;
-        position: absolute; top: -6px; right: -6px;
-        color: var(--tg-active); background: var(--tg-body-bg);
-        border-radius: 50%; font-size: 20px; z-index: 10;
-        width: 24px; height: 24px;
-        align-items: center; justify-content: center;
-        box-shadow: 0 2px 6px var(--tg-shadow);
-    }
-    .lesson-card.selected .selection-indicator {
-        display: flex;
-        animation: popIn 0.2s ease-out;
-    }
-    @keyframes popIn {
-        from { transform: scale(0); opacity: 0; }
-        to { transform: scale(1); opacity: 1; }
-    }
-
-    .card-time {
-        display: flex; flex-direction: column;
-        align-items: center; justify-content: center;
-        width: 52px; height: 52px; border-radius: 14px;
-        background: rgba(99, 102, 241, 0.1);
-        color: var(--tg-active);
-        border: 1px solid rgba(99, 102, 241, 0.15);
-        flex-shrink: 0;
-    }
-    .time-main { font-weight: 800; font-size: 15px; line-height: 1; }
-    .time-dur { font-size: 10px; opacity: 0.7; margin-top: 2px; }
-
-    .card-info { flex-grow: 1; min-width: 0; }
-    .card-row-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-    .student-name { font-size: 15px; font-weight: 700; color: var(--tg-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-    .price-tag { font-size: 14px; font-weight: 700; color: var(--tg-text); white-space: nowrap; }
-    .status-paid { color: var(--tg-green); font-size: 14px; }
-    .card-row-bot { display: flex; align-items: center; font-size: 13px; color: var(--tg-hint); }
-    .subject-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-    .lesson-type { margin-left: 5px; opacity: 0.7; }
-    .card-arrow { color: var(--tg-separator); font-size: 12px; margin-left: auto; flex-shrink: 0; }
-
-    .fab-btn {
-        position: fixed; bottom: 28px; right: 20px;
-        width: 58px; height: 58px;
-        background: var(--tg-active); color: white; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 22px;
-        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
-        text-decoration: none; z-index: 2000;
-        transition: transform 0.2s;
-    }
-    .fab-btn:active { transform: scale(0.88); }
-
-    .empty-state { text-align: center; padding: 80px 20px; color: var(--tg-hint); }
-    .empty-icon { font-size: 44px; margin-bottom: 16px; opacity: 0.25; }
-    .empty-state p { font-size: 16px; font-weight: 700; margin: 0 0 6px; color: var(--tg-text); }
-    .empty-state span { font-size: 13px; }
-
-    .selection-toolbar {
-        position: fixed; bottom: 0; left: 0; right: 0;
-        background: var(--tg-sidebar);
-        height: 64px;
-        display: none; align-items: center; justify-content: space-between;
-        padding: 0 16px;
-        z-index: 3000;
-        border-top: 1px solid var(--tg-active);
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
-        animation: slideUp 0.25s ease-out;
-    }
-    @keyframes slideUp {
-        from { transform: translateY(100%); }
-        to { transform: translateY(0); }
-    }
-    .selection-info { display: flex; align-items: center; gap: 12px; }
-    .close-selection {
-        background: none; border: none; color: var(--tg-hint);
-        font-size: 18px; padding: 8px; cursor: pointer;
-    }
-    #selected-count { color: var(--tg-text); font-size: 15px; font-weight: 600; }
-    .selection-actions { display: flex; gap: 8px; }
-    .btn-bulk-delete, .btn-bulk-edit {
-        width: 44px; height: 44px; border-radius: 12px;
-        border: none; cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 16px; transition: 0.15s;
-    }
-    .btn-bulk-delete { background: rgba(248,113,113,0.15); color: var(--tg-red); }
-    .btn-bulk-delete:active { background: rgba(248,113,113,0.3); }
-    .btn-bulk-edit { background: rgba(99,102,241,0.15); color: var(--tg-active); }
-    .btn-bulk-edit:active { background: rgba(99,102,241,0.3); }
-
-    .tg-modal {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: var(--overlay-bg);
-        backdrop-filter: blur(4px);
-        display: none; align-items: flex-end;
-        z-index: 4000;
-    }
-    .tg-modal-content {
-        background: var(--tg-bg);
-        width: 100%; max-height: 85vh;
-        border-radius: 20px 20px 0 0;
-        overflow: hidden;
-        display: flex; flex-direction: column;
-        animation: modalUp 0.3s ease-out;
-    }
-    @keyframes modalUp {
-        from { transform: translateY(100%); }
-        to { transform: translateY(0); }
-    }
-    .tg-modal-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 18px 20px 14px;
-        border-bottom: 1px solid var(--tg-separator);
-        flex-shrink: 0;
-    }
-    .tg-modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: var(--tg-text); }
-    .close-modal {
-        background: none; border: none; color: var(--tg-hint);
-        font-size: 26px; cursor: pointer; padding: 0 4px;
-        line-height: 1;
-    }
-    .tg-modal-scroll {
-        overflow-y: auto; padding: 15px 15px 40px;
-        -webkit-overflow-scrolling: touch;
-    }
-    .tg-section-title {
-        font-size: 12px; font-weight: 700; color: var(--tg-hint);
-        text-transform: uppercase; letter-spacing: 0.5px;
-        padding: 12px 4px 6px;
-    }
-    .tg-section.no-margin {
-        margin: 0; border-radius: 14px; overflow: hidden;
-        border: 1px solid var(--tg-separator);
-    }
-    .tg-input-row {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 13px 16px;
-        border-bottom: 1px solid var(--tg-separator);
-        background: var(--tg-sidebar);
-    }
-    .tg-input-row.last { border-bottom: none; }
-    .tg-label { font-size: 15px; color: var(--tg-text); font-weight: 500; flex-shrink: 0; }
-    .tg-field-wrap { flex: 1; text-align: right; }
-    .tg-input-row input, .tg-input-row select {
-        background: transparent; border: none;
-        color: var(--tg-active); text-align: right;
-        font-size: 15px; outline: none; width: 100%;
-        font-family: inherit;
-    }
-    .tg-input-row select option { background: var(--tg-sidebar); color: var(--tg-text); }
-
-    .materials-grid {
-        display: grid; grid-template-columns: 1fr;
-        background: var(--tg-sidebar); border-radius: 14px;
-        overflow: hidden; border: 1px solid var(--tg-separator);
-    }
-    .material-item {
-        padding: 13px 16px;
-        border-bottom: 1px solid var(--tg-separator);
-        display: flex; align-items: center; gap: 12px;
-        color: var(--tg-text); font-size: 14px; cursor: pointer;
-    }
-    .material-item.last { border-bottom: none; }
-    .material-item input[type="checkbox"] {
-        width: 18px; height: 18px;
-        accent-color: var(--tg-active);
-        flex-shrink: 0;
-    }
-    .material-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    .tg-modal-btn {
-        background: var(--tg-active); color: white;
-        border: none; padding: 16px; border-radius: 14px;
-        width: 100%; font-weight: 700; font-size: 15px;
-        margin-top: 20px; cursor: pointer;
-        font-family: inherit;
-        transition: 0.15s;
-    }
-    .tg-modal-btn:active { opacity: 0.85; transform: scale(0.98); }
-    /* Стили для иконок и отметок */
-.card-top-right { display: flex; align-items: center; gap: 10px; }
-
-.material-download-icon {
-    color: var(--tg-active);
-    font-size: 16px;
-    padding: 5px;
-}
-
-.attendance-dots {
-    display: flex;
-    gap: 4px;
-    margin-left: auto;
-}
-
-.att-dot {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #2b2b2b;
-    border: 1px solid var(--tg-separator);
-    color: var(--tg-hint);
-    font-size: 10px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: 0.2s;
-    text-transform: uppercase;
-}
-
-.att-dot.present {
-    background: var(--tg-active);
-    color: white;
-    border-color: var(--tg-active);
-    box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
-}
-</style>
-
-<script>
-    let pressTimer, isSelectionMode = false, selectedLessons = new Set();
-
-    function handleTouchStart(e, el) {
-        if (isSelectionMode) return;
-        el.style.transform = "scale(0.97)";
-        pressTimer = window.setTimeout(() => {
-            isSelectionMode = true;
-            if (window.navigator.vibrate) window.navigator.vibrate(50);
-            toggleSelection(el);
-            document.getElementById('selection-bar').style.display = 'flex';
-        }, 600);
-    }
-
-    function handleTouchEnd(el) {
-        clearTimeout(pressTimer);
-        el.style.transform = "scale(1)";
-    }
-
-    function toggleSelection(el) {
-        const id = el.getAttribute('data-id');
-        if (selectedLessons.has(id)) {
-            selectedLessons.delete(id);
-            el.classList.remove('selected');
-        } else {
-            selectedLessons.add(id);
-            el.classList.add('selected');
-        }
-        document.getElementById('selected-count').innerText = "Выбрано: " + selectedLessons.size;
-        if (selectedLessons.size === 0) cancelSelection();
-    }
-
-    function handleCardClick(e, el) {
-        if (isSelectionMode) {
-            toggleSelection(el);
-        } else {
-            window.location.href = "/lesson/edit/" + el.getAttribute('data-id') + "/";
-        }
-    }
-
-    function cancelSelection() {
-        isSelectionMode = false;
-        selectedLessons.clear();
-        document.querySelectorAll('.lesson-card').forEach(c => c.classList.remove('selected'));
-        document.getElementById('selection-bar').style.display = 'none';
-    }
-
-    function openMassEdit() {
-        document.getElementById('mass-edit-modal').style.display = 'flex';
-    }
-
-    function closeMassEditModal() {
-        document.getElementById('mass-edit-modal').style.display = 'none';
-    }
-
-    function confirmMassEdit() {
-        const form = document.getElementById('bulk-action-form');
-        document.getElementById('lesson_ids_input').value = Array.from(selectedLessons).join(',');
-        document.getElementById('action_type_input').value = 'mass_edit';
-
-        const fields = {
-            'mass_subject': document.getElementById('m_subject').value,
-            'mass_student': document.getElementById('m_student').value,
-            'mass_group': document.getElementById('m_group').value,
-            'mass_date': document.getElementById('m_date').value,
-            'mass_time': document.getElementById('m_time').value,
-            'mass_price': document.getElementById('m_price').value,
-            'mass_duration': document.getElementById('m_duration').value
-        };
-
-        for (let key in fields) {
-            if (fields[key]) {
-                let input = document.createElement('input');
-                input.type = 'hidden'; input.name = key; input.value = fields[key];
-                form.appendChild(input);
-            }
-        }
-
-        document.querySelectorAll('input[name="m_files"]:checked').forEach(cb => {
-            let input = document.createElement('input');
-            input.type = 'hidden'; input.name = 'materials'; input.value = cb.value;
-            form.appendChild(input);
-        });
-
-        form.submit();
-    }
-
-    function submitBulkAction(type) {
-        if (type === 'delete' && !confirm('Удалить выбранные уроки?')) return;
-        document.getElementById('lesson_ids_input').value = Array.from(selectedLessons).join(',');
-        document.getElementById('action_type_input').value = type;
-        document.getElementById('bulk-action-form').submit();
-    }
-    function openModal(id) {
-    const modal = document.getElementById(id);
-    if (modal) {
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-    }
-}
-
-function closeModal(id) {
-    const modal = document.getElementById(id);
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-}
-function quickTogglePresence(el, attId) {
-
-    fetch(`/toggle-presence/${attId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'ok') {
-            if (data.was_present) {
-                el.classList.add('present');
-            } else {
-                el.classList.remove('present');
-            }
-        }
-    })
-    .catch(error => console.error('Ошибка:', error));
-}
-</script>
 {% endblock %}

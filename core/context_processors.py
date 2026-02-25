@@ -2,18 +2,32 @@ from django.utils import timezone
 
 from .models import Lessons, Users
 from django.urls import resolve, reverse,NoReverseMatch
+from django.db.models import Q
 
 def next_lesson_processor(request):
-    if request.user.is_authenticated:
-        try:
+    if not request.user.is_authenticated:
+        return {'next_lesson': None}
+
+    try:
+        user_profile = request.user.profile
+        now = timezone.now()
+
+        if user_profile.role == 'tutor':
+            # Логика для репетитора
             next_lesson = Lessons.objects.filter(
-                tutor=request.user.profile,
-                start_time__gt=timezone.now(),
+                tutor=user_profile,
+                start_time__gt=now
             ).order_by('start_time').first()
-            return {'next_lesson': next_lesson}
-        except Exception:
-            return {'next_lesson': None}
-    return {'next_lesson': None}
+        else:
+            # Логика для ученика (индивидуально или группа)
+            next_lesson = Lessons.objects.filter(
+                Q(student=user_profile) | Q(group__students=user_profile),
+                start_time__gt=now
+            ).distinct().order_by('start_time').first()
+
+        return {'next_lesson': next_lesson}
+    except Exception:
+        return {'next_lesson': None}
 
 
 def breadcrumbs(request):
@@ -106,3 +120,5 @@ def breadcrumbs(request):
             crumbs.append({'name': name, 'url': accumulated_url})
 
     return {'auto_breadcrumbs': crumbs}
+
+
