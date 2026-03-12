@@ -1,119 +1,10 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'my_students' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'my_students' %}" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
-<style>
-    .gc-header {
-        text-align: center; padding: 25px 15px;
-        background: var(--tg-sidebar); border-bottom: 1px solid var(--tg-separator);
-    }
-    .gc-avatar {
-        width: 80px; height: 80px; border-radius: 50%;
-        background: rgba(99, 102, 241, 0.15); color: var(--tg-active);
-        margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;
-        font-size: 28px; font-weight: 800;
-    }
-    .gc-header h2 { font-size: 22px; font-weight: 800; color: var(--tg-text); margin: 0 0 5px; }
-    .gc-header .gc-subject { color: var(--tg-hint); font-size: 14px; }
-    .gc-section { padding: 20px 15px; }
-    .gc-section-title { font-size: 18px; font-weight: 800; color: var(--tg-text); margin-bottom: 12px; }
-    .gc-members-card {
-        background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
-        border-radius: 16px; padding: 15px;
-    }
-    .gc-member-label {
-        font-size: 11px; font-weight: 700; color: var(--tg-hint);
-        text-transform: uppercase; margin-bottom: 12px;
-    }
-    .gc-member {
-        display: flex; align-items: center; gap: 10px;
-        padding: 10px 0; text-decoration: none;
-        border-bottom: 1px solid var(--tg-separator);
-    }
-    .gc-member:last-child { border-bottom: none; }
-    .gc-member-avatar {
-        width: 32px; height: 32px; border-radius: 50%;
-        background: var(--tg-card-active); color: var(--tg-text);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 12px; font-weight: 700; flex-shrink: 0;
-    }
-    .gc-member-name { font-size: 15px; font-weight: 600; color: var(--tg-text); }
-    .gc-hw-btn {
-        background: var(--tg-active); color: white; border: none;
-        padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px;
-        width: 100%; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .gc-hw-btn:active { opacity: 0.8; }
-    .gc-table-wrap {
-        background: var(--tg-sidebar); border-radius: 16px;
-        overflow: hidden; border: 1px solid var(--tg-separator);
-    }
-    .gc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .gc-table th {
-        background: var(--tg-card-active); padding: 12px 10px;
-        text-align: left; color: var(--tg-hint); font-size: 11px;
-        text-transform: uppercase; font-weight: 700;
-    }
-    .gc-table td { padding: 12px 10px; border-top: 1px solid var(--tg-separator); color: var(--tg-text); }
-    .att-dots { display: flex; gap: 4px; flex-wrap: wrap; }
-    .att-dot {
-        width: 24px; height: 24px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 9px; font-weight: 700;
-    }
-    .att-dot.present { background: var(--tg-green-bg); color: var(--tg-green); }
-    .att-dot.absent { background: rgba(248, 113, 113, 0.1); color: var(--tg-red); }
-    .modal-overlay {
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: var(--overlay-bg); z-index: 3000;
-        align-items: flex-end; justify-content: center;
-    }
-    .modal-overlay.active { display: flex; }
-    .modal-sheet {
-        background: var(--tg-sidebar); width: 100%; max-height: 85vh;
-        border-radius: 20px 20px 0 0; padding: 20px 15px 40px;
-        overflow-y: auto; animation: slideUp 0.3s ease;
-    }
-    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-    .modal-handle {
-        width: 36px; height: 4px; background: var(--tg-separator);
-        border-radius: 2px; margin: 0 auto 15px;
-    }
-    .modal-title { font-size: 18px; font-weight: 800; color: var(--tg-text); margin-bottom: 20px; text-align: center; }
-    .modal-label { display: block; font-size: 13px; font-weight: 700; color: var(--tg-hint); margin-bottom: 6px; text-transform: uppercase; }
-    .modal-textarea {
-        background: transparent; border: 1px solid var(--tg-separator);
-        color: var(--tg-text); padding: 12px; border-radius: 10px; font-size: 15px;
-        width: 100%; min-height: 80px; outline: none; resize: vertical;
-        box-sizing: border-box; font-family: inherit; margin-bottom: 15px;
-    }
-    .modal-input {
-        background: transparent; border: 1px solid var(--tg-separator);
-        color: var(--tg-text); padding: 12px; border-radius: 10px; font-size: 15px;
-        width: 100%; outline: none; box-sizing: border-box; margin-bottom: 15px;
-    }
-    .mobile-fp-trigger-group {
-        display: flex; align-items: center; justify-content: center; gap: 8px;
-        padding: 12px; background: var(--tg-bg); border: 1px dashed var(--tg-separator);
-        border-radius: 12px; color: var(--tg-active); font-size: 14px; font-weight: 600;
-        width: 100%; margin-bottom: 15px; box-sizing: border-box;
-    }
-    .mobile-fp-trigger-group:active { opacity: 0.9; }
-    .modal-submit {
-        background: var(--tg-active); color: white; border: none;
-        padding: 14px; border-radius: 12px; font-weight: 700; font-size: 15px; width: 100%;
-    }
-    .modal-submit:active { opacity: 0.8; }
-    .modal-close-btn {
-        background: none; border: none; color: var(--tg-hint);
-        font-size: 14px; font-weight: 600; width: 100%; padding: 12px; margin-top: 10px;
-    }
-    .empty-state { text-align: center; padding: 40px 20px; color: var(--tg-hint); }
-    .empty-state p { font-size: 14px; color: var(--tg-hint); margin: 0; }
-</style>
 
 <div class="gc-header">
     <div class="gc-avatar">{{ group.name|slice:":2"|upper }}</div>
@@ -134,9 +25,37 @@
         {% endfor %}
     </div>
 
-    <button class="gc-hw-btn" onclick="document.getElementById('hwModal').classList.add('active')">
+    {% if is_tutor_owner %}
+    <button class="gc-hw-btn" onclick="document.getElementById('hwModal').style.display='flex'">
         <i class="fas fa-plus-circle"></i> Задать ДЗ группе
     </button>
+    {% endif %}
+
+    <div class="m-color-section">
+        <div class="m-color-label">Цвет группы</div>
+        <form action="{% url 'update_group_color' group.id %}" method="post" id="group-color-form-m">
+            {% csrf_token %}
+            <input type="hidden" name="color_hex" id="group-color-hex-m" value="{{ group_color_hex|default:'' }}">
+            <div class="entity-color-palette m-mb">
+                <span class="color-swatch" data-color="#6366f1" style="background:#6366f1;"></span>
+                <span class="color-swatch" data-color="#22c55e" style="background:#22c55e;"></span>
+                <span class="color-swatch" data-color="#f59e0b" style="background:#f59e0b;"></span>
+                <span class="color-swatch" data-color="#ef4444" style="background:#ef4444;"></span>
+                <span class="color-swatch" data-color="#ec4899" style="background:#ec4899;"></span>
+                <span class="color-swatch" data-color="#8b5cf6" style="background:#8b5cf6;"></span>
+                <span class="color-swatch" data-color="#06b6d4" style="background:#06b6d4;"></span>
+                <span class="color-swatch" data-color="#84cc16" style="background:#84cc16;"></span>
+            </div>
+            <div class="m-custom-color-row">
+                <input type="color" id="group-color-picker-m" value="{{ group_color_hex|default:'#6366f1' }}" class="m-color-picker-input">
+                <span class="m-color-hint">или свой цвет</span>
+            </div>
+            <div class="m-color-actions">
+                <button type="submit" class="tg-modal-btn">Сохранить</button>
+                <button type="button" onclick="document.getElementById('group-color-hex-m').value=''; document.getElementById('group-color-form-m').submit();" class="btn-secondary">Убрать цвет</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <div class="gc-section">
@@ -163,33 +82,62 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="3" style="text-align: center; color: var(--tg-hint); padding: 20px;">Занятий пока не было</td></tr>
+                <tr><td colspan="3" class="gc-empty-cell">Занятий пока не было</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 
-<div id="hwModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
-    <div class="modal-sheet">
-        <div class="modal-handle"></div>
-        <div class="modal-title">ДЗ для всей группы</div>
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="assign_group_homework" value="1">
-            <label class="modal-label">Описание задания</label>
-            <textarea name="description" class="modal-textarea" required placeholder="Опишите задание..."></textarea>
-            <label class="modal-label">Срок сдачи</label>
-            <input type="datetime-local" name="deadline" class="modal-input">
-            <label class="modal-label">Прикрепить файлы</label>
-            <button type="button" class="mobile-fp-trigger-group" onclick="openMobileFilePicker('group-hw-files-display', 'group-hw-files-select')">
-                <i class="fas fa-paperclip"></i> Прикрепить файлы из библиотеки
-            </button>
-            <div id="group-hw-files-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
-            <select id="group-hw-files-select" name="files" multiple hidden></select>
-            <button type="submit" class="modal-submit">Разослать всем ученикам</button>
-        </form>
-        <button class="modal-close-btn" onclick="document.getElementById('hwModal').classList.remove('active')">Отмена</button>
+<div id="hwModal" class="tg-modal" onclick="if(event.target===this) this.style.display='none'">
+    <div class="tg-modal-content" onclick="event.stopPropagation()">
+        <div class="tg-modal-header">
+            <h3>ДЗ для всей группы</h3>
+            <button type="button" class="close-modal" onclick="document.getElementById('hwModal').style.display='none'">&times;</button>
+        </div>
+        <div class="tg-modal-scroll">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="assign_group_homework" value="1">
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Описание задания</label>
+                    <textarea name="description" class="tg-modal-field-input" required placeholder="Опишите задание..."></textarea>
+                </div>
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Срок сдачи</label>
+                    <input type="datetime-local" name="deadline" class="tg-modal-field-input">
+                </div>
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Прикрепить файлы</label>
+                    <button type="button" class="mass-edit-fp-trigger" onclick="openMobileFilePicker('group-hw-files-display', 'group-hw-files-select')">
+                        <i class="fas fa-paperclip"></i> Файлы из библиотеки
+                    </button>
+                    <div id="group-hw-files-display" class="m-files-display"></div>
+                    <select id="group-hw-files-select" name="files" multiple hidden></select>
+                </div>
+                <div class="m-modal-actions">
+                    <button type="button" onclick="document.getElementById('hwModal').style.display='none'" class="btn-secondary">Отмена</button>
+                    <button type="submit" class="tg-modal-btn">Разослать всем</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+
+<script>
+(function() {
+    var form = document.getElementById('group-color-form-m');
+    if (!form) return;
+    var hidden = document.getElementById('group-color-hex-m');
+    var picker = document.getElementById('group-color-picker-m');
+    form.querySelectorAll('.color-swatch').forEach(function(sw) {
+        sw.addEventListener('click', function() {
+            var c = this.getAttribute('data-color');
+            hidden.value = c;
+            if (picker) picker.value = c;
+        });
+    });
+    if (picker) picker.addEventListener('input', function() { hidden.value = this.value; });
+})();
+</script>
 {% endblock %}

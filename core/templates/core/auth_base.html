@@ -5,13 +5,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}All4Tutors{% endblock %}</title>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'light';
+            if (theme === 'dark' || (theme !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body class="auth-layout">
+    <button type="button" class="theme-toggle-btn theme-toggle-btn-auth" id="themeToggleAuth" title="Переключить тему" aria-label="Тема">
+        <i class="fas fa-moon" data-icon-light></i>
+        <i class="fas fa-sun" data-icon-dark style="display: none;"></i>
+    </button>
     <div class="auth-flex-container">
         {% block content %}{% endblock %}
     </div>
+    <script>
+        (function() {
+            var btn = document.getElementById('themeToggleAuth');
+            if (!btn) return;
+            function updateIcon() {
+                var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                var iconLight = btn.querySelector('[data-icon-light]');
+                var iconDark = btn.querySelector('[data-icon-dark]');
+                if (iconLight) iconLight.style.display = isDark ? 'none' : 'inline-block';
+                if (iconDark) iconDark.style.display = isDark ? 'inline-block' : 'none';
+            }
+            updateIcon();
+            btn.addEventListener('click', function() {
+                var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                var next = isDark ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('theme', next);
+                updateIcon();
+            });
+        })();
+    </script>
 </body>
 </html>

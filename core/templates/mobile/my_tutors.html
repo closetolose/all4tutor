@@ -1,14 +1,14 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'index' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'index' %}" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
 
 <div class="page-section">
     <div class="page-title">
-        <i class="fas fa-chalkboard-teacher" style="color: var(--tg-active);"></i> Мои репетиторы
+        <i class="fas fa-chalkboard-teacher"></i> Мои репетиторы
     </div>
 </div>
 
@@ -20,10 +20,20 @@
                 {{ conn.tutor.first_name|first }}
             </div>
             <div class="tutor-main">
-                <a href="{% url 'tutor_card' conn.tutor.id %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i>
-                <span class="tutor-name">{{ conn.tutor.first_name }} {{ conn.tutor.last_name }}</span>
+                <a href="{% url 'tutor_card' conn.tutor.id %}" class="m-back-link">
+                    <span class="tutor-name">{{ conn.tutor.first_name }} {{ conn.tutor.last_name }}</span>
+                    <i class="fas fa-chevron-right"></i>
                 </a>
-                <span class="tutor-badge">ВАШ РЕПЕТИТОР</span>
+                <span class="tutor-actions-row">
+                    <span class="tutor-badge">ВАШ РЕПЕТИТОР</span>
+                    <button
+                        type="button"
+                        onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('colorModalM{{ conn.id }}').style.display='flex';"
+                        class="btn-icon"
+                    >
+                        <i class="fas fa-palette"></i>
+                    </button>
+                </span>
             </div>
         </div>
 
@@ -41,64 +51,64 @@
                 {% endif %}
             </div>
         </div>
+
+        <div id="colorModalM{{ conn.id }}" class="tg-modal" onclick="if(event.target===this) this.style.display='none'">
+            <div class="tg-modal-content" onclick="event.stopPropagation()">
+                <div class="tg-modal-header">
+                    <h3>Цвет для {{ conn.tutor.first_name }}</h3>
+                    <button type="button" class="close-modal" onclick="document.getElementById('colorModalM{{ conn.id }}').style.display='none'">&times;</button>
+                </div>
+                <div class="tg-modal-scroll">
+                    <form action="{% url 'update_tutor_color' conn.id %}" method="post" class="tutor-color-form-inline-m">
+                        {% csrf_token %}
+                        <input type="hidden" name="color_hex" class="inline-color-hex-m" value="{{ conn.color_hex|default:'' }}">
+                        <div class="entity-color-palette m-mb">
+                            <span class="color-swatch" data-color="#6366f1" style="background:#6366f1;"></span>
+                            <span class="color-swatch" data-color="#22c55e" style="background:#22c55e;"></span>
+                            <span class="color-swatch" data-color="#f59e0b" style="background:#f59e0b;"></span>
+                            <span class="color-swatch" data-color="#ef4444" style="background:#ef4444;"></span>
+                            <span class="color-swatch" data-color="#ec4899" style="background:#ec4899;"></span>
+                            <span class="color-swatch" data-color="#8b5cf6" style="background:#8b5cf6;"></span>
+                            <span class="color-swatch" data-color="#06b6d4" style="background:#06b6d4;"></span>
+                            <span class="color-swatch" data-color="#84cc16" style="background:#84cc16;"></span>
+                        </div>
+                        <div class="m-custom-color-row">
+                            <input type="color" class="inline-color-picker-m m-color-picker-input" value="{{ conn.color_hex|default:'#6366f1' }}">
+                            <span class="m-color-hint">Свой цвет</span>
+                        </div>
+                        <div class="m-modal-actions">
+                            <button type="button" onclick="var f=this.closest('form'); f.querySelector('.inline-color-hex-m').value=''; f.submit();" class="btn-secondary">Убрать</button>
+                            <button type="submit" class="tg-modal-btn">Сохранить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
     {% empty %}
     <div class="empty-state">
         <div class="empty-icon"><i class="fas fa-user-friends"></i></div>
         <p>У вас пока нет преподавателей</p>
-        <span>Попросите репетитора добавить вас по логину: <strong style="color: var(--tg-text);">{{ request.user.username }}</strong></span>
+        <span>Попросите репетитора добавить вас по логину: <strong>{{ request.user.username }}</strong></span>
     </div>
     {% endfor %}
 </div>
 
-<style>
-    .page-section { padding: 20px 15px 5px; }
-    .page-title { font-size: 20px; font-weight: 800; color: var(--tg-text); display: flex; align-items: center; gap: 10px; }
-
-    .tutors-list { padding: 10px 15px 50px; }
-
-    .tutor-card {
-        background: var(--tg-sidebar);
-        border: 1px solid var(--tg-separator);
-        border-radius: 16px;
-        padding: 15px;
-        margin-bottom: 10px;
-    }
-
-    .tutor-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-
-    .tutor-avatar {
-        width: 48px; height: 48px; border-radius: 50%;
-        background: var(--tg-active); color: white;
-        display: flex; align-items: center; justify-content: center;
-        font-weight: 700; font-size: 20px; flex-shrink: 0;
-    }
-
-    .tutor-main { display: flex; flex-direction: column; gap: 4px; }
-    .tutor-name { font-size: 16px; font-weight: 700; color: var(--tg-text); }
-
-    .tutor-badge {
-        display: inline-block; font-size: 10px; font-weight: 800;
-        background: var(--tg-green-bg); color: var(--tg-green);
-        padding: 3px 8px; border-radius: 6px;
-        text-transform: uppercase; width: fit-content;
-    }
-
-    .tutor-contacts {
-        background: var(--tg-card-active);
-        border-radius: 12px; padding: 10px 12px;
-    }
-
-    .contact-row {
-        display: flex; align-items: center; gap: 10px;
-        font-size: 14px; color: var(--tg-text); padding: 6px 0;
-    }
-    .contact-row i { color: var(--tg-hint); width: 18px; text-align: center; font-size: 13px; }
-    .contact-row .no-data { color: var(--tg-hint); font-style: italic; }
-
-    .empty-state { text-align: center; padding: 60px 20px; color: var(--tg-hint); }
-    .empty-icon { font-size: 40px; margin-bottom: 15px; opacity: 0.3; }
-    .empty-state p { font-size: 16px; font-weight: 600; margin: 0 0 5px; color: var(--tg-text); }
-    .empty-state span { font-size: 13px; line-height: 1.6; }
-</style>
+<script>
+(function() {
+    document.querySelectorAll('.tutor-color-form-inline-m').forEach(function(form) {
+        var hidden = form.querySelector('.inline-color-hex-m');
+        var picker = form.querySelector('.inline-color-picker-m');
+        if (!hidden) return;
+        form.querySelectorAll('.color-swatch').forEach(function(sw) {
+            sw.addEventListener('click', function() {
+                var c = this.getAttribute('data-color');
+                hidden.value = c;
+                if (picker) picker.value = c;
+            });
+        });
+        if (picker) picker.addEventListener('input', function() { hidden.value = this.value; });
+    });
+})();
+</script>
 {% endblock %}

@@ -3,45 +3,89 @@
 {% block title %}Помощь | All4Tutors{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
-    <div class="auth-card" style="text-align: center; max-width: 450px; width: 100%;">
-        <div style="margin-bottom: 25px;">
-            <div style="width: 70px; height: 70px; background: #f0f7ff; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px;">
-                <i class="fas fa-question-circle" style="font-size: 32px; color: #6366f1;"></i>
+<div style="max-width: 700px; margin: 0 auto;">
+    <div style="margin-bottom: 24px;">
+        <div style="width: 70px; height: 70px; background: var(--primary-light); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+            <i class="fas fa-question-circle" style="font-size: 32px; color: var(--primary);"></i>
+        </div>
+        <h2 style="font-weight: 900; color: var(--text-main); margin: 0;">Помощь и поддержка</h2>
+    </div>
+
+    <div class="card" style="margin-bottom: 24px;">
+        <p style="color: var(--text-secondary); font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+            Если у вас возникли трудности с использованием платформы или есть предложения по улучшению:
+        </p>
+        <p style="font-weight: 700; color: var(--text-main); margin-bottom: 10px;">По всем вопросам обращаться к Никите</p>
+        <a href="https://t.me/closetolose" target="_blank" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none;">
+            <i class="fab fa-telegram-plane"></i> @closetolose
+        </a>
+    </div>
+
+    <h3 style="margin: 0 0 16px; color: var(--text-main); font-size: 18px;"><i class="fas fa-book-open" style="color: var(--primary); margin-right: 8px;"></i> Как сделать X</h3>
+    <div class="faq-accordion">
+        <div class="faq-accordion-item">
+            <button type="button" class="faq-accordion-trigger" aria-expanded="false" data-faq-trigger>
+                <span>Как привязать Telegram-бота</span>
+                <i class="fas fa-chevron-down faq-accordion-icon"></i>
+            </button>
+            <div class="faq-accordion-panel">
+                <p>Перейдите в раздел «Настройки» или «Профиль». Найдите блок «Telegram». Нажмите «Привязать бота» и следуйте инструкции: отправьте боту команду /start в Telegram, затем введите ваш ID в поле на сайте. После подтверждения бот будет присылать напоминания о занятиях и домашних заданиях.</p>
             </div>
-            <h2 style="font-weight: 900; color: #1e293b; margin: 0;">Помощь и поддержка</h2>
         </div>
+        <div class="faq-accordion-item">
+            <button type="button" class="faq-accordion-trigger" aria-expanded="false" data-faq-trigger>
+                <span>Как отправить чек на пополнение баланса</span>
+                <i class="fas fa-chevron-down faq-accordion-icon"></i>
+            </button>
+            <div class="faq-accordion-panel">
+                <p>Откройте раздел «Оплаты» в меню. Нажмите кнопку «Отправить чек». Выберите репетитора, укажите сумму и дату платежа, прикрепите фото или PDF чека (до 10 МБ). После отправки репетитор проверит чек и подтвердит зачисление на ваш баланс.</p>
+            </div>
+        </div>
+        <div class="faq-accordion-item">
+            <button type="button" class="faq-accordion-trigger" aria-expanded="false" data-faq-trigger>
+                <span>Как добавить ученика или запросить связь с репетитором</span>
+                <i class="fas fa-chevron-down faq-accordion-icon"></i>
+            </button>
+            <div class="faq-accordion-panel">
+                <p>Репетитор: в разделе «Мои ученики» нажмите «Добавить ученика» и введите логин ученика. Ученик получит заявку в разделе «Подтверждение» и должен принять её. Ученик: найдите репетитора через поиск или приглашение и отправьте заявку на подключение; после одобрения репетитор появится в «Мои репетиторы».</p>
+            </div>
+        </div>
+    </div>
 
-        <div style="background: #f8fafc; padding: 25px; border-radius: 20px; border: 1px solid #f1f5f9;">
-            <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
-                Если у вас возникли трудности с использованием платформы или есть предложения по улучшению:
-            </p>
-            
-            <p style="font-weight: 700; color: #1e293b; margin-bottom: 10px;">
-                По всем вопросам обращаться к Никите
-            </p>
-            
-            <a href="https://t.me/closetolose" target="_blank" class="btn-auth" style="display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none;">
-                <i class="fab fa-telegram-plane"></i> @closetolose
-            </a>
-        </div>
-
-        <div style="margin-top: 25px;">
-            <a href="{% url 'index' %}" style="color: #94a3b8; text-decoration: none; font-size: 14px; font-weight: 600;">
-                <i class="fas fa-arrow-left"></i> Вернуться на главную
-            </a>
-        </div>
+    <div style="margin-top: 24px;">
+        <a href="{% url 'index' %}" style="color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 600;">
+            <i class="fas fa-arrow-left"></i> Вернуться на главную
+        </a>
     </div>
 </div>
 
 <style>
-    .auth-card {
-        animation: slideUp 0.5s ease-out;
-    }
-
-    @keyframes slideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
+.faq-accordion { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.faq-accordion-item { border-bottom: 1px solid var(--border); }
+.faq-accordion-item:last-child { border-bottom: none; }
+.faq-accordion-trigger {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    min-height: 44px; padding: 16px 20px; background: var(--bg-card); border: none; cursor: pointer;
+    font-size: 16px; font-weight: 600; color: var(--text-main); text-align: left;
+    transition: background var(--transition);
+}
+.faq-accordion-trigger:hover { background: var(--bg-table-hover); }
+.faq-accordion-icon { transition: transform var(--transition); color: var(--text-muted); }
+.faq-accordion-trigger[aria-expanded="true"] .faq-accordion-icon { transform: rotate(180deg); }
+.faq-accordion-panel { display: none; padding: 0 20px 16px; }
+.faq-accordion-panel.open { display: block; }
+.faq-accordion-panel p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
 </style>
+<script>
+(function() {
+    document.querySelectorAll('[data-faq-trigger]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var isOpen = this.getAttribute('aria-expanded') === 'true';
+            var panel = this.nextElementSibling;
+            this.setAttribute('aria-expanded', !isOpen);
+            if (panel) panel.classList.toggle('open', !isOpen);
+        });
+    });
+})();
+</script>
 {% endblock %}

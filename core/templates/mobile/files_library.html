@@ -10,7 +10,55 @@
     <h2><i class="fas fa-folder-open"></i> Мои материалы</h2>
 </div>
 
-<div class="fl-file-list">
+<form id="search-form" method="get" action="{% url 'files_library' %}" class="fl-search-row">
+    <input type="hidden" name="sort" value="{{ sort_param|default:'date-desc' }}">
+    {% for tid in selected_tag_ids %}
+    <input type="hidden" name="tag" value="{{ tid }}">
+    {% endfor %}
+    <div class="fl-search-wrap">
+        <i class="fas fa-search fl-search-icon"></i>
+        <input type="text" name="q" value="{{ query|default:'' }}" placeholder="Поиск по названию..." class="fl-search-input" autocomplete="off">
+    </div>
+    {% if query %}
+    <a href="{% url 'files_library' %}{% if selected_tag_ids or sort_param %}?{% endif %}{% for tid in selected_tag_ids %}tag={{ tid }}{% if not forloop.last %}&{% endif %}{% endfor %}{% if sort_param and sort_param != 'date-desc' %}{% if selected_tag_ids %}&{% endif %}sort={{ sort_param }}{% endif %}" class="fl-reset-btn" title="Сбросить поиск"><i class="fas fa-times"></i></a>
+    {% endif %}
+</form>
+
+{% if tutor_tags %}
+<div class="fl-tag-filter">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span class="fl-tag-label" style="margin-bottom: 0;">Теги:</span>
+        <button type="button" onclick="openModal('manageTagsModal')" style="background: none; border: 1px solid var(--tg-separator); color: var(--tg-active); font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer;"><i class="fas fa-cog"></i> Управление</button>
+    </div>
+    <form method="get" action="{% url 'files_library' %}" id="tag-filter-form" class="fl-tag-chips">
+        <input type="hidden" name="q" value="{{ query|default:'' }}">
+        <input type="hidden" name="sort" value="{{ sort_param|default:'date-desc' }}">
+        {% for tag in tutor_tags %}
+        <label class="fl-tag-chip {% if tag.id in selected_tag_ids %}active{% endif %}">
+            <input type="checkbox" name="tag" value="{{ tag.id }}" {% if tag.id in selected_tag_ids %}checked{% endif %} onchange="this.form.submit()"> {{ tag.name }}
+        </label>
+        {% endfor %}
+    </form>
+</div>
+{% endif %}
+
+<div class="fl-sort-row">
+    <span class="fl-sort-label">Сортировка:</span>
+    <form method="get" action="{% url 'files_library' %}" id="sort-form" style="display: inline;">
+        <input type="hidden" name="q" value="{{ query|default:'' }}">
+        {% for tid in selected_tag_ids %}
+        <input type="hidden" name="tag" value="{{ tid }}">
+        {% endfor %}
+        <select name="sort" class="fl-sort-select" onchange="this.form.submit()">
+            <option value="name-asc" {% if sort_param == 'name-asc' %}selected{% endif %}>По названию (А→Я)</option>
+            <option value="name-desc" {% if sort_param == 'name-desc' %}selected{% endif %}>По названию (Я→А)</option>
+            <option value="date-desc" {% if sort_param == 'date-desc' or not sort_param %}selected{% endif %}>По дате (новые первые)</option>
+            <option value="date-asc" {% if sort_param == 'date-asc' %}selected{% endif %}>По дате (старые первые)</option>
+        </select>
+    </form>
+</div>
+
+<div id="fl-file-list" class="fl-file-list">
     {% for f in files %}
     <div class="fl-file-card">
         <div class="fl-file-icon">
@@ -27,7 +75,7 @@
         </div>
         <div class="fl-file-actions">
             <a href="{{ f.file.url }}" target="_blank" class="fl-action-btn"><i class="fas fa-download"></i></a>
-            <button onclick="prepareEditModal('{{ f.id }}', '{{ f.file_name|escapejs }}')" class="fl-action-btn"><i class="fas fa-edit"></i></button>
+            <button type="button" onclick="prepareEditModal('{{ f.id }}', '{{ f.file_name|escapejs }}', '{% for tag in f.tags.all %}{{ tag.id }}{% if not forloop.last %},{% endif %}{% endfor %}')" class="fl-action-btn"><i class="fas fa-edit"></i></button>
             <form method="post" action="{% url 'delete_file' f.id %}" style="display: inline;" onsubmit="return confirm('Удалить файл «{{ f.file_name|escapejs }}» навсегда?');">
                 {% csrf_token %}
                 <button type="submit" class="fl-action-btn fl-delete" title="Удалить"><i class="fas fa-trash"></i></button>
@@ -35,12 +83,17 @@
         </div>
     </div>
     {% empty %}
-    <div class="fl-empty-state">
+    <div class="fl-empty-state" id="fl-empty-state">
         <div class="fl-empty-icon"><i class="fas fa-cloud-upload-alt"></i></div>
         <p>Библиотека пуста</p>
         <span>Загрузите свои методички, книги или тесты</span>
     </div>
     {% endfor %}
+</div>
+
+<div id="fl-lazy-loader" class="fl-lazy-loader" style="display: none;">
+    <i class="fas fa-spinner fa-spin fa-2x"></i>
+    <div style="margin-top: 10px; font-size: 14px; color: var(--tg-hint);">Загружаем ещё...</div>
 </div>
 
 <a href="javascript:void(0)" onclick="openModal('uploadFileModal')" class="fab-btn">
@@ -57,7 +110,16 @@
             {% csrf_token %}
             <div class="fl-form-group">
                 <label class="fl-label">Название (видят ученики)</label>
-                <input type="text" name="file_name" class="fl-input" placeholder="Например: ЕГЭ 2024 Вариант 1">
+                <input type="text" name="file_name" class="fl-input" placeholder="Например: ЕГЭ 2024 Вариант 1" required>
+            </div>
+            <div class="fl-form-group">
+                <label class="fl-label">Теги</label>
+                <div class="fl-tags-wrap">
+                    {% for tag in tutor_tags %}
+                    <label class="fl-tag-check"><input type="checkbox" name="tags" value="{{ tag.id }}"> {{ tag.name }}</label>
+                    {% endfor %}
+                </div>
+                <input type="text" name="new_tag_name" class="fl-input" placeholder="Или введите новый тег" style="margin-top: 8px;" maxlength="50">
             </div>
             <div class="fl-form-group">
                 <label class="fl-label">Выберите файл</label>
@@ -81,6 +143,14 @@
                 <input type="text" name="file_name" id="editFileNameInput" class="fl-input" required>
             </div>
             <div class="fl-form-group">
+                <label class="fl-label">Теги</label>
+                <div id="edit-file-tags-wrap" class="fl-tags-wrap">
+                    {% for tag in tutor_tags %}
+                    <label class="fl-tag-check"><input type="checkbox" name="tags" value="{{ tag.id }}" class="edit-tag-cb"> {{ tag.name }}</label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="fl-form-group">
                 <label class="fl-label">Заменить файл (опционально)</label>
                 <div class="fl-hint">Если хотите оставить старый файл, не выбирайте ничего.</div>
                 <input type="file" name="file" class="fl-input fl-file-input">
@@ -90,7 +160,33 @@
     </div>
 </div>
 
+<div id="manageTagsModal" class="fl-modal-overlay">
+    <div class="fl-modal-window">
+        <div class="fl-modal-header">
+            <h3><i class="fas fa-tags"></i> Управление тегами</h3>
+            <button class="fl-modal-close" onclick="closeModal('manageTagsModal')">&times;</button>
+        </div>
+        <ul id="manageTagsList" style="list-style: none; margin: 0 0 16px; padding: 0;">
+            {% for tag in tutor_tags %}
+            <li class="manage-tag-row" data-tag-id="{{ tag.id }}" style="display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--tg-separator);">
+                <span class="manage-tag-name" style="flex: 1; font-weight: 700; color: var(--tg-text);">{{ tag.name }}</span>
+                <button type="button" class="fl-action-btn" onclick="startRenameTagMobile(this)" title="Переименовать" style="width: 40px; height: 40px; min-width: 40px; min-height: 40px;"><i class="fas fa-pen"></i></button>
+                <button type="button" class="fl-action-btn fl-delete" onclick="deleteTagMobile(this)" title="Удалить" style="width: 40px; height: 40px; min-width: 40px; min-height: 40px;"><i class="fas fa-trash-alt"></i></button>
+            </li>
+            {% endfor %}
+        </ul>
+        {% if not tutor_tags %}
+        <p style="color: var(--tg-hint); text-align: center; padding: 20px 0;">Тегов пока нет</p>
+        {% endif %}
+        <button type="button" onclick="closeModal('manageTagsModal')" style="width: 100%; background: transparent; border: 1px solid var(--tg-separator); color: var(--tg-hint); padding: 14px; border-radius: 12px; font-weight: 700; cursor: pointer;">Закрыть</button>
+    </div>
+</div>
+
 <script>
+    function getCsrf() {
+        return (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+    }
+
     function openModal(id) {
         document.getElementById(id).classList.add('active');
     }
@@ -99,12 +195,144 @@
         document.getElementById(id).classList.remove('active');
     }
 
-    function prepareEditModal(id, currentName) {
-        const form = document.getElementById('editFileForm');
-        const nameInput = document.getElementById('editFileNameInput');
+    function startRenameTagMobile(btn) {
+        var row = btn.closest('.manage-tag-row');
+        var nameEl = row.querySelector('.manage-tag-name');
+        var oldName = nameEl.textContent.trim();
+        nameEl.innerHTML = '<input type="text" class="fl-input" value="' + oldName.replace(/"/g, '&quot;') + '" style="padding: 8px 10px; min-height: 36px;">';
+        var input = nameEl.querySelector('input');
+        input.focus();
+        input.select();
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.title = 'Сохранить';
+        btn.onclick = function() { saveRenameTagMobile(row, input, btn, oldName); };
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); saveRenameTagMobile(row, input, btn, oldName); }
+        });
+    }
+
+    function saveRenameTagMobile(row, input, btn, oldName) {
+        var newName = input.value.trim();
+        if (!newName || newName === oldName) { cancelRenameMobile(row.querySelector('.manage-tag-name'), btn, oldName); return; }
+        var tagId = row.dataset.tagId;
+        btn.disabled = true;
+        fetch('/tags/' + tagId + '/rename/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrf(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            if (data.success) {
+                row.querySelector('.manage-tag-name').textContent = data.name;
+                btn.innerHTML = '<i class="fas fa-pen"></i>';
+                btn.title = 'Переименовать';
+                btn.onclick = function() { startRenameTagMobile(btn); };
+                updateTagsOnPageMobile(tagId, data.name);
+            } else {
+                alert(data.error || 'Ошибка');
+                cancelRenameMobile(row.querySelector('.manage-tag-name'), btn, oldName);
+            }
+        })
+        .catch(function() { btn.disabled = false; alert('Ошибка сети'); cancelRenameMobile(row.querySelector('.manage-tag-name'), btn, oldName); });
+    }
+
+    function cancelRenameMobile(nameEl, btn, oldName) {
+        nameEl.textContent = oldName;
+        btn.innerHTML = '<i class="fas fa-pen"></i>';
+        btn.title = 'Переименовать';
+        btn.onclick = function() { startRenameTagMobile(btn); };
+    }
+
+    function deleteTagMobile(btn) {
+        var row = btn.closest('.manage-tag-row');
+        var tagId = row.dataset.tagId;
+        var tagName = row.querySelector('.manage-tag-name').textContent.trim();
+        if (!confirm('Удалить тег «' + tagName + '»?')) return;
+        btn.disabled = true;
+        fetch('/tags/' + tagId + '/delete/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrf(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                row.remove();
+                removeTagFromPageMobile(tagId);
+            } else { btn.disabled = false; alert(data.error || 'Ошибка'); }
+        })
+        .catch(function() { btn.disabled = false; alert('Ошибка сети'); });
+    }
+
+    function updateTagsOnPageMobile(tagId, newName) {
+        document.querySelectorAll('#tag-filter-form .fl-tag-chip').forEach(function(label) {
+            var cb = label.querySelector('input[value="' + tagId + '"]');
+            if (cb) { label.childNodes.forEach(function(n) { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = ' ' + newName; }); }
+        });
+        document.querySelectorAll('#uploadFileModal .fl-tag-check, #editFileModal .fl-tag-check').forEach(function(label) {
+            var cb = label.querySelector('input[value="' + tagId + '"]');
+            if (cb) { label.childNodes.forEach(function(n) { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = ' ' + newName; }); }
+        });
+    }
+
+    function removeTagFromPageMobile(tagId) {
+        document.querySelectorAll('#tag-filter-form .fl-tag-chip').forEach(function(label) {
+            if (label.querySelector('input[value="' + tagId + '"]')) label.remove();
+        });
+        document.querySelectorAll('#uploadFileModal .fl-tag-check, #editFileModal .fl-tag-check').forEach(function(label) {
+            if (label.querySelector('input[value="' + tagId + '"]')) label.remove();
+        });
+    }
+
+    function prepareEditModal(id, currentName, tagIdsStr) {
+        var form = document.getElementById('editFileForm');
+        var nameInput = document.getElementById('editFileNameInput');
         nameInput.value = currentName;
-        form.action = `/files/edit/${id}/`;
+        form.action = '/files/edit/' + id + '/';
+        document.querySelectorAll('#editFileModal .edit-tag-cb').forEach(function(cb) { cb.checked = false; });
+        if (tagIdsStr) {
+            var ids = tagIdsStr.split(',').map(function(x) { return x.trim(); }).filter(Boolean);
+            ids.forEach(function(tid) {
+                var cb = document.querySelector('#editFileModal .edit-tag-cb[value="' + tid + '"]');
+                if (cb) cb.checked = true;
+            });
+        }
         openModal('editFileModal');
+    }
+
+    var flCurrentPage = 1;
+    var flLoading = false;
+    var flHasMore = {% if files|length >= 20 %}true{% else %}false{% endif %};
+
+    window.addEventListener('scroll', function() {
+        if (flLoading || !flHasMore) return;
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
+            loadMoreFilesMobile();
+        }
+    });
+
+    function loadMoreFilesMobile() {
+        flLoading = true;
+        document.getElementById('fl-lazy-loader').style.display = 'block';
+        flCurrentPage++;
+        var params = new URLSearchParams(window.location.search);
+        params.set('page', flCurrentPage);
+        fetch('/load-more-files/?' + params.toString())
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                flHasMore = data.has_more;
+                var empty = document.getElementById('fl-empty-state');
+                if (empty) empty.remove();
+                var list = document.getElementById('fl-file-list');
+                if (list) list.insertAdjacentHTML('beforeend', data.html);
+            })
+            .catch(function(err) { console.error(err); })
+            .finally(function() {
+                flLoading = false;
+                document.getElementById('fl-lazy-loader').style.display = 'none';
+            });
     }
 </script>
 
@@ -123,6 +351,119 @@
         margin-right: 8px;
     }
 
+    .fl-search-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 0 15px 12px;
+    }
+    .fl-search-wrap {
+        position: relative;
+        flex: 1;
+    }
+    .fl-search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--tg-hint);
+        pointer-events: none;
+    }
+    .fl-search-input {
+        width: 100%;
+        min-height: 44px;
+        padding: 0 14px 0 40px;
+        border-radius: 10px;
+        border: 1px solid var(--tg-separator);
+        background: var(--tg-sidebar);
+        color: var(--tg-text);
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+    .fl-reset-btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+        border-radius: 10px;
+        background: var(--tg-card-active);
+        border: 1px solid var(--tg-separator);
+        color: var(--tg-hint);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+    }
+    .fl-tag-filter {
+        padding: 0 15px 12px;
+    }
+    .fl-tag-label {
+        font-size: 12px;
+        color: var(--tg-hint);
+        font-weight: 600;
+        display: block;
+        margin-bottom: 8px;
+    }
+    .fl-tag-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .fl-tag-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--tg-separator);
+        background: var(--tg-sidebar);
+        color: var(--tg-text);
+        font-size: 13px;
+        cursor: pointer;
+    }
+    .fl-tag-chip.active {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: var(--tg-active);
+        color: var(--tg-active);
+    }
+    .fl-sort-row {
+        padding: 0 15px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .fl-sort-label {
+        font-size: 13px;
+        color: var(--tg-hint);
+    }
+    .fl-sort-select {
+        flex: 1;
+        min-height: 44px;
+        padding: 0 12px;
+        border-radius: 8px;
+        border: 1px solid var(--tg-separator);
+        background: var(--tg-sidebar);
+        color: var(--tg-text);
+        font-size: 16px;
+    }
+    .fl-tags-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .fl-tag-check {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+    .fl-lazy-loader {
+        text-align: center;
+        padding: 20px;
+        color: var(--tg-hint);
+    }
+
     .fl-file-list {
         padding: 10px 15px 100px;
     }
@@ -134,8 +475,8 @@
         background: var(--tg-sidebar);
         border: 1px solid var(--tg-separator);
         border-radius: 16px;
-        padding: 15px;
-        margin-bottom: 10px;
+        padding: 16px;
+        margin-bottom: 8px;
         transition: transform 0.1s;
     }
     .fl-file-card:active {
@@ -178,8 +519,10 @@
         flex-shrink: 0;
     }
     .fl-action-btn {
-        width: 36px;
-        height: 36px;
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
         border-radius: 10px;
         background: var(--tg-card-active);
         border: 1px solid var(--tg-separator);
@@ -305,7 +648,8 @@
         padding: 12px;
         border-radius: 10px;
         width: 100%;
-        font-size: 15px;
+        font-size: 16px;
+        min-height: 44px;
         box-sizing: border-box;
     }
     .fl-input::placeholder {
@@ -326,12 +670,13 @@
         color: white;
         border: none;
         padding: 14px;
+        min-height: 44px;
         border-radius: 12px;
         font-weight: 700;
         width: 100%;
-        font-size: 15px;
+        font-size: 16px;
         cursor: pointer;
-        margin-top: 5px;
+        margin-top: 8px;
     }
     .fl-submit-btn:active {
         opacity: 0.9;

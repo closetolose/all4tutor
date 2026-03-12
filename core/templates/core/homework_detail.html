@@ -24,7 +24,7 @@
 
 <div style="max-width: 900px; margin: 0 auto;">
 
-    <div style="margin-bottom: 20px;">
+        <div style="margin-bottom: 16px;">
         <a href="javascript:history.back()" style="color: #64748b; text-decoration: none; font-size: 14px; font-weight: 600; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='#64748b'">
             <i class="fas fa-arrow-left" style="margin-right: 5px;"></i> Назад к списку
         </a>
@@ -32,7 +32,7 @@
 
     <div class="card" style="padding: 0; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
 
-        <div style="padding: 25px 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <div style="padding: 24px 32px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
             <div>
                 <h1 style="margin: 0 0 5px 0; font-size: 24px; color: #1e293b;">{{ hw.subject.name|default:hw.subject }}</h1>
                 <div style="font-size: 13px; color: #64748b; display: flex; align-items: center; gap: 5px;">
@@ -46,18 +46,18 @@
             <span class="badge-hw status-{{ hw.status }}">{{ hw.get_status_display }}</span>
         </div>
 
-        <div style="padding: 30px;">
+        <div style="padding: 32px;">
 
-            <div style="margin-bottom: 25px;">
+            <div style="margin-bottom: 24px;">
                 <div class="detail-section-title"><i class="fas fa-align-left"></i> Описание задания</div>
-                <div style="font-size: 15px; color: #334155; line-height: 1.6; background: #f1f5f9; padding: 20px; border-radius: 12px; border-left: 4px solid var(--primary);">
+                <div class="hw-detail-description" style="font-size: 15px; color: #334155; line-height: 1.6; background: #f1f5f9; padding: 20px; border-radius: 12px; border-left: 4px solid var(--primary);">
                     {{ hw.description|linebreaksbr }}
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px;">
 
-                <div style="background: white; border: 1px solid var(--border); padding: 15px 20px; border-radius: 12px;">
+                <div style="background: white; border: 1px solid var(--border); padding: 16px 20px; border-radius: 12px;">
                     <span style="color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 8px;">Срок сдачи (Дедлайн)</span>
                     <div style="font-size: 16px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 8px;">
                         <i class="far fa-clock" style="color: #f59e0b; font-size: 18px;"></i>
@@ -66,7 +66,7 @@
                 </div>
 
                 {% if hw.files.exists %}
-                <div style="background: white; border: 1px solid var(--border); padding: 15px 20px; border-radius: 12px;">
+                <div style="background: white; border: 1px solid var(--border); padding: 16px 20px; border-radius: 12px;">
                     <span style="color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 8px;">Материалы от репетитора</span>
                     <a href="{% url 'download_homework_all' hw.id %}" class="btn btn-outline btn-sm" style="display: flex; justify-content: center; width: 100%; border-radius: 8px;">
                         <i class="fas fa-file-archive"></i> Скачать архив ({{ hw.files.count }})
@@ -77,23 +77,23 @@
             </div>
 
             {% if hw.tutor_comment %}
-            <div style="margin-bottom: 35px;">
+            <div style="margin-bottom: 32px;">
                 <div class="detail-section-title" style="color: #d97706;"><i class="fas fa-comment-dots"></i> Комментарий / Работа над ошибками</div>
-                <div style="background: #fffbeb; border: 1px solid #fde68a; padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b; font-size: 14px; color: #92400e; font-style: italic; line-height: 1.5;">
+                <div class="hw-detail-comment" style="background: #fffbeb; border: 1px solid #fde68a; padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b; font-size: 14px; color: #92400e; font-style: italic; line-height: 1.5;">
                     "{{ hw.tutor_comment|linebreaksbr }}"
                 </div>
             </div>
             {% endif %}
 
             <div>
-                <div class="detail-section-title" style="border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+                <div class="detail-section-title" style="border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 16px;">
                     <i class="fas fa-tasks"></i> Ответы ученика
                 </div>
 
                 {% if responses %}
                     <div style="display: flex; flex-direction: column; gap: 12px;">
                     {% for resp in responses %}
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s;" onmouseover="this.style.borderColor='#cbd5e1'; this.style.background='#f1f5f9';" onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc';">
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s;" onmouseover="this.style.borderColor='#cbd5e1'; this.style.background='#f1f5f9';" onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc';">
 
                             <div style="display: flex; align-items: center; gap: 15px;">
                                 <div style="width: 40px; height: 40px; background: #dcfce7; color: #166534; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;">
@@ -126,10 +126,10 @@
                     {% endfor %}
                     </div>
                 {% else %}
-                    <div class="empty-state" style="padding: 40px 20px; text-align: center; border: 2px dashed #e2e8f0; border-radius: 16px; background: #f8fafc;">
-                        <div style="font-size: 35px; color: #cbd5e1; margin-bottom: 15px;"><i class="fas fa-folder-open"></i></div>
-                        <h4 style="margin: 0 0 8px 0; font-size: 16px; color: #475569;">Решения пока нет</h4>
-                        <p style="margin: 0 0 8px 0; font-size: 13px; color: #94a3b8;">Ученик еще не прикрепил файлы с ответами.</p>
+                    <div class="empty-state hw-no-responses-empty" style="padding: 40px 20px; border: 2px dashed var(--border); border-radius: 16px; background: var(--bg-table-header); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                        <div style="font-size: 35px; color: var(--text-muted); margin-bottom: 16px;"><i class="fas fa-folder-open"></i></div>
+                        <h4 style="margin: 0 0 8px 0; font-size: 16px; color: var(--text-secondary);">Решения пока нет</h4>
+                        <p style="margin: 0 0 8px 0; font-size: 13px; color: var(--text-muted);">Ученик еще не прикрепил файлы с ответами.</p>
                     </div>
                 {% endif %}
             </div>

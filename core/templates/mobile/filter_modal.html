@@ -1,4 +1,10 @@
 <style>
+    .tg-select-arrow {
+        padding-right: 28px !important;
+        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="%236366f1" d="M7 10l5 5 5-5z"/></svg>') no-repeat right center !important;
+        background-size: 20px !important;
+        color: var(--tg-active);
+    }
     .mass-edit-fp-trigger {
         display: flex; align-items: center; justify-content: center; gap: 10px;
         padding: 14px; background: rgba(99, 102, 241, 0.08);
@@ -13,8 +19,9 @@
         margin: 0 0 16px 0; gap: 4px;
     }
     #mass-edit-modal .segment-option {
-        flex: 1; text-align: center; padding: 10px; border-radius: 10px;
+        flex: 1; text-align: center; padding: 12px 10px; min-height: 44px; border-radius: 10px;
         font-size: 14px; font-weight: 700; color: var(--tg-hint); transition: 0.2s; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
     }
     #mass-edit-modal .segment-option.active {
         background: var(--tg-card-bg); color: var(--tg-text);
@@ -94,6 +101,28 @@
                 </div>
             </div>
 
+            <div class="tg-section-title">Формат, место, заметки</div>
+            <div class="tg-section no-margin">
+                <div class="tg-input-row">
+                    <div class="tg-label">Формат</div>
+                    <div class="tg-field-wrap">
+                        <select id="m_format">
+                            <option value="">Не менять</option>
+                            <option value="online">Онлайн</option>
+                            <option value="offline">Очно</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="tg-input-row">
+                    <div class="tg-label">Место / Ссылка</div>
+                    <div class="tg-field-wrap"><input type="text" id="m_location" placeholder="Не менять"></div>
+                </div>
+                <div class="tg-input-row last">
+                    <div class="tg-label">Заметки</div>
+                    <div class="tg-field-wrap"><textarea id="m_notes" rows="2" placeholder="Оставить без изменений"></textarea></div>
+                </div>
+            </div>
+
             <div class="tg-section-title">Материалы</div>
             <div class="tg-section no-margin">
                 <button type="button" class="mass-edit-fp-trigger" onclick="openMobileFilePicker('mass-edit-files-display', 'mass-edit-files-select')">
@@ -122,7 +151,7 @@
             <div class="tg-section">
                 <div class="tg-input-row last">
                     <div class="tg-field-wrap">
-                        <select name="target" style="padding-right: 20px; background: url('data:image/svg+xml;utf8,<svg fill=\"%236366f1\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/></svg>') no-repeat right center; background-size: 20px;">
+                        <select name="target" class="tg-select-arrow">
                             <option value="">Все</option>
                             <optgroup label="Ученики">
                                 {% for s in tutor_students %}
@@ -143,7 +172,7 @@
             <div class="tg-section">
                 <div class="tg-input-row last">
                     <div class="tg-field-wrap">
-                        <select name="subject" style="padding-right: 20px; background: url('data:image/svg+xml;utf8,<svg fill=\"%236366f1\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/></svg>') no-repeat right center; background-size: 20px;">
+                        <select name="subject" class="tg-select-arrow">
                             <option value="">Любой предмет</option>
                             {% for item in my_subjects %}
                             <option value="{{ item.subject.id }}" {% if request.GET.subject == item.subject.id|stringformat:"i" %}selected{% endif %}>{{ item.subject.name }}</option>
@@ -170,6 +199,23 @@
                 <button type="submit" class="btn-primary-modal">Применить</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Bottom Sheet: посещаемость — список учеников (мобильная версия) -->
+<div id="attendanceBottomSheet" class="tg-modal" style="display: none;" onclick="if(event.target===this)closeAttendanceListSheet()">
+    <div class="tg-modal-content" onclick="event.stopPropagation()">
+        <div class="tg-modal-header">
+            <h3>Посещаемость</h3>
+            <button type="button" onclick="closeAttendanceListSheet()" class="close-modal">&times;</button>
+        </div>
+        <div class="tg-modal-scroll" style="padding-top: 0;">
+            <p id="attSheetLessonInfo" style="font-size: 13px; color: var(--tg-hint); margin: 0 0 12px;"></p>
+            <ul id="attSheetList" style="list-style: none; margin: 0; padding: 0;"></ul>
+        </div>
+        <div class="tg-modal-footer">
+            <button type="button" onclick="closeAttendanceListSheet()" class="btn-secondary" style="flex: 1;">Закрыть</button>
+        </div>
     </div>
 </div>
 
@@ -206,10 +252,15 @@
     }
 
     function handleCardClick(e, el) {
+        if (e.target.closest('.mobile-attendance-btn')) return;
         if (isSelectionMode) {
             toggleSelection(el);
         } else {
-            window.location.href = "/lesson/edit/" + el.getAttribute('data-id') + "/";
+            if (typeof openLessonDetailModalMobile === 'function') {
+                openLessonDetailModalMobile(el);
+            } else {
+                window.location.href = "/lesson/edit/" + el.getAttribute('data-id') + "/";
+            }
         }
     }
 
@@ -250,7 +301,10 @@
             'mass_date': document.getElementById('m_date').value,
             'mass_time': document.getElementById('m_time').value,
             'mass_price': document.getElementById('m_price').value,
-            'mass_duration': document.getElementById('m_duration').value
+            'mass_duration': document.getElementById('m_duration').value,
+            'mass_format': document.getElementById('m_format') ? document.getElementById('m_format').value : '',
+            'mass_location': document.getElementById('m_location') ? document.getElementById('m_location').value : '',
+            'notes': document.getElementById('m_notes') ? document.getElementById('m_notes').value : ''
         };
 
         for (let key in fields) {
@@ -300,27 +354,165 @@ function closeModal(id) {
         document.body.style.overflow = 'auto';
     }
 }
-function quickTogglePresence(el, attId) {
 
-    fetch(`/toggle-presence/${attId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'ok') {
-            if (data.was_present) {
-                el.classList.add('present');
-            } else {
-                el.classList.remove('present');
-            }
-        }
-    })
-    .catch(error => console.error('Ошибка:', error));
+function lessonDetailEmptyVal(s) {
+    var t = String(s || '').trim();
+    if (!t) return '';
+    if (t === '-' || t === '\u2014' || t === '\u002D' || t === '—' || t === '\\u002D' || t === '\\u2014') return '';
+    if (/^[\s\-—\u2014\u002D]+$/.test(t)) return '';
+    return t;
 }
+function openLessonDetailModalMobile(card) {
+    var d = card.dataset;
+    var location = lessonDetailEmptyVal(d.location);
+    var showYandex = location && !/^https?:\/\//i.test(location);
+    document.getElementById('lessonDetailSubjectM').textContent = lessonDetailEmptyVal(d.subject);
+    document.getElementById('lessonDetailDateTimeM').textContent = (d.date || '') + ' ' + (d.time || '').trim();
+    document.getElementById('lessonDetailDurationM').textContent = (d.duration || '60') + ' мин';
+    document.getElementById('lessonDetailFormatM').textContent = lessonDetailEmptyVal(d.format);
+    var participantsM = document.getElementById('lessonDetailParticipantsM');
+    if (participantsM) participantsM.textContent = lessonDetailEmptyVal(d.participants);
+    document.getElementById('lessonDetailLocationM').textContent = location;
+    var yandexWrap = document.getElementById('lessonDetailYandexWrapM');
+    var yandexLink = document.getElementById('lessonDetailYandexLinkM');
+    if (showYandex && yandexLink) {
+        yandexLink.href = 'https://yandex.ru/maps/?text=' + encodeURIComponent(location);
+        yandexWrap.style.display = 'block';
+    } else {
+        yandexWrap.style.display = 'none';
+    }
+    var notesWrap = document.getElementById('lessonDetailNotesWrapM');
+    var notesEl = document.getElementById('lessonDetailNotesM');
+    var notesVal = lessonDetailEmptyVal(d.notes);
+    if (notesVal && notesEl) {
+        notesEl.textContent = notesVal;
+        notesWrap.style.display = 'block';
+    } else {
+        if (notesEl) notesEl.textContent = '';
+        notesWrap.style.display = 'none';
+    }
+    var materialsWrap = document.getElementById('lessonDetailMaterialsWrapM');
+    var namesStr = d.materialsNames || '';
+    var listEl = document.getElementById('lessonDetailMaterialsListM');
+    var downloadAll = document.getElementById('lessonDetailDownloadAllM');
+    if (namesStr && listEl) {
+        listEl.innerHTML = namesStr.split('|||').map(function(n) { var div = document.createElement('li'); div.textContent = n; return div.outerHTML; }).join('');
+        if (downloadAll && d.downloadUrl) {
+            downloadAll.href = d.downloadUrl;
+            downloadAll.style.display = 'inline-flex';
+        }
+        materialsWrap.style.display = 'block';
+    } else {
+        listEl.innerHTML = '';
+        if (downloadAll) downloadAll.style.display = 'none';
+        materialsWrap.style.display = 'none';
+    }
+    var editLink = document.getElementById('lessonDetailEditLinkM');
+    if (editLink) editLink.href = '/lesson/edit/' + (card.getAttribute('data-id') || '') + '/';
+    var modal = document.getElementById('lessonDetailModalMobile');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.onclick = function(e) { if (e.target === modal) closeModal('lessonDetailModalMobile'); };
+        document.body.style.overflow = 'hidden';
+    }
+}
+var attendanceListSheetState = { cardEl: null, attendances: [] };
+
+function openAttendanceListSheet(cardEl) {
+    var raw = cardEl.getAttribute('data-attendances');
+    if (!raw) return;
+    var attendances = [];
+    try {
+        attendances = JSON.parse(raw);
+    } catch (e) {
+        return;
+    }
+    attendanceListSheetState.cardEl = cardEl;
+    attendanceListSheetState.attendances = attendances;
+
+    document.getElementById('attSheetLessonInfo').textContent =
+        (cardEl.getAttribute('data-subject') || '') + ', ' + (cardEl.getAttribute('data-datetime') || '');
+
+    var listEl = document.getElementById('attSheetList');
+    listEl.innerHTML = '';
+    attendances.forEach(function(a) {
+        var li = document.createElement('li');
+        li.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--tg-separator); gap: 12px;';
+        var nameSpan = document.createElement('span');
+        nameSpan.textContent = a.name;
+        nameSpan.style.fontWeight = '700';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tg-modal-btn';
+        btn.style.margin = '0';
+        btn.dataset.attId = String(a.id);
+        btn.textContent = a.present ? 'Присутствовал' : 'Отсутствовал';
+        if (!a.present) { btn.style.background = 'transparent'; btn.style.border = '1px solid var(--tg-separator)'; btn.style.color = 'var(--tg-hint)'; }
+        li.appendChild(nameSpan);
+        li.appendChild(btn);
+        listEl.appendChild(li);
+    });
+
+    var sheet = document.getElementById('attendanceBottomSheet');
+    sheet.style.display = 'flex';
+    sheet.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function updateMobileAttendanceSummary(cardEl, attendances) {
+    if (!cardEl) return;
+    var present = attendances.filter(function(a) { return a.present; }).length;
+    var total = attendances.length;
+    var summary = cardEl.querySelector('.att-summary');
+    if (summary) summary.textContent = present + '/' + total;
+    cardEl.setAttribute('data-attendances', JSON.stringify(attendances));
+}
+
+function closeAttendanceListSheet() {
+    var sheet = document.getElementById('attendanceBottomSheet');
+    sheet.style.display = 'none';
+    sheet.classList.remove('active');
+    document.body.style.overflow = '';
+    attendanceListSheetState.cardEl = null;
+    attendanceListSheetState.attendances = [];
+}
+
+document.getElementById('attSheetList').addEventListener('click', function(e) {
+    var btn = e.target.closest('button[data-att-id]');
+    if (!btn || btn.closest('#attSheetList') !== this) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (btn.classList.contains('ajax-loading')) return;
+    var attId = btn.dataset.attId;
+    var cardEl = attendanceListSheetState.cardEl;
+    var attendances = attendanceListSheetState.attendances;
+    var a = attendances && attendances.find(function(x) { return String(x.id) === attId; });
+    if (!a || !cardEl) return;
+    btn.classList.add('ajax-loading');
+    btn.disabled = true;
+    fetch('/toggle-presence/' + attId + '/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.classList.remove('ajax-loading');
+        btn.disabled = false;
+        if (data.status === 'ok') {
+            a.present = data.was_present;
+            btn.textContent = data.was_present ? 'Присутствовал' : 'Отсутствовал';
+            btn.style.background = data.was_present ? '' : 'transparent';
+            btn.style.border = data.was_present ? '' : '1px solid var(--tg-separator)';
+            btn.style.color = data.was_present ? '' : 'var(--tg-hint)';
+            updateMobileAttendanceSummary(cardEl, attendances);
+        }
+    })
+    .catch(function() {
+        btn.classList.remove('ajax-loading');
+        btn.disabled = false;
+    });
+});
+
 let currentPage = 1;
     let isLoading = false;
     let hasMore = {{ has_more|yesno:"true,false" }};
@@ -354,17 +546,4 @@ let currentPage = 1;
         }
     }
 
-    // Делегирование кликов по точкам посещаемости: перехват в capture-фазе,
-    // чтобы клик по точке не всплывал до карточки и не открывал редактирование
-    document.addEventListener('click', (e) => {
-        const attDot = e.target.closest('.att-dot');
-        const dotsContainer = e.target.closest('.attendance-dots');
-        if (dotsContainer || attDot) {
-            e.stopPropagation();
-            e.preventDefault();
-        }
-        if (attDot && attDot.dataset.attId) {
-            quickTogglePresence(attDot, attDot.dataset.attId);
-        }
-    }, true);
 </script>

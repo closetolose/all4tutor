@@ -1,0 +1,147 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .pr-page { padding: 16px; padding-bottom: 80px; }
+    .pr-title { font-size: 20px; font-weight: 800; color: var(--tg-text); margin-bottom: 16px; }
+    .pr-btn-upload {
+        width: 100%; min-height: 44px;
+        background: var(--tg-active); color: white; border: none;
+        border-radius: 12px; font-weight: 700; font-size: 16px;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        cursor: pointer; margin-bottom: 20px;
+    }
+    .pr-card {
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 8px;
+    }
+    .pr-card-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .pr-card-label { font-size: 12px; color: var(--tg-hint); }
+    .pr-card-value { font-size: 15px; font-weight: 700; color: var(--tg-text); }
+    .pr-status-pending { color: #f59e0b; }
+    .pr-status-approved { color: var(--tg-green); }
+    .pr-status-rejected { color: var(--tg-red); }
+    .pr-modal {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: var(--overlay-bg); display: none; align-items: center; justify-content: center;
+        z-index: 3000;
+    }
+    .pr-modal.active { display: flex !important; }
+    .pr-modal-window {
+        background: var(--tg-sidebar);
+        border-radius: 20px;
+        padding: 24px;
+        width: 90%;
+        max-width: 400px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .pr-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .pr-modal-close { background: none; border: none; color: var(--tg-hint); font-size: 28px; cursor: pointer; padding: 0; }
+    .pr-form-group { margin-bottom: 14px; }
+    .pr-form-label { font-size: 13px; color: var(--tg-hint); font-weight: 600; margin-bottom: 6px; display: block; }
+    .pr-form-input {
+        background: transparent; border: 1px solid var(--tg-separator);
+        color: var(--tg-text); padding: 12px; border-radius: 10px;
+        width: 100%; font-size: 16px; min-height: 44px; box-sizing: border-box;
+    }
+    .pr-submit-btn {
+        background: var(--tg-active); color: white; border: none;
+        padding: 14px; min-height: 44px; border-radius: 12px;
+        font-weight: 700; width: 100%; font-size: 16px; cursor: pointer; margin-top: 8px;
+    }
+    .pr-empty { text-align: center; padding: 40px 20px; color: var(--tg-hint); }
+</style>
+
+<div class="pr-page">
+    <div class="pr-title"><i class="fas fa-receipt" style="color: var(--tg-active);"></i> Оплаты</div>
+
+    <button type="button" class="pr-btn-upload" onclick="document.getElementById('receiptSubmitModal').classList.add('active');">
+        <i class="fas fa-upload"></i> Отправить чек
+    </button>
+
+    <div style="font-size: 16px; font-weight: 700; color: var(--tg-text); margin-bottom: 12px;">Мои чеки</div>
+
+    {% for r in my_receipts %}
+    <div class="pr-card">
+        <div class="pr-card-row">
+            <span class="pr-card-label">Репетитор</span>
+            <span class="pr-card-value">{{ r.tutor.first_name }} {{ r.tutor.last_name }}</span>
+        </div>
+        <div class="pr-card-row">
+            <span class="pr-card-label">Сумма</span>
+            <span class="pr-card-value">{{ r.amount }} ₽</span>
+        </div>
+        <div class="pr-card-row">
+            <span class="pr-card-label">Дата чека</span>
+            <span class="pr-card-value">{{ r.receipt_date|date:"d.m.Y" }}</span>
+        </div>
+        <div class="pr-card-row">
+            <span class="pr-card-label">Статус</span>
+            <span class="pr-card-value {% if r.status == 'pending' %}pr-status-pending{% elif r.status == 'approved' %}pr-status-approved{% else %}pr-status-rejected{% endif %}">
+                {% if r.status == 'pending' %}Ожидает{% elif r.status == 'approved' %}Подтверждён{% else %}Отклонён{% endif %}
+            </span>
+        </div>
+        <div class="pr-card-row">
+            <span class="pr-card-label">Скан</span>
+            <a href="{{ r.file.url }}" target="_blank" rel="noopener" style="color: var(--tg-active); font-weight: 600;"><i class="fas fa-download"></i></a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="pr-empty">
+        <p style="font-weight: 600; color: var(--tg-text);">Вы пока не отправляли чеки.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div id="receiptSubmitModal" class="pr-modal" onclick="if(event.target===this) this.classList.remove('active')">
+    <div class="pr-modal-window">
+        <div class="pr-modal-header">
+            <h3 style="margin: 0; font-size: 18px;"><i class="fas fa-upload" style="color: var(--tg-active);"></i> Отправить чек</h3>
+            <button type="button" class="pr-modal-close" onclick="document.getElementById('receiptSubmitModal').classList.remove('active');">&times;</button>
+        </div>
+        <form method="post" action="{% url 'submit_receipt' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="pr-form-group">
+                <label class="pr-form-label">Репетитор</label>
+                <select name="tutor_id" class="pr-form-input" required>
+                    <option value="">— Выберите репетитора —</option>
+                    {% for t in my_tutors %}
+                    <option value="{{ t.id }}">{{ t.first_name }} {{ t.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="pr-form-group">
+                <label class="pr-form-label">Сумма (₽)</label>
+                <input type="number" name="amount" step="0.01" min="0.01" max="999999.99" class="pr-form-input" required placeholder="0.00">
+            </div>
+            <div class="pr-form-group">
+                <label class="pr-form-label">Дата платежа</label>
+                <input type="date" name="receipt_date" class="pr-form-input" required id="receipt-date-mobile" max="">
+            </div>
+            <div class="pr-form-group">
+                <label class="pr-form-label">Скан чека (фото или PDF)</label>
+                <input type="file" name="file" accept="image/*,application/pdf" class="pr-form-input" required style="border-style: dashed;">
+            </div>
+            <div class="pr-form-group">
+                <label class="pr-form-label">Комментарий (необязательно)</label>
+                <textarea name="comment" class="pr-form-input" rows="2" placeholder="Например: оплата за февраль" style="min-height: 60px;"></textarea>
+            </div>
+            <button type="submit" class="pr-submit-btn"><i class="fas fa-paper-plane"></i> Отправить на проверку</button>
+        </form>
+    </div>
+</div>
+<script>
+(function() {
+    var d = document.getElementById('receipt-date-mobile');
+    if (d) d.setAttribute('max', new Date().toISOString().split('T')[0]);
+})();
+</script>
+{% endblock %}

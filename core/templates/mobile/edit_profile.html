@@ -90,6 +90,17 @@
             </button>
         </div>
     </form>
+
+    <div class="ep-section" style="margin-top: 24px;">
+        <h3 class="ep-section-title"><i class="fas fa-shield-alt"></i> Безопасность</h3>
+        <p class="ep-security-hint">Завершить все остальные сеансы (выйти на других устройствах).</p>
+        <form action="{% url 'logout_all_devices' %}" method="post" onsubmit="return confirm('Завершить все остальные сеансы?');">
+            {% csrf_token %}
+            <button type="submit" class="ep-logout-all-btn">
+                <i class="fas fa-sign-out-alt"></i> Выйти со всех остальных устройств
+            </button>
+        </form>
+    </div>
 </div>
 
 <script>
@@ -151,8 +162,8 @@
         background: var(--tg-sidebar);
         border: 1px solid var(--tg-separator);
         border-radius: 16px;
-        padding: 20px 15px;
-        margin: 15px 15px 0;
+        padding: 24px 16px;
+        margin: 16px 16px 0;
     }
 
     .ep-student-section {
@@ -195,7 +206,8 @@
         padding: 12px;
         border-radius: 10px;
         width: 100%;
-        font-size: 15px;
+        font-size: 16px;
+        min-height: 44px;
         box-sizing: border-box;
         -webkit-appearance: none;
     }
@@ -242,7 +254,8 @@
         padding: 12px;
         border-radius: 10px;
         width: 100%;
-        font-size: 15px;
+        font-size: 16px;
+        min-height: 44px;
         box-sizing: border-box;
     }
     .ep-tz-select select option {
@@ -274,17 +287,18 @@
     }
 
     .ep-submit-wrap {
-        padding: 20px 15px;
+        padding: 24px 16px;
     }
     .ep-submit-btn {
         background: var(--tg-active);
         color: white;
         border: none;
         padding: 14px;
+        min-height: 44px;
         border-radius: 12px;
         font-weight: 700;
         width: 100%;
-        font-size: 15px;
+        font-size: 16px;
         cursor: pointer;
     }
     .ep-submit-btn:active {
@@ -292,6 +306,30 @@
     }
     .ep-submit-btn i {
         margin-right: 6px;
+    }
+    .ep-security-hint {
+        font-size: 13px;
+        color: var(--tg-hint);
+        margin: 0 0 12px;
+    }
+    .ep-logout-all-btn {
+        width: 100%;
+        min-height: 44px;
+        padding: 12px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 15px;
+        cursor: pointer;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--tg-red);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .ep-logout-all-btn:active {
+        opacity: 0.9;
     }
 </style>
 {% endblock %}

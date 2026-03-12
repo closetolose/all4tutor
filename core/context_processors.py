@@ -1,8 +1,32 @@
 from django.utils import timezone
 
-from .models import Homework, Lessons, StudyGroups, Users
+from .models import Homework, Lessons, Notification, StudyGroups, Users
 from django.urls import resolve, reverse, NoReverseMatch
 from django.db.models import Q
+
+
+def notifications_processor(request):
+    """Данные для колокольчика уведомлений (без N+1)."""
+    if not request.user.is_authenticated:
+        return {
+            'unread_notifications_count': 0,
+            'recent_notifications': [],
+        }
+
+    unread_count = Notification.objects.filter(
+        user=request.user,
+        is_read=False,
+    ).count()
+
+    recent = list(
+        Notification.objects.filter(user=request.user)
+        .order_by('-created_at')[:10]
+    )
+
+    return {
+        'unread_notifications_count': unread_count,
+        'recent_notifications': recent,
+    }
 
 
 def next_lesson_processor(request):

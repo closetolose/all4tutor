@@ -1,0 +1,203 @@
+{% extends "core/dashboard_admin/base.html" %}
+{% load static %}
+
+{% block dashboard_admin_content %}
+{% csrf_token %}
+<h1 class="dashboard-admin-page-title">Пользователи</h1>
+
+<form method="get" class="dashboard-admin-filters">
+    <input type="text" name="q" value="{{ search }}" placeholder="Поиск по email, имени..." class="dashboard-admin-input">
+    <select name="role" class="dashboard-admin-select">
+        <option value="">Все роли</option>
+        <option value="tutor" {% if role_filter == 'tutor' %}selected{% endif %}>Репетитор</option>
+        <option value="student" {% if role_filter == 'student' %}selected{% endif %}>Ученик</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Найти</button>
+</form>
+
+<div class="dashboard-admin-table-wrap">
+    <table class="dashboard-admin-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Роль</th>
+                <th>Имя</th>
+                <th>Email</th>
+                <th>Дата регистрации</th>
+                <th>Статус</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in page_obj %}
+            <tr data-user-id="{{ u.id }}">
+                <td style="white-space: nowrap;">{{ u.id }}</td>
+                <td style="white-space: nowrap;">{% if u.is_superuser %}Администратор{% else %}{{ u.profile.get_role_display }}{% endif %}</td>
+                <td style="white-space: nowrap;">{{ u.profile.last_name }} {{ u.profile.first_name }}{% if u.profile.patronymic %} {{ u.profile.patronymic }}{% endif %}</td>
+                <td>{{ u.email|default:u.username }}</td>
+                <td style="white-space: nowrap;">{{ u.date_joined|date:"d.m.Y H:i" }}</td>
+                <td style="white-space: nowrap;">
+                    <span class="dashboard-admin-status {% if u.is_active %}status-active{% else %}status-inactive{% endif %}">
+                        {% if u.is_active %}Активен{% else %}Заблокирован{% endif %}
+                    </span>
+                </td>
+                <td class="dashboard-admin-actions" style="white-space: nowrap;">
+                    {% if not u.is_superuser %}
+                    <button type="button" class="btn btn-sm dashboard-admin-btn-toggle" data-user-id="{{ u.id }}" data-active="{{ u.is_active|yesno:'true,false' }}" title="{% if u.is_active %}Заблокировать{% else %}Разблокировать{% endif %}">
+                        {% if u.is_active %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-check"></i>{% endif %}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger dashboard-admin-btn-delete" data-user-id="{{ u.id }}" data-user-name="{{ u.profile.last_name }} {{ u.profile.first_name }}" title="Удалить">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                    {% else %}
+                    <span class="dashboard-admin-muted">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7">Пользователей не найдено.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav class="dashboard-admin-pagination">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&q={{ search|urlencode }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}" class="btn btn-outline">← Назад</a>
+    {% endif %}
+    <span class="dashboard-admin-pagination-info">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if search %}&q={{ search|urlencode }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}" class="btn btn-outline">Вперёд →</a>
+    {% endif %}
+</nav>
+{% endif %}
+
+<!-- Модальное окно удаления пользователя (без confirm()) -->
+<div id="adminDeleteUserModal" class="dashboard-admin-modal-overlay">
+    <div class="dashboard-admin-modal">
+        <h3>Удаление пользователя</h3>
+        <p class="dashboard-admin-modal-warning">Вы собираетесь удалить пользователя <strong id="adminDeleteUserName"></strong>. Это действие нельзя отменить.</p>
+        <p>Введите слово <strong>УДАЛИТЬ</strong> для подтверждения:</p>
+        <input type="text" id="adminDeleteConfirmInput" class="dashboard-admin-input" placeholder="УДАЛИТЬ" autocomplete="off">
+        <div class="dashboard-admin-modal-actions">
+            <button type="button" class="btn btn-outline" id="adminDeleteCancel">Отмена</button>
+            <button type="button" class="btn btn-primary btn-danger" id="adminDeleteConfirm" disabled>Подтвердить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value
+        || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1];
+
+    function getCookie(name) {
+        var v = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+        return v ? decodeURIComponent(v[1]) : null;
+    }
+    if (!csrfToken) csrfToken = getCookie('csrftoken');
+
+    function showToast(message, type) {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+            return;
+        }
+        var container = document.getElementById('toastContainer');
+        if (!container) return;
+        var icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+        var toast = document.createElement('div');
+        toast.className = 'toast toast-' + (type || 'success');
+        toast.innerHTML = '<i class="fas ' + (icons[type] || icons.success) + '"></i><span>' + message + '</span><button class="toast-close">&times;</button>';
+        container.appendChild(toast);
+        toast.querySelector('.toast-close').onclick = function() { toast.remove(); };
+        setTimeout(function() { toast.remove(); }, 4000);
+    }
+
+    // Toggle active
+    document.querySelectorAll('.dashboard-admin-btn-toggle').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var userId = this.getAttribute('data-user-id');
+            var self = this;
+            fetch('/dashboard/admin/users/' + userId + '/toggle-active/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({})
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.success) {
+                    showToast(data.message || 'Статус обновлён', 'success');
+                    var row = document.querySelector('tr[data-user-id="' + userId + '"]');
+                    if (row) {
+                        var statusCell = row.querySelector('.dashboard-admin-status');
+                        if (statusCell) {
+                            statusCell.textContent = data.is_active ? 'Активен' : 'Заблокирован';
+                            statusCell.className = 'dashboard-admin-status ' + (data.is_active ? 'status-active' : 'status-inactive');
+                        }
+                        var toggleBtn = row.querySelector('.dashboard-admin-btn-toggle');
+                        if (toggleBtn) {
+                            toggleBtn.setAttribute('data-active', data.is_active);
+                            toggleBtn.innerHTML = data.is_active ? '<i class="fas fa-ban"></i>' : '<i class="fas fa-check"></i>';
+                            toggleBtn.title = data.is_active ? 'Заблокировать' : 'Разблокировать';
+                        }
+                    }
+                } else {
+                    showToast(data.error || 'Ошибка', 'error');
+                }
+            }).catch(function() { showToast('Ошибка сети', 'error'); });
+        });
+    });
+
+    // Delete modal
+    var modal = document.getElementById('adminDeleteUserModal');
+    var input = document.getElementById('adminDeleteConfirmInput');
+    var confirmBtn = document.getElementById('adminDeleteConfirm');
+    var nameEl = document.getElementById('adminDeleteUserName');
+    var deleteUserId = null;
+
+    function openDeleteModal(userId, userName) {
+        deleteUserId = userId;
+        nameEl.textContent = userName;
+        input.value = '';
+        confirmBtn.disabled = true;
+        modal.classList.add('active');
+        input.focus();
+    }
+    function closeDeleteModal() {
+        modal.classList.remove('active');
+        deleteUserId = null;
+    }
+
+    input.addEventListener('input', function() {
+        confirmBtn.disabled = input.value.trim() !== 'УДАЛИТЬ';
+    });
+    document.getElementById('adminDeleteCancel').addEventListener('click', closeDeleteModal);
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeDeleteModal();
+    });
+
+    confirmBtn.addEventListener('click', function() {
+        if (input.value.trim() !== 'УДАЛИТЬ' || !deleteUserId) return;
+        fetch('/dashboard/admin/users/' + deleteUserId + '/delete/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ confirm: 'УДАЛИТЬ' })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) {
+                showToast(data.message || 'Пользователь удалён', 'success');
+                closeDeleteModal();
+                var row = document.querySelector('tr[data-user-id="' + deleteUserId + '"]');
+                if (row) row.remove();
+            } else {
+                showToast(data.error || 'Ошибка', 'error');
+            }
+        }).catch(function() { showToast('Ошибка сети', 'error'); });
+    });
+
+    document.querySelectorAll('.dashboard-admin-btn-delete').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            openDeleteModal(this.getAttribute('data-user-id'), this.getAttribute('data-user-name') || '');
+        });
+    });
+})();
+</script>
+{% endblock %}

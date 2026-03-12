@@ -1,0 +1,93 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h2 class="page-title"><i class="fas fa-receipt"></i> Оплаты</h2>
+
+<div class="card" style="margin-bottom: 24px;">
+    <button type="button" class="btn btn-primary" onclick="openModal('receiptSubmitModal')">
+        <i class="fas fa-upload"></i> Отправить чек
+    </button>
+</div>
+
+<div id="receiptSubmitModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 480px;" onclick="event.stopPropagation();">
+        <div class="close-btn" onclick="closeModal('receiptSubmitModal')">&times;</div>
+        <h3 style="margin: 0 0 24px;"><i class="fas fa-upload" style="color: var(--primary); margin-right: 8px;"></i> Отправить чек на проверку</h3>
+        <form method="post" action="{% url 'submit_receipt' %}" enctype="multipart/form-data" id="receipt-form">
+            {% csrf_token %}
+            <div style="display: grid; gap: 16px;">
+                <div>
+                    <label class="form-label">Репетитор</label>
+                    <select name="tutor_id" class="filter-select" required style="width: 100%;">
+                        <option value="">— Выберите репетитора —</option>
+                        {% for t in my_tutors %}
+                        <option value="{{ t.id }}">{{ t.first_name }} {{ t.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Сумма (₽)</label>
+                    <input type="number" name="amount" step="0.01" min="0.01" max="999999.99" class="filter-select" required placeholder="0.00" title="Только положительное число" style="width: 100%;">
+                </div>
+                <div>
+                    <label class="form-label">Дата платежа</label>
+                    <input type="date" name="receipt_date" class="filter-select" required id="receipt-date-input" max="" style="width: 100%;">
+                </div>
+                <div>
+                    <label class="form-label">Скан чека (фото или PDF, макс. 10 МБ)</label>
+                    <input type="file" name="file" accept="image/*,application/pdf" class="filter-select" required style="border: 1px dashed var(--border); padding: 12px; border-radius: 8px; width: 100%;">
+                </div>
+                <div>
+                    <label class="form-label">Комментарий (необязательно)</label>
+                    <textarea name="comment" class="filter-select" rows="2" placeholder="Например: оплата за февраль" style="width: 100%;"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding: 12px 24px;"><i class="fas fa-paper-plane"></i> Отправить на проверку</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+(function() {
+    var d = document.getElementById('receipt-date-input');
+    if (d) {
+        var today = new Date().toISOString().split('T')[0];
+        d.setAttribute('max', today);
+    }
+})();
+</script>
+
+<div class="card">
+    <h3 style="margin: 0 0 16px;">Мои чеки</h3>
+    {% if my_receipts %}
+    <div class="table-container">
+    <table class="sortable-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: var(--bg-table-header); color: var(--text-muted); font-size: 11px; text-transform: uppercase;">
+                <th style="padding: 12px; text-align: left;">Репетитор</th>
+                <th style="padding: 12px;" data-sort-type="number">Сумма</th>
+                <th style="padding: 12px;" data-sort-type="date">Дата чека</th>
+                <th style="padding: 12px;">Статус</th>
+                <th style="padding: 12px;">Скан</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in my_receipts %}
+            <tr style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 12px;">{{ r.tutor.first_name }} {{ r.tutor.last_name }}</td>
+                <td style="padding: 12px;" data-sort="{{ r.amount }}">{{ r.amount }} ₽</td>
+                <td style="padding: 12px;" data-sort="{{ r.receipt_date|date:'Y-m-d' }}">{{ r.receipt_date|date:"d.m.Y" }}</td>
+                <td style="padding: 12px;">
+                    {% if r.status == 'pending' %}<span style="color: var(--warning-text);">Ожидает</span>
+                    {% elif r.status == 'approved' %}<span style="color: var(--success);">Подтверждён</span>
+                    {% else %}<span style="color: var(--danger);">Отклонён</span>{% endif %}
+                </td>
+                <td style="padding: 12px;"><a href="{{ r.file.url }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm"><i class="fas fa-download"></i></a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-muted);">Вы пока не отправляли чеки.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -75,19 +75,35 @@
     .subject-name { font-size: 12px; color: var(--tg-hint); font-weight: 500; display: flex; align-items: center; gap: 6px; }
     .card-arrow { color: var(--tg-separator); font-size: 14px; }
 
+    /* Lesson detail modal rows */
+    .lesson-detail-row { margin-bottom: 16px; }
+    .lesson-detail-label {
+        font-size: 11px; color: var(--tg-hint); text-transform: uppercase;
+        font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px;
+    }
+    .lesson-detail-value { font-weight: 600; color: var(--tg-text); font-size: 15px; }
+
     /* "Пульки" посещаемости */
     .attendance-dots { display: flex; gap: -5px; margin-left: auto; }
     .att-dot {
-        width: 26px; height: 26px; border-radius: 50%;
+        min-width: 44px; min-height: 44px; width: 44px; height: 44px; border-radius: 50%;
         background: var(--tg-bg); color: var(--tg-hint);
         display: flex; align-items: center; justify-content: center;
         font-size: 10px; font-weight: 800;
         border: 2px solid var(--tg-card-bg);
-        margin-left: -8px; /* Наложение друг на друга */
+        margin-left: -8px;
         transition: 0.2s;
+        cursor: pointer;
     }
     .att-dot:first-child { margin-left: 0; }
     .att-dot.present { background: var(--tg-green); color: white; border-color: var(--tg-card-bg); }
+    .mobile-attendance-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 12px; border-radius: 10px; font-size: 12px; font-weight: 700;
+        background: rgba(99, 102, 241, 0.12); color: var(--tg-active);
+        border: 1px solid var(--tg-separator); cursor: pointer;
+    }
+    .mobile-attendance-btn:active { background: rgba(99, 102, 241, 0.2); }
 
     /* Панель массовых действий */
     .selection-toolbar {
@@ -99,7 +115,8 @@
     }
     .selection-actions button {
         background: rgba(255,255,255,0.2); border: none; color: white;
-        width: 36px; height: 36px; border-radius: 10px; margin-left: 8px;
+        min-width: 44px; min-height: 44px; width: 44px; height: 44px; border-radius: 10px; margin-left: 8px;
+        display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
     }
 </style>
 
@@ -139,6 +156,14 @@
         {% endif %}
     </div>
 
+    {% if role == 'tutor' %}
+    <div style="margin: 0 15px 10px;">
+        <button type="button" onclick="openModal('exportFilterModal')" class="mobile-export-btn" style="width: 100%; min-height: 44px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--tg-separator); background: var(--tg-sidebar); color: var(--tg-text); font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+            <i class="fas fa-file-export" style="color: #10b981;"></i> Экспорт данных
+        </button>
+    </div>
+    {% endif %}
+
     <div class="mobile-filter-trigger" onclick="openModal('filter-modal')">
         <span style="display:flex; align-items:center;">
             {% if request.GET.target or request.GET.date_from %}
@@ -170,7 +195,20 @@
             </div>
             {% endifchanged %}
 
-            <div class="lesson-card" data-id="{{ lesson.id }}"
+            <div class="lesson-card {% if lesson.display_color %}entity-color-indicator{% endif %}" data-id="{{ lesson.id }}"
+                 data-subject="{{ lesson.subject.name|escapejs }}"
+                 data-date="{{ lesson.start_time|date:'d.m.Y' }}"
+                 data-time="{{ lesson.start_time|date:'H:i' }}"
+                 data-datetime="{{ lesson.start_time|date:'d.m.Y' }} {{ lesson.start_time|date:'H:i' }}"
+                 data-duration="{{ lesson.duration|default:60 }}"
+                 data-format="{{ lesson.format|default:''|escapejs }}"
+                 data-location="{{ lesson.location|default:''|escapejs }}"
+                 data-participants="{% if role == 'student' %}{{ lesson.tutor.first_name }} {{ lesson.tutor.last_name }}{% elif lesson.group %}{{ lesson.group.name }} ({{ lesson.group.students.count }} уч.){% else %}{{ lesson.student.first_name }} {{ lesson.student.last_name }}{% endif %}"
+                 data-notes="{{ lesson.notes|default:''|escapejs }}"
+                 data-download-url="{% url 'download_materials' lesson.id %}"
+                 data-materials-names="{% for m in lesson.materials.all %}{{ m.file_name|escapejs }}{% if not forloop.last %}|||{% endif %}{% endfor %}"
+                 {% if role == 'tutor' and lesson.att_total_count %}data-attendances="{{ lesson.attendances_json }}"{% endif %}
+                 {% if lesson.display_color %}style="--custom-entity-color: {{ lesson.display_color }};" {% endif %}
                  ontouchstart="handleTouchStart(event, this)"
                  ontouchend="handleTouchEnd(this)"
                  onclick="handleCardClick(event, this)">
@@ -198,17 +236,11 @@
                             <i class="fas fa-book" style="font-size:10px;"></i> {{ lesson.subject.name }}
                         </span>
 
-                        {% if role == 'tutor' %}
-
-
-                        <div class="attendance-dots">
-                            {% for att in lesson.attendances.all %}
-                            <div id="att-{{ att.id }}" class="att-dot {% if att.was_present %}present{% endif %}"
-                                 data-att-id="{{ att.id }}">
-                                {{ att.student.first_name|first }}
-                            </div>
-                            {% endfor %}
-                        </div>
+                        {% if role == 'tutor' and lesson.att_total_count %}
+                        <button type="button" class="mobile-attendance-btn" onclick="event.stopPropagation(); openAttendanceListSheet(this.closest('.lesson-card'));"
+                                title="Отметить посещаемость">
+                            <i class="fas fa-user-check"></i> <span class="att-summary">{{ lesson.att_present_count }}/{{ lesson.att_total_count }}</span>
+                        </button>
                         {% endif %}
                     </div>
                 </div>
@@ -240,5 +272,93 @@
 </div>
 
 {% include 'mobile/filter_modal.html' %}
+
+<div id="exportFilterModal" class="tg-modal" style="display: none;" onclick="if(event.target===this)closeModal('exportFilterModal')">
+    <div class="tg-modal-content" onclick="event.stopPropagation()">
+        <div class="tg-modal-header">
+            <h3><i class="fas fa-file-export" style="color: var(--tg-green); margin-right: 8px;"></i>Умный экспорт</h3>
+            <button type="button" onclick="closeModal('exportFilterModal')" class="close-modal">&times;</button>
+        </div>
+        <form action="{% url 'export_lessons_csv' %}" method="GET" class="tg-modal-scroll">
+            <div class="tg-modal-field">
+                <label class="tg-modal-field-label">Период с</label>
+                <input type="date" name="date_from" class="tg-modal-field-input">
+            </div>
+            <div class="tg-modal-field">
+                <label class="tg-modal-field-label">Период по</label>
+                <input type="date" name="date_to" class="tg-modal-field-input">
+            </div>
+            <div class="tg-modal-field">
+                <label class="tg-modal-field-label">Предмет</label>
+                <select name="subject_id" class="tg-modal-field-input">
+                    <option value="">Все предметы</option>
+                    {% for item in my_subjects %}
+                    <option value="{{ item.subject.id }}">{{ item.subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="tg-modal-field">
+                <label class="tg-modal-field-label">Ученик</label>
+                <select name="student_id" class="tg-modal-field-input">
+                    <option value="">Все ученики</option>
+                    {% for st in tutor_students %}
+                    <option value="{{ st.id }}">{{ st.first_name }} {{ st.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="tg-modal-field">
+                <label class="tg-modal-field-label">Оплата</label>
+                <select name="pay_status" class="tg-modal-field-input">
+                    <option value="">Все</option>
+                    <option value="paid">Оплачено</option>
+                    <option value="debt">Долг</option>
+                </select>
+            </div>
+            <div class="tg-modal-field">
+                <label class="tg-modal-field-label">Формат</label>
+                <select name="lesson_type" class="tg-modal-field-input">
+                    <option value="">Все</option>
+                    <option value="individual">Индив.</option>
+                    <option value="group">Группы</option>
+                </select>
+            </div>
+            <button type="submit" class="tg-modal-btn" style="width: 100%; margin-top: 8px;">
+                <i class="fas fa-download"></i> Скачать отчёт
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="lessonDetailModalMobile" class="tg-modal" style="display: none;" onclick="if(event.target===this)closeModal('lessonDetailModalMobile')">
+    <div class="tg-modal-content" onclick="event.stopPropagation()">
+        <div class="tg-modal-header">
+            <h3 id="lessonDetailTitleMobile">Занятие</h3>
+            <button type="button" onclick="closeModal('lessonDetailModalMobile')" class="close-modal">&times;</button>
+        </div>
+        <div class="tg-modal-scroll">
+            <div class="lesson-detail-row"><div class="lesson-detail-label">Предмет</div><div class="lesson-detail-value" id="lessonDetailSubjectM"></div></div>
+            <div class="lesson-detail-row"><div class="lesson-detail-label">Дата и время</div><div class="lesson-detail-value" id="lessonDetailDateTimeM"></div></div>
+            <div class="lesson-detail-row"><div class="lesson-detail-label">Длительность</div><div class="lesson-detail-value" id="lessonDetailDurationM"></div></div>
+            <div class="lesson-detail-row"><div class="lesson-detail-label">Формат</div><div class="lesson-detail-value" id="lessonDetailFormatM"></div></div>
+            <div class="lesson-detail-row"><div class="lesson-detail-label">Участники</div><div class="lesson-detail-value" id="lessonDetailParticipantsM"></div></div>
+            <div class="lesson-detail-row"><div class="lesson-detail-label">Место / Ссылка</div><div class="lesson-detail-value" id="lessonDetailLocationM" style="word-break: break-all;"></div></div>
+            <div id="lessonDetailYandexWrapM" class="lesson-detail-row" style="display: none;">
+                <a id="lessonDetailYandexLinkM" href="#" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--tg-active); color: white; border-radius: 12px; text-decoration: none; font-weight: 700;"><i class="fas fa-map-marker-alt"></i> Открыть в Яндекс.Картах</a>
+            </div>
+            <div id="lessonDetailNotesWrapM" class="lesson-detail-row" style="display: none;">
+                <div class="lesson-detail-label">Заметки</div>
+                <div id="lessonDetailNotesM" style="margin-top: 4px; font-size: 14px; white-space: pre-wrap;"></div>
+            </div>
+            <div id="lessonDetailMaterialsWrapM" class="lesson-detail-row" style="display: none;">
+                <div class="lesson-detail-label">Материалы</div>
+                <ul id="lessonDetailMaterialsListM" style="margin: 8px 0 10px; padding-left: 20px;"></ul>
+                <a id="lessonDetailDownloadAllM" href="#" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(99,102,241,0.15); color: var(--tg-active); border-radius: 10px; font-weight: 600; text-decoration: none;"><i class="fas fa-download"></i> Скачать всё</a>
+            </div>
+            {% if role == 'tutor' %}
+            <a id="lessonDetailEditLinkM" href="#" style="display: block; text-align: center; padding: 14px; background: var(--tg-sidebar); border: 1px solid var(--tg-separator); border-radius: 12px; color: var(--tg-active); font-weight: 700; margin-top: 15px; text-decoration: none;">Редактировать занятие</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
 
 {% endblock %}

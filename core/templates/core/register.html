@@ -16,7 +16,7 @@
         {% csrf_token %}
 
         {% if form.non_field_errors %}
-            <div style="background: var(--danger-bg); color: var(--danger-text); padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; display: flex; align-items: center; gap: 8px; border: 1px solid #fecaca;">
+            <div class="auth-form-errors" style="margin-bottom: 20px;">
                 <i class="fas fa-exclamation-circle"></i>
                 {{ form.non_field_errors.0 }}
             </div>
@@ -66,4 +66,21 @@
         Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a>
     </div>
 </div>
+
+<div id="cookie-consent-banner" class="cookie-consent-banner" role="dialog" aria-label="Согласие на использование Cookie" style="display: none;">
+    <p class="cookie-consent-text">Продолжая регистрацию, вы соглашаетесь с использованием Cookie для работы сайта.</p>
+    <button type="button" class="btn btn-primary btn-sm cookie-consent-btn" id="cookieConsentAccept">Принято</button>
+</div>
+<script>
+(function() {
+    if (localStorage.getItem('cookie_consent_accepted') === 'true') return;
+    var banner = document.getElementById('cookie-consent-banner');
+    if (!banner) return;
+    banner.style.display = 'flex';
+    document.getElementById('cookieConsentAccept').addEventListener('click', function() {
+        localStorage.setItem('cookie_consent_accepted', 'true');
+        banner.style.display = 'none';
+    });
+})();
+</script>
 {% endblock %}

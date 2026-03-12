@@ -15,8 +15,8 @@
 <div style="max-width: 800px; margin: 0 auto;">
     <h2 class="mb-20"><i class="fas fa-book-open"></i> Управление предметами</h2>
 
-    <div class="card" style="margin-bottom: 25px;">
-        <form method="post" action="{% url 'my_subjects' %}" style="display: flex; gap: 15px;">
+    <div class="card" style="margin-bottom: 24px;">
+        <form method="post" action="{% url 'my_subjects' %}" style="display: flex; gap: 16px;">
             {% csrf_token %}
             <input type="text" name="name" placeholder="Название предмета..." required class="filter-select" style="flex: 1; margin: 0;">
             <button type="submit" class="btn btn-primary">
@@ -27,6 +27,7 @@
 
     <div class="card" style="padding: 0; overflow: hidden;">
         <div class="scrollable-container">
+            <div class="table-container">
             <table style="width: 100%;">
                 <thead style="background: #f8fafc;">
                     <tr style="text-align: left; font-size: 12px; color: #64748b;">
@@ -58,6 +59,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -69,8 +71,8 @@
 
         <form id="editSubjectForm" method="post">
             {% csrf_token %}
-            <div style="margin: 20px 0;">
-                <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 5px;">Новое название</label>
+            <div style="margin: 24px 0;">
+                <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 8px;">Новое название</label>
                 <input type="text" name="name" id="edit-subject-input" class="filter-select" required style="width: 100%;">
             </div>
             <button type="submit" class="btn btn-primary" style="width: 100%;">Сохранить</button>

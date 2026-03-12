@@ -47,7 +47,7 @@
     .hw-deadline { color: var(--tg-hint); }
     .btn-submit {
         background: var(--tg-active); color: white; border: none;
-        padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 13px;
+        min-height: 44px; padding: 12px 16px; border-radius: 10px; font-weight: 700; font-size: 14px;
     }
 
     /* Журнал */
@@ -62,16 +62,6 @@
     .paid { color: #10b981; }
     .debt { color: #ef4444; }
 
-    /* Модалка (как в Telegram) */
-    .tg-modal {
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 2000;
-        align-items: center; justify-content: center; padding: 20px;
-    }
-    .tg-modal-content {
-        background: var(--tg-sidebar); width: 100%; max-width: 340px;
-        border-radius: 20px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    }
 </style>
 
 <div class="page-container">
@@ -93,6 +83,34 @@
         <button onclick="openModal('historyModal')" class="btn-submit" style="width: 100%; background: var(--tg-sidebar); color: var(--tg-text); border: 1px solid var(--tg-separator);">
             <i class="fas fa-history"></i> История платежей
         </button>
+
+        {% if connection %}
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--tg-separator);">
+            <div style="font-size: 11px; font-weight: 700; color: var(--tg-hint); text-transform: uppercase; margin-bottom: 10px;">Цветовая метка</div>
+            <form action="{% url 'update_tutor_color' connection.id %}" method="post" id="tutor-color-form-m">
+                {% csrf_token %}
+                <input type="hidden" name="color_hex" id="tutor-color-hex-m" value="{{ connection.color_hex|default:'' }}">
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+                    <span class="color-swatch" data-color="#6366f1" style="width:44px;height:44px;border-radius:8px;background:#6366f1;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#22c55e" style="width:44px;height:44px;border-radius:8px;background:#22c55e;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#f59e0b" style="width:44px;height:44px;border-radius:8px;background:#f59e0b;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#ef4444" style="width:44px;height:44px;border-radius:8px;background:#ef4444;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#ec4899" style="width:44px;height:44px;border-radius:8px;background:#ec4899;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#8b5cf6" style="width:44px;height:44px;border-radius:8px;background:#8b5cf6;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#06b6d4" style="width:44px;height:44px;border-radius:8px;background:#06b6d4;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#84cc16" style="width:44px;height:44px;border-radius:8px;background:#84cc16;cursor:pointer;"></span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
+                    <input type="color" id="tutor-color-picker-m" value="{{ connection.color_hex|default:'#6366f1' }}" style="width: 40px; height: 36px; border: 1px solid var(--tg-separator); border-radius: 8px; cursor: pointer;">
+                    <span style="font-size: 12px; color: var(--tg-hint);">или свой цвет</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="submit" class="btn-submit" style="flex: 1;">Сохранить</button>
+                    <button type="button" onclick="document.getElementById('tutor-color-hex-m').value=''; document.getElementById('tutor-color-form-m').submit();" class="btn-submit" style="background: var(--tg-sidebar); color: var(--tg-text); border: 1px solid var(--tg-separator);">Убрать цвет</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
     </div>
 
     <div class="section-title">Домашние задания</div>
@@ -131,41 +149,51 @@
     {% endfor %}
 </div>
 
-<div id="historyModal" class="tg-modal">
-    <div class="tg-modal-content">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-            <h3 style="margin:0;">История транзакций</h3>
-            <button onclick="closeModal('historyModal')" style="background:none; border:none; color:var(--tg-hint); font-size:20px;">&times;</button>
+<div id="historyModal" class="tg-modal" onclick="if(event.target===this) closeModal('historyModal')">
+    <div class="tg-modal-content" onclick="event.stopPropagation()">
+        <div class="tg-modal-header">
+            <h3>История транзакций</h3>
+            <button type="button" class="close-modal" onclick="closeModal('historyModal')">&times;</button>
         </div>
-        <div style="max-height: 300px; overflow-y: auto;">
+        <div class="tg-modal-scroll">
             {% for tx in transactions %}
-            <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--tg-separator);">
-                <div style="font-size: 13px;">
-                    {{ tx.description }}
-                    <div style="color:var(--tg-hint); font-size:11px;">{{ tx.date|date:"d.m.Y" }}</div>
+            <div style="display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--tg-separator);">
+                <div>
+                    <div style="font-size: 15px; font-weight: 600; color: var(--tg-text);">{{ tx.description }}</div>
+                    <div style="color: var(--tg-hint); font-size: 12px; margin-top: 2px;">{{ tx.date|date:"d.m.Y" }}</div>
                 </div>
-                <div style="font-weight: 800; color: {% if tx.amount > 0 %}#10b981{% else %}#ef4444{% endif %};">
+                <div style="font-weight: 800; font-size: 15px; color: {% if tx.amount > 0 %}var(--tg-green){% else %}var(--tg-red){% endif %};">
                     {{ tx.amount }} ₽
                 </div>
             </div>
             {% empty %}
-            <div style="text-align: center; padding: 20px;">Транзакций нет</div>
+            <div style="text-align: center; padding: 32px 20px; color: var(--tg-hint);">Транзакций нет</div>
             {% endfor %}
         </div>
     </div>
 </div>
 
 {% for hw in homeworks %}
-<div id="submitModal{{ hw.id }}" class="tg-modal">
-    <div class="tg-modal-content">
-        <h3>Сдать работу</h3>
-        <p style="color: var(--tg-hint); font-size: 14px;">{{ hw.description|truncatechars:40 }}</p>
-        <form action="{% url 'submit_homework' hw.id %}" method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            <input type="file" name="response_files" multiple required style="margin: 15px 0; width: 100%;">
-            <button type="submit" class="btn-submit" style="width: 100%; padding: 14px;">Отправить</button>
-            <button type="button" onclick="closeModal('submitModal{{ hw.id }}')" style="width: 100%; background: none; border: none; color: var(--tg-hint); margin-top: 10px;">Отмена</button>
-        </form>
+<div id="submitModal{{ hw.id }}" class="tg-modal" onclick="if(event.target===this) closeModal('submitModal{{ hw.id }}')">
+    <div class="tg-modal-content" onclick="event.stopPropagation()">
+        <div class="tg-modal-header">
+            <h3>Сдать работу</h3>
+            <button type="button" class="close-modal" onclick="closeModal('submitModal{{ hw.id }}')">&times;</button>
+        </div>
+        <div class="tg-modal-scroll">
+            <p style="color: var(--tg-hint); font-size: 14px; margin: 0 0 16px;">{{ hw.description|truncatechars:60 }}</p>
+            <form action="{% url 'submit_homework' hw.id %}" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Файлы с решением</label>
+                    <input type="file" name="response_files" multiple required class="tg-modal-field-input" style="padding: 12px;">
+                </div>
+                <div style="display: flex; gap: 12px; margin-top: 8px;">
+                    <button type="button" onclick="closeModal('submitModal{{ hw.id }}')" class="btn-secondary" style="flex: 1;">Отмена</button>
+                    <button type="submit" class="tg-modal-btn" style="flex: 2;">Отправить</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endfor %}
@@ -174,5 +202,19 @@
     function openModal(id) { document.getElementById(id).style.display = 'flex'; document.body.style.overflow = 'hidden'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; document.body.style.overflow = 'auto'; }
     window.onclick = function(e) { if (e.target.classList.contains('tg-modal')) { e.target.style.display = 'none'; document.body.style.overflow = 'auto'; } }
+    (function() {
+        var form = document.getElementById('tutor-color-form-m');
+        if (!form) return;
+        var hidden = document.getElementById('tutor-color-hex-m');
+        var picker = document.getElementById('tutor-color-picker-m');
+        form.querySelectorAll('.color-swatch').forEach(function(sw) {
+            sw.addEventListener('click', function() {
+                var c = this.getAttribute('data-color');
+                hidden.value = c;
+                if (picker) picker.value = c;
+            });
+        });
+        if (picker) picker.addEventListener('input', function() { hidden.value = this.value; });
+    })();
 </script>
 {% endblock %}

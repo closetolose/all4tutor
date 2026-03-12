@@ -6,30 +6,37 @@
 
 {% block content %}
 <style>
-    .fin-page { padding: 15px; }
-    .fin-title { font-size: 20px; font-weight: 800; color: var(--tg-text); margin-bottom: 15px; }
+    .fin-page { padding: 16px; }
+    .fin-title { font-size: 20px; font-weight: 800; color: var(--tg-text); margin-bottom: 16px; }
     .fin-filter {
         background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
-        border-radius: 16px; padding: 15px; margin-bottom: 15px;
+        border-radius: 16px; padding: 16px; margin-bottom: 16px;
     }
-    .fin-filter-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .fin-filter-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
     .fin-filter-group { flex: 1; min-width: 100px; }
     .fin-filter-label { display: block; font-size: 12px; color: var(--tg-hint); margin-bottom: 5px; font-weight: 600; }
     .fin-date-input {
         background: transparent; border: 1px solid var(--tg-separator);
-        color: var(--tg-text); padding: 10px; border-radius: 10px; font-size: 14px;
-        width: 100%; outline: none; box-sizing: border-box;
+        color: var(--tg-text); padding: 10px 12px; border-radius: 10px; font-size: 16px;
+        width: 100%; outline: none; box-sizing: border-box; min-height: 44px;
     }
     .fin-filter-btn {
         background: var(--tg-active); color: white; border: none;
-        padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 13px;
-        white-space: nowrap;
+        padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 14px;
+        white-space: nowrap; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
     }
     .fin-filter-btn:active { opacity: 0.8; }
-    .fin-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+    .fin-reset-btn {
+        min-width: 44px; min-height: 44px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--tg-card-active); border: 1px solid var(--tg-separator);
+        border-radius: 8px; color: var(--tg-hint); text-decoration: none;
+    }
+    .fin-reset-btn:active { opacity: 0.8; }
+    .fin-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
     .fin-stat-card {
         background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
-        border-radius: 16px; padding: 15px; text-align: center;
+        border-radius: 16px; padding: 16px; text-align: center;
     }
     .fin-stat-card.full { grid-column: 1 / -1; }
     .fin-stat-label { font-size: 11px; font-weight: 700; color: var(--tg-hint); text-transform: uppercase; margin-bottom: 5px; }
@@ -39,7 +46,7 @@
     .fin-section-title { font-size: 18px; font-weight: 800; color: var(--tg-text); margin-bottom: 12px; }
     .fin-tx-card {
         background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
-        border-radius: 16px; padding: 15px; margin-bottom: 10px;
+        border-radius: 16px; padding: 16px; margin-bottom: 8px;
         display: flex; justify-content: space-between; align-items: center;
     }
     .fin-tx-info { flex: 1; }
@@ -53,6 +60,14 @@
     .empty-icon { font-size: 40px; margin-bottom: 15px; opacity: 0.3; }
     .empty-state p { font-size: 16px; font-weight: 600; margin: 0 0 5px; color: var(--tg-text); }
     .empty-state span { font-size: 13px; }
+    .fin-chart-wrap {
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    .fin-chart-container { position: relative; height: 200px; }
 </style>
 
 <div class="fin-page">
@@ -69,7 +84,8 @@
                     <span class="fin-filter-label">По</span>
                     <input type="date" name="date_to" value="{{ date_to }}" class="fin-date-input">
                 </div>
-                <button type="submit" class="fin-filter-btn"><i class="fas fa-search"></i></button>
+                <button type="submit" class="fin-filter-btn"><i class="fas fa-search"></i> Показать</button>
+                <a href="{% url 'finances' %}" class="fin-reset-btn" title="Сбросить"><i class="fas fa-undo"></i></a>
             </div>
         </form>
     </div>
@@ -82,6 +98,13 @@
         <div class="fin-stat-card">
             <div class="fin-stat-label">Долги</div>
             <div class="fin-stat-value red">{{ total_debt }} ₽</div>
+        </div>
+    </div>
+
+    <div class="fin-chart-wrap">
+        <div class="fin-section-title">Динамика доходности</div>
+        <div class="fin-chart-container">
+            <canvas id="financeChartMobile" height="200"></canvas>
         </div>
     </div>
 
@@ -106,4 +129,35 @@
         </div>
     {% endfor %}
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+    var ctx = document.getElementById('financeChartMobile');
+    if (!ctx) return;
+    new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: {{ chart_labels|safe }},
+            datasets: [{
+                label: 'Доход (₽)',
+                data: {{ chart_values|safe }},
+                borderColor: '#4f46e5',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1.5,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { maxRotation: 45, minRotation: 45 } }
+            }
+        }
+    });
+})();
+</script>
 {% endblock %}

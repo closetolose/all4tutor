@@ -1,10 +1,16 @@
+{% load static %}
+{% if user.is_authenticated %}
 {% extends 'core/base.html' %}
+{% endif %}
 {% block title %}Ошибка сервера{% endblock %}
 {% block content %}
-<div class="card" style="max-width: 500px; margin: 40px auto; text-align: center; padding: 40px;">
-    <div style="font-size: 48px; color: var(--text-muted); margin-bottom: 16px;"><i class="fas fa-exclamation-triangle"></i></div>
-    <h2 style="margin-bottom: 12px;">Ошибка сервера</h2>
-    <p style="color: var(--text-muted); margin-bottom: 24px;">Произошла внутренняя ошибка. Мы уже работаем над её устранением.</p>
-    <a href="{% url 'index' %}" class="btn btn-primary">На главную</a>
+<div class="error-page">
+    <div class="error-page-card card">
+        <div class="error-page-code">500</div>
+        <div class="error-page-icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <h2 class="error-page-title">Ошибка сервера</h2>
+        <p class="error-page-text">Произошла внутренняя ошибка. Мы уже работаем над её устранением.</p>
+        <a href="/" class="btn btn-primary error-page-btn">На главную</a>
+    </div>
 </div>
 {% endblock %}

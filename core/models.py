@@ -5,7 +5,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from .validators import validate_file_size
+from .validators import validate_file_size, validate_receipt_file
 import uuid
 
 
@@ -46,6 +46,19 @@ class Users(models.Model):
         return f"{self.last_name} {self.first_name}"
 
 
+class FileTag(models.Model):
+    """Тег файлов репетитора (уникальное имя в рамках репетитора)."""
+    tutor = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='file_tags')
+    name = models.CharField(max_length=50)
+
+    class Meta:
+        db_table = 'file_tags'
+        unique_together = ('tutor', 'name')
+
+    def __str__(self):
+        return self.name
+
+
 class FilesLibrary(models.Model):
     tutor = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='materials')
     file = models.FileField(
@@ -56,6 +69,7 @@ class FilesLibrary(models.Model):
     )
     file_name = models.CharField(max_length=30,verbose_name="Название файла")
     upload_date = models.DateTimeField(default=timezone.now,blank=True)
+    tags = models.ManyToManyField('FileTag', blank=True, related_name='files')
 
     class Meta:
         db_table = 'files_library'
@@ -167,7 +181,26 @@ class Transaction(models.Model):
         ordering = ['-date']
 
 
+class PaymentReceipt(models.Model):
+    """Чек об оплате: ученик загружает, репетитор подтверждает или отклоняет."""
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает'),
+        ('approved', 'Подтверждён'),
+        ('rejected', 'Отклонён'),
+    ]
+    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='payment_receipts')
+    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='incoming_receipts')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    receipt_date = models.DateField()
+    file = models.FileField(upload_to='payment_receipts/%Y/%m/', validators=[validate_receipt_file])
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    comment = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        db_table = 'payment_receipts'
+        ordering = ['-created_at']
 
 
 class TutorSubjects(models.Model):
@@ -192,9 +225,44 @@ class ConnectionRequest(models.Model):
     student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='received_requests')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(default=timezone.now,blank=True)
+    color_hex = models.CharField(max_length=7, null=True, blank=True)  # цвет репетитора для ученика (задаёт ученик)
+    tutor_color_hex = models.CharField(max_length=7, null=True, blank=True)  # цвет связи для репетитора (задаёт репетитор)
 
     class Meta:
         db_table = 'connection_requests'
+
+
+class UnlinkRequest(models.Model):
+    """Заявка ученика на открепление от репетитора (обрабатывается администратором)."""
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает рассмотрения'),
+        ('approved', 'Одобрено'),
+        ('rejected', 'Отклонено'),
+    ]
+    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='unlink_requests_sent')
+    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='unlink_requests_received')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(default=timezone.now)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='unlink_requests_reviewed'
+    )
+
+    class Meta:
+        db_table = 'unlink_requests'
+        ordering = ['-created_at']
+
+
+class UserGroupColor(models.Model):
+    """Цветовая метка группы для пользователя (репетитор или ученик)."""
+    user = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='group_colors')
+    group = models.ForeignKey(StudyGroups, on_delete=models.CASCADE, related_name='user_colors')
+    color_hex = models.CharField(max_length=7, blank=True, null=True)
+
+    class Meta:
+        db_table = 'user_group_colors'
+        unique_together = ('user', 'group')
 
 
 class StudentTariff(models.Model):
@@ -218,12 +286,35 @@ class StudentPerformance(models.Model):
     date = models.DateField(default=timezone.now,blank=True)
 
 
+class Notification(models.Model):
+    """In-app уведомление для пользователя (например, о просроченном ДЗ)."""
+    TYPE_CHOICES = [
+        ('warning', 'Предупреждение'),
+        ('info', 'Информация'),
+    ]
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    message = models.CharField(max_length=255)
+    link = models.CharField(max_length=500, blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='warning')
+
+    class Meta:
+        db_table = 'notifications'
+        ordering = ['-created_at']
+
+
 class Homework(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Задано'),
         ('submitted', 'На проверке'),
         ('revision', 'Доработать'),
         ('completed', 'Выполнено'),
+        ('overdue', 'Просрочено'),
     ]
 
     tutor = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='assigned_homework')
@@ -233,6 +324,7 @@ class Homework(models.Model):
     files = models.ManyToManyField('FilesLibrary', blank=True, related_name='homework_files')
     deadline = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
+    is_overdue_notified = models.BooleanField(default=False)
     tutor_comment = models.TextField(blank=True, null=True, verbose_name="Комментарий репетитора")
     created_at = models.DateTimeField(default=timezone.now,blank=True)
 
@@ -266,5 +358,26 @@ class TutorStudentNote(models.Model):
 
     class Meta:
         unique_together = ('tutor', 'student')
+
+
+class TestResult(models.Model):
+    """Результат проверочной/контрольной работы (модуль Аналитика)."""
+    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='test_results_as_tutor')
+    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='test_results_as_student')
+    subject = models.ForeignKey(Subjects, on_delete=models.CASCADE, related_name='test_results')
+    max_score = models.DecimalField(max_digits=8, decimal_places=2, help_text='Максимальный балл')
+    score = models.DecimalField(max_digits=8, decimal_places=2, help_text='Полученный балл')
+    date = models.DateField(default=timezone.now)
+    comment = models.TextField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'test_results'
+        ordering = ['-date']
+
+    @property
+    def percent(self):
+        if self.max_score and self.max_score > 0:
+            return round(float(self.score) / float(self.max_score) * 100, 1)
+        return None
 
 

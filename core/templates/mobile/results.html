@@ -1,0 +1,263 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .res-page { padding: 16px; padding-bottom: 100px; }
+    .res-title { font-size: 20px; font-weight: 800; color: var(--tg-text); margin-bottom: 16px; }
+    .res-filter {
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    .res-filter-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+    .res-filter-group { flex: 1; min-width: 100px; }
+    .res-filter-label { display: block; font-size: 12px; color: var(--tg-hint); margin-bottom: 5px; font-weight: 600; }
+    .res-input {
+        background: transparent; border: 1px solid var(--tg-separator);
+        color: var(--tg-text); padding: 10px 12px; border-radius: 10px; font-size: 16px;
+        width: 100%; outline: none; box-sizing: border-box; min-height: 44px;
+    }
+    .res-btn {
+        background: var(--tg-active); color: white; border: none;
+        padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 14px;
+        min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
+    }
+    .res-reset {
+        min-width: 44px; min-height: 44px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--tg-card-active); border: 1px solid var(--tg-separator);
+        border-radius: 8px; color: var(--tg-hint); text-decoration: none;
+    }
+    .res-chart-wrap {
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    .res-chart-title { font-size: 16px; font-weight: 800; color: var(--tg-text); margin-bottom: 12px; }
+    .res-chart-container { position: relative; height: 220px; }
+    .res-add-wrap { margin-bottom: 16px; }
+    .res-add-btn {
+        width: 100%; min-height: 44px;
+        background: var(--tg-active); color: white; border: none;
+        border-radius: 12px; font-weight: 700; font-size: 16px;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        cursor: pointer; text-decoration: none;
+    }
+    .res-card {
+        background: var(--tg-sidebar);
+        border: 1px solid var(--tg-separator);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 8px;
+    }
+    .res-card-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .res-card-label { font-size: 11px; color: var(--tg-hint); text-transform: uppercase; }
+    .res-card-value { font-size: 15px; font-weight: 700; color: var(--tg-text); }
+    .res-card-pct { color: var(--tg-active); font-weight: 700; }
+    .res-empty { text-align: center; padding: 40px 20px; color: var(--tg-hint); }
+    .res-modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: var(--overlay-bg); display: none; align-items: center; justify-content: center;
+        z-index: 3000;
+    }
+    .res-modal-overlay.active { display: flex !important; }
+    .res-modal-window {
+        background: var(--tg-sidebar);
+        border-radius: 20px;
+        padding: 24px;
+        width: 90%;
+        max-width: 400px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .res-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .res-modal-header h3 { font-size: 18px; font-weight: 800; color: var(--tg-text); margin: 0; }
+    .res-modal-close { background: none; border: none; color: var(--tg-hint); font-size: 28px; cursor: pointer; padding: 0; line-height: 1; }
+    .res-form-group { margin-bottom: 14px; }
+    .res-form-label { font-size: 13px; color: var(--tg-hint); font-weight: 600; margin-bottom: 6px; display: block; }
+    .res-form-input {
+        background: transparent; border: 1px solid var(--tg-separator);
+        color: var(--tg-text); padding: 12px; border-radius: 10px;
+        width: 100%; font-size: 16px; min-height: 44px; box-sizing: border-box;
+    }
+    .res-submit-btn {
+        background: var(--tg-active); color: white; border: none;
+        padding: 14px; min-height: 44px; border-radius: 12px;
+        font-weight: 700; width: 100%; font-size: 16px; cursor: pointer; margin-top: 8px;
+    }
+</style>
+
+<div class="res-page">
+    <div class="res-title"><i class="fas fa-chart-line" style="color: var(--tg-active);"></i> Аналитика / Результаты</div>
+
+    <div class="res-filter">
+        <form method="GET">
+            <div class="res-filter-row">
+                <div class="res-filter-group">
+                    <span class="res-filter-label">С</span>
+                    <input type="date" name="date_from" value="{{ date_from|default:'' }}" class="res-input">
+                </div>
+                <div class="res-filter-group">
+                    <span class="res-filter-label">По</span>
+                    <input type="date" name="date_to" value="{{ date_to|default:'' }}" class="res-input">
+                </div>
+                <div class="res-filter-group" style="min-width: 120px;">
+                    <span class="res-filter-label">Предмет</span>
+                    <select name="subject_id" class="res-input">
+                        <option value="">Все</option>
+                        {% for s in subjects_list %}
+                        <option value="{{ s.id }}" {% if subject_id_filter == s.id %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="res-btn"><i class="fas fa-filter"></i> Показать</button>
+                <a href="{% url 'results_page' %}" class="res-reset" title="Сбросить"><i class="fas fa-undo"></i></a>
+            </div>
+        </form>
+    </div>
+
+    <div class="res-chart-wrap">
+        <div class="res-chart-title">Динамика успеваемости (% от макс. балла)</div>
+        <div class="res-chart-container">
+            <canvas id="resultsChartMobile"></canvas>
+        </div>
+    </div>
+
+    <div class="res-add-wrap">
+        <button type="button" class="res-add-btn" onclick="document.getElementById('addResultModal').classList.add('active');">
+            <i class="fas fa-plus"></i> Добавить результат
+        </button>
+    </div>
+
+    <div class="res-section-title" style="font-size: 16px; font-weight: 800; color: var(--tg-text); margin-bottom: 12px;">Результаты</div>
+
+    {% for r in results %}
+    <div class="res-card">
+        <div class="res-card-row">
+            <span class="res-card-label">Ученик</span>
+            <span class="res-card-value">{{ r.student.first_name }} {{ r.student.last_name }}</span>
+        </div>
+        <div class="res-card-row">
+            <span class="res-card-label">Предмет</span>
+            <span class="res-card-value">{{ r.subject.name }}</span>
+        </div>
+        <div class="res-card-row">
+            <span class="res-card-label">Балл / макс.</span>
+            <span class="res-card-value">{{ r.score }} / {{ r.max_score }}</span>
+        </div>
+        <div class="res-card-row">
+            <span class="res-card-label">%</span>
+            <span class="res-card-value res-card-pct">{% if r.percent is not None %}{{ r.percent }}%{% else %}—{% endif %}</span>
+        </div>
+        <div class="res-card-row">
+            <span class="res-card-label">Дата</span>
+            <span class="res-card-value">{{ r.date|date:"d.m.Y" }}</span>
+        </div>
+        {% if r.comment %}
+        <div class="res-card-row">
+            <span class="res-card-label">Комментарий</span>
+            <span class="res-card-value" style="font-size: 13px; font-weight: 500;">{{ r.comment|truncatechars:60 }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="res-empty">
+        <p style="font-weight: 600; color: var(--tg-text);">Нет результатов</p>
+        <span>Добавьте первый результат или измените фильтры.</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div id="addResultModal" class="res-modal-overlay" onclick="if(event.target===this) this.classList.remove('active')">
+    <div class="res-modal-window">
+        <div class="res-modal-header">
+            <h3>Добавить результат</h3>
+            <button type="button" class="res-modal-close" onclick="document.getElementById('addResultModal').classList.remove('active');">&times;</button>
+        </div>
+        <form method="post" action="{% url 'results_page' %}">
+            {% csrf_token %}
+            <div class="res-form-group">
+                <label class="res-form-label">Ученик</label>
+                <select name="student_id" class="res-form-input" required>
+                    <option value="">— Выберите ученика —</option>
+                    {% for s in students_list %}
+                    <option value="{{ s.id }}">{{ s.last_name }} {{ s.first_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="res-form-group">
+                <label class="res-form-label">Предмет</label>
+                <select name="subject_id" class="res-form-input" required>
+                    <option value="">— Выберите предмет —</option>
+                    {% for s in subjects_list %}
+                    <option value="{{ s.id }}">{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="res-form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label class="res-form-label">Балл</label>
+                    <input type="number" name="score" step="0.01" min="0" class="res-form-input" required>
+                </div>
+                <div>
+                    <label class="res-form-label">Макс. балл</label>
+                    <input type="number" name="max_score" step="0.01" min="0.01" class="res-form-input" required>
+                </div>
+            </div>
+            <div class="res-form-group">
+                <label class="res-form-label">Дата</label>
+                <input type="date" name="result_date" class="res-form-input" required id="result-date-mobile" max="">
+            </div>
+            <div class="res-form-group">
+                <label class="res-form-label">Комментарий (необязательно)</label>
+                <textarea name="comment" class="res-form-input" rows="2" style="min-height: 60px;"></textarea>
+            </div>
+            <button type="submit" class="res-submit-btn"><i class="fas fa-check"></i> Сохранить</button>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    var d = document.getElementById('result-date-mobile');
+    if (d) d.setAttribute('max', new Date().toISOString().split('T')[0]);
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+    var ctx = document.getElementById('resultsChartMobile');
+    if (!ctx) return;
+    new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: {{ chart_labels|safe }},
+            datasets: [{
+                label: 'Средний %',
+                data: {{ chart_values|safe }},
+                borderColor: 'var(--tg-active)',
+                backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { min: 0, max: 100 }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

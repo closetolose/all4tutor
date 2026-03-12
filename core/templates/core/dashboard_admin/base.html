@@ -1,0 +1,23 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Панель администратора — All4Tutors{% endblock %}
+
+{% block content %}
+<div class="dashboard-admin-layout">
+    <aside class="dashboard-admin-sidebar">
+        <h3 class="dashboard-admin-sidebar-title">Админ-панель</h3>
+        <nav class="dashboard-admin-nav">
+            <a href="{% url 'dashboard_admin_users' %}" class="dashboard-admin-nav-item {% if request.resolver_match.url_name == 'dashboard_admin_users' %}active{% endif %}">
+                <i class="fas fa-users"></i> Пользователи
+            </a>
+            <a href="{% url 'dashboard_admin_unlink_requests' %}" class="dashboard-admin-nav-item {% if request.resolver_match.url_name == 'dashboard_admin_unlink_requests' %}active{% endif %}">
+                <i class="fas fa-unlink"></i> Заявки на открепление
+            </a>
+        </nav>
+    </aside>
+    <div class="dashboard-admin-main">
+        {% block dashboard_admin_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

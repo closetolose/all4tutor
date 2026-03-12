@@ -4,7 +4,7 @@
 
 {% block content %}
 <div style="max-width: 900px; margin: 0 auto;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h2 style="margin:0;"><i class="fas fa-archive text-primary"></i> Архив учеников</h2>
         <a href="{% url 'my_students' %}" class="btn btn-outline btn-sm">
             <i class="fas fa-arrow-left"></i> К активным
@@ -13,6 +13,7 @@
 
     <div class="card" style="padding: 0; overflow: hidden;">
         <div class="scrollable-container" style="max-height: 600px;">
+            <div class="table-container">
             <table style="width: 100%;">
                 <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
                     <tr style="text-align: left; font-size: 12px; color: #64748b; text-transform: uppercase;">
@@ -62,6 +63,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>

@@ -1,0 +1,134 @@
+{% extends "core/dashboard_admin/base.html" %}
+{% load static %}
+
+{% block dashboard_admin_content %}
+{% csrf_token %}
+<h1 class="dashboard-admin-page-title">Заявки на открепление</h1>
+
+<div class="dashboard-admin-table-wrap">
+    <table class="dashboard-admin-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Ученик (кто подал)</th>
+                <th>Репетитор (от кого)</th>
+                <th>Дата заявки</th>
+                <th>Статус</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for req in page_obj %}
+            <tr data-unlink-id="{{ req.id }}">
+                <td>{{ req.id }}</td>
+                <td>{{ req.student.last_name }} {{ req.student.first_name }}</td>
+                <td>{{ req.tutor.last_name }} {{ req.tutor.first_name }}</td>
+                <td>{{ req.created_at|date:"d.m.Y H:i" }}</td>
+                <td>
+                    <span class="dashboard-admin-status status-{{ req.status }}">
+                        {{ req.get_status_display }}
+                    </span>
+                </td>
+                <td class="dashboard-admin-actions">
+                    {% if req.status == 'pending' %}
+                    <button type="button" class="btn btn-sm btn-success dashboard-admin-btn-approve" data-id="{{ req.id }}"><i class="fas fa-check"></i> Одобрить</button>
+                    <button type="button" class="btn btn-sm btn-danger dashboard-admin-btn-reject" data-id="{{ req.id }}"><i class="fas fa-times"></i> Отклонить</button>
+                    {% else %}
+                    <span class="dashboard-admin-muted">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">Заявок нет.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav class="dashboard-admin-pagination">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline">← Назад</a>
+    {% endif %}
+    <span class="dashboard-admin-pagination-info">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline">Вперёд →</a>
+    {% endif %}
+</nav>
+{% endif %}
+
+<script>
+(function() {
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value
+        || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1];
+
+    function getCookie(name) {
+        var v = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+        return v ? decodeURIComponent(v[1]) : null;
+    }
+    if (!csrfToken) csrfToken = getCookie('csrftoken');
+
+    function showToast(message, type) {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+            return;
+        }
+        var container = document.getElementById('toastContainer');
+        if (!container) return;
+        var icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle' };
+        var toast = document.createElement('div');
+        toast.className = 'toast toast-' + (type || 'success');
+        toast.innerHTML = '<i class="fas ' + (icons[type] || icons.success) + '"></i><span>' + message + '</span><button class="toast-close">&times;</button>';
+        container.appendChild(toast);
+        toast.querySelector('.toast-close').onclick = function() { toast.remove(); };
+        setTimeout(function() { toast.remove(); }, 4000);
+    }
+
+    function updateRow(id, statusLabel) {
+        var row = document.querySelector('tr[data-unlink-id="' + id + '"]');
+        if (!row) return;
+        var statusCell = row.querySelector('.dashboard-admin-status');
+        if (statusCell) {
+            statusCell.textContent = statusLabel;
+            statusCell.className = 'dashboard-admin-status status-' + (statusLabel === 'Одобрено' ? 'approved' : (statusLabel === 'Отклонено' ? 'rejected' : 'pending'));
+        }
+        var td = row.querySelector('.dashboard-admin-actions');
+        if (td) td.innerHTML = '<span class="dashboard-admin-muted">—</span>';
+    }
+
+    document.querySelectorAll('.dashboard-admin-btn-approve').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var id = this.getAttribute('data-id');
+            fetch('/dashboard/admin/unlink-requests/' + id + '/approve/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' }
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.success) {
+                    showToast(data.message || 'Заявка одобрена', 'success');
+                    updateRow(id, 'Одобрено');
+                } else {
+                    showToast(data.error || 'Ошибка', 'error');
+                }
+            }).catch(function() { showToast('Ошибка сети', 'error'); });
+        });
+    });
+
+    document.querySelectorAll('.dashboard-admin-btn-reject').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var id = this.getAttribute('data-id');
+            fetch('/dashboard/admin/unlink-requests/' + id + '/reject/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' }
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.success) {
+                    showToast(data.message || 'Заявка отклонена', 'success');
+                    updateRow(id, 'Отклонено');
+                } else {
+                    showToast(data.error || 'Ошибка', 'error');
+                }
+            }).catch(function() { showToast('Ошибка сети', 'error'); });
+        });
+    });
+})();
+</script>
+{% endblock %}

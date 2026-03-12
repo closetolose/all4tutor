@@ -1,0 +1,146 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Новое занятие | All4Tutors{% endblock %}
+
+{% block content %}
+<div class="main-content-inner">
+    <div class="card add-lesson-card">
+        <h2 class="card-title">Новое занятие</h2>
+
+        {% if form.errors %}
+        <div class="auth-form-errors">
+            {% for field in form %}
+                {% for error in field.errors %}
+                    <p><i class="fas fa-exclamation-circle"></i> {{ error }}</p>
+                {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+                <p><i class="fas fa-exclamation-circle"></i> {{ error }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'add_lesson' %}" id="addLessonForm">
+            {% csrf_token %}
+
+            <div class="lesson-type-selector">
+                <ul>
+                    <li>
+                        <input type="radio" name="lesson_type" id="type-ind" value="individual" checked>
+                        <label for="type-ind">Индивидуально</label>
+                    </li>
+                    <li>
+                        <input type="radio" name="lesson_type" id="type-group" value="group">
+                        <label for="type-group">Группа</label>
+                    </li>
+                </ul>
+            </div>
+
+            <div id="block-student" class="form-group"><label class="form-label">Ученик</label>{{ form.student }}</div>
+            <div id="block-group" class="form-group" style="display: none;"><label class="form-label">Группа</label>{{ form.group }}</div>
+
+            <div class="form-row form-row-gap">
+                <div class="form-group flex-2"><label class="form-label">Начало</label>{{ form.start_time }}</div>
+                <div class="form-group flex-1"><label class="form-label">Мин.</label>{{ form.duration }}</div>
+            </div>
+
+            <div class="form-row form-row-gap">
+                <div class="form-group flex-2"><label class="form-label">Предмет</label>{{ form.subject }}</div>
+                <div class="form-group flex-1"><label class="form-label">Цена (₽)</label>{{ form.price }}</div>
+            </div>
+
+            <div class="recurring-box form-group">
+                <label class="recurring-label">
+                    {{ form.is_recurring }}
+                    <span><i class="fas fa-redo"></i> Повторять еженедельно</span>
+                </label>
+                <div id="recurring-settings" class="recurring-settings" style="display: none;">
+                    <div class="form-row form-row-gap">
+                        <div class="form-group flex-1"><label class="form-label">Кол-во недель</label>{{ form.repeat_count }}</div>
+                        <div class="form-group flex-1"><label class="form-label">Или до даты</label>{{ form.repeat_until }}</div>
+                    </div>
+                    <label class="form-label">Дни недели</label>
+                    <div class="weekdays-wrap">
+                        {% for value, label in form.fields.weekdays.choices %}
+                        <label class="weekday-pill">
+                            <input type="checkbox" name="weekdays" value="{{ value }}">
+                            <span>{{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row form-row-gap">
+                <div class="form-group flex-1"><label class="form-label">Формат</label>{{ form.format }}</div>
+                <div class="form-group flex-1"><label class="form-label">Место / Ссылка</label>{{ form.location }}</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Заметки</label>
+                {{ form.notes }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">ДЗ к уроку</label>
+                {{ form.homework }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label"><i class="fas fa-paperclip"></i> Материалы</label>
+                <button type="button" class="btn btn-outline btn-full" onclick="openFilePickerModal('add-lesson-display', 'add-lesson-select')">
+                    <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                </button>
+                <div id="add-lesson-display" class="materials-chips"></div>
+                <select id="add-lesson-select" name="materials" multiple hidden></select>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">Создать занятие</button>
+        </form>
+    </div>
+</div>
+
+<style>
+.add-lesson-card { max-width: 560px; }
+.card-title { margin-bottom: 24px; font-size: 20px; font-weight: 700; color: var(--text-main); }
+.auth-form-errors { background: var(--danger-bg); color: var(--danger-text); padding: 12px 16px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 14px; border: 1px solid var(--danger); }
+.auth-form-errors p { margin: 4px 0; }
+.auth-form-errors p:first-child { margin-top: 0; }
+.auth-form-errors p:last-child { margin-bottom: 0; }
+.form-row { display: flex; gap: 16px; }
+.form-row-gap { margin-bottom: 20px; }
+.form-row .form-group { margin-bottom: 0; }
+.flex-1 { flex: 1; }
+.flex-2 { flex: 2; }
+.recurring-label { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; cursor: pointer; margin-bottom: 8px; }
+.recurring-settings { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border); }
+.weekdays-wrap { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.materials-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+</style>
+
+<script>
+(function() {
+    var form = document.getElementById('addLessonForm');
+    if (!form) return;
+
+    function setType(type) {
+        var blockStudent = document.getElementById('block-student');
+        var blockGroup = document.getElementById('block-group');
+        if (blockStudent) blockStudent.style.display = type === 'individual' ? '' : 'none';
+        if (blockGroup) blockGroup.style.display = type === 'group' ? '' : 'none';
+    }
+
+    form.querySelectorAll('input[name="lesson_type"]').forEach(function(radio) {
+        radio.addEventListener('change', function() { setType(this.value); });
+    });
+
+    var recurringCheck = form.querySelector('input[name="is_recurring"]');
+    var recurringSettings = document.getElementById('recurring-settings');
+    if (recurringCheck && recurringSettings) {
+        recurringCheck.addEventListener('change', function() {
+            recurringSettings.style.display = this.checked ? 'block' : 'none';
+        });
+        if (recurringCheck.checked) recurringSettings.style.display = 'block';
+    }
+})();
+</script>
+{% endblock %}

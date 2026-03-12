@@ -10,7 +10,7 @@
     </div>
 
     {% if requests %}
-        <div style="display: flex; flex-direction: column; gap: 15px;">
+        <div style="display: flex; flex-direction: column; gap: 16px;">
             {% for req in requests %}
                 <div class="card list-item" style="border-left: 4px solid var(--primary);">
                     <div class="list-info">
@@ -38,8 +38,8 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="card text-center" style="padding: 60px;">
-            <i class="fas fa-check-circle" style="font-size: 48px; color: #cbd5e1; margin-bottom: 20px; display: block;"></i>
+        <div class="card text-center" style="padding: 64px;">
+            <i class="fas fa-check-circle" style="font-size: 48px; color: #cbd5e1; margin-bottom: 24px; display: block;"></i>
             <h3 style="margin: 0;">Все спокойно</h3>
             <p style="color: var(--text-muted);">Новых заявок пока нет.</p>
         </div>

@@ -1,0 +1,24 @@
+{% for f in files %}
+<div class="fl-file-card">
+    <div class="fl-file-icon">
+        {% if f.get_extension == '.pdf' %}<i class="fas fa-file-pdf" style="color: #ef4444;"></i>
+        {% elif f.get_extension in '.doc,.docx' %}<i class="fas fa-file-word" style="color: #3b82f6;"></i>
+        {% elif f.get_extension in '.xls,.xlsx' %}<i class="fas fa-file-excel" style="color: #10b981;"></i>
+        {% elif f.get_extension in '.mp4,.mov' %}<i class="fas fa-file-video" style="color: #8b5cf6;"></i>
+        {% elif f.get_extension in '.jpg,.png,.jpeg' %}<i class="fas fa-file-image" style="color: #f59e0b;"></i>
+        {% else %}<i class="fas fa-file-alt" style="color: var(--tg-hint);"></i>{% endif %}
+    </div>
+    <div class="fl-file-info">
+        <div class="fl-file-name">{{ f.file_name }}</div>
+        <div class="fl-file-date">{{ f.upload_date|date:"d.m.Y" }}</div>
+    </div>
+    <div class="fl-file-actions">
+        <a href="{{ f.file.url }}" target="_blank" class="fl-action-btn"><i class="fas fa-download"></i></a>
+        <button type="button" onclick="prepareEditModal('{{ f.id }}', '{{ f.file_name|escapejs }}', '{% for tag in f.tags.all %}{{ tag.id }}{% if not forloop.last %},{% endif %}{% endfor %}')" class="fl-action-btn"><i class="fas fa-edit"></i></button>
+        <form method="post" action="{% url 'delete_file' f.id %}" style="display: inline;" onsubmit="return confirm('Удалить файл «{{ f.file_name|escapejs }}» навсегда?');">
+            {% csrf_token %}
+            <button type="submit" class="fl-action-btn fl-delete" title="Удалить"><i class="fas fa-trash"></i></button>
+        </form>
+    </div>
+</div>
+{% endfor %}

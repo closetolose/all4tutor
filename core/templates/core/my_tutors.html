@@ -39,6 +39,7 @@
     <h2 class="mb-20"><i class="fas fa-chalkboard-teacher"></i> Мои преподаватели</h2>
 
     {% for conn in connections %}
+        <div style="margin-bottom: 16px;">
         <a href="{% url 'tutor_card' conn.tutor.id %}" class="tutor-card-link">
             <div class="card list-item" style="display: flex; justify-content: space-between; align-items: center; padding: 20px;">
                 <div class="list-info">
@@ -64,13 +65,67 @@
                     </div>
                 </div>
 
-                <div class="list-actions" style="display: flex; align-items: center;">
+                <div class="list-actions" style="display: flex; align-items: center; gap: 10px;">
+                    <button type="button" onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('colorModal{{ conn.id }}').classList.add('active');" class="btn btn-outline" style="min-height: 44px; padding: 8px 12px; font-size: 14px;" title="Настроить цвет">
+                        <i class="fas fa-palette"></i> Цвет
+                    </button>
+                    {% if conn.tutor.id in pending_unlink_tutor_ids %}
+                    <span class="badge" style="background: #fef3c7; color: #92400e; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 11px;">
+                        <i class="fas fa-clock"></i> Заявка на открепление отправлена
+                    </span>
+                    {% else %}
+                    <button type="button" onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('unlinkModal{{ conn.id }}').classList.add('active');" class="btn btn-outline" style="min-height: 44px; padding: 8px 12px; font-size: 14px; color: var(--danger); border-color: var(--danger);" title="Подать заявку на открепление">
+                        <i class="fas fa-user-minus"></i> Открепиться
+                    </button>
+                    {% endif %}
                     <span class="badge" style="background: #e0e7ff; color: #4338ca; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 11px;">
                         ВАШ РЕПЕТИТОР
                     </span>
                 </div>
             </div>
         </a>
+
+        <div id="unlinkModal{{ conn.id }}" class="modal-overlay">
+            <div class="modal-window" style="background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 400px; position: relative;" onclick="event.stopPropagation();">
+                <div style="position: absolute; right: 15px; top: 15px; cursor: pointer; font-size: 24px; color: #94a3b8;" onclick="document.getElementById('unlinkModal{{ conn.id }}').classList.remove('active');">&times;</div>
+                <h3 style="margin-top: 0;">Открепиться от репетитора?</h3>
+                <p style="color: var(--text-secondary); font-size: 14px; margin: 12px 0 20px;">Будет отправлена заявка администратору платформы. Самостоятельно удалить связь нельзя — решение примет администратор.</p>
+                <form action="{% url 'request_unlink' conn.id %}" method="post" style="display: flex; gap: 10px;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary" style="background: var(--danger); border-color: var(--danger);">Отправить заявку</button>
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('unlinkModal{{ conn.id }}').classList.remove('active');">Отмена</button>
+                </form>
+            </div>
+        </div>
+        <div id="colorModal{{ conn.id }}" class="modal-overlay">
+            <div class="modal-window" style="background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 360px; position: relative;" onclick="event.stopPropagation();">
+                <div style="position: absolute; right: 15px; top: 15px; cursor: pointer; font-size: 24px; color: #94a3b8;" onclick="document.getElementById('colorModal{{ conn.id }}').classList.remove('active');">&times;</div>
+                <h3 style="margin-top: 0;">Цвет для {{ conn.tutor.first_name }}</h3>
+                <form action="{% url 'update_tutor_color' conn.id %}" method="post" class="tutor-color-form-inline" data-connection-id="{{ conn.id }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="color_hex" class="inline-color-hex" value="{{ conn.color_hex|default:'' }}">
+                    <div class="entity-color-palette inline-palette" style="margin-bottom: 10px;">
+                        <span class="color-swatch" data-color="#6366f1" style="width:28px;height:28px;border-radius:8px;background:#6366f1;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#22c55e" style="width:28px;height:28px;border-radius:8px;background:#22c55e;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#f59e0b" style="width:28px;height:28px;border-radius:8px;background:#f59e0b;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#ef4444" style="width:28px;height:28px;border-radius:8px;background:#ef4444;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#ec4899" style="width:28px;height:28px;border-radius:8px;background:#ec4899;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#8b5cf6" style="width:28px;height:28px;border-radius:8px;background:#8b5cf6;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#06b6d4" style="width:28px;height:28px;border-radius:8px;background:#06b6d4;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#84cc16" style="width:28px;height:28px;border-radius:8px;background:#84cc16;cursor:pointer;"></span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+                        <input type="color" class="inline-color-picker" value="{{ conn.color_hex|default:'#6366f1' }}" style="width: 40px; height: 36px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
+                        <span style="font-size: 12px; color: var(--text-muted);">Свой цвет</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">Сохранить</button>
+                        <button type="button" class="btn btn-outline" onclick="var f=this.form; f.querySelector('.inline-color-hex').value=''; f.submit();">Убрать цвет</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        </div>
     {% empty %}
         <div class="card text-center" style="padding: 50px;">
             <p style="color: var(--text-muted);">У вас пока нет преподавателей.</p>
@@ -78,4 +133,24 @@
         </div>
     {% endfor %}
 </div>
+<script>
+(function() {
+    document.querySelectorAll('.tutor-color-form-inline').forEach(function(form) {
+        var hidden = form.querySelector('.inline-color-hex');
+        var picker = form.querySelector('.inline-color-picker');
+        if (!hidden) return;
+        form.querySelectorAll('.color-swatch').forEach(function(sw) {
+            sw.addEventListener('click', function() {
+                var c = this.getAttribute('data-color');
+                hidden.value = c;
+                if (picker) picker.value = c;
+            });
+        });
+        if (picker) picker.addEventListener('input', function() { hidden.value = this.value; });
+    });
+})();
+document.querySelectorAll('.modal-overlay').forEach(function(el) {
+    el.addEventListener('click', function(e) { if (e.target === el) el.classList.remove('active'); });
+});
+</script>
 {% endblock %}

@@ -9,15 +9,17 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User as AuthUser
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import HttpResponse, JsonResponse
+from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import TemplateDoesNotExist
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.template.loader import get_template
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -30,14 +32,33 @@ from django.core.exceptions import ValidationError
 
 from .forms import AddLessonForm, AddSubjectForm, ProfileUpdateForm, RegistrationForm, StudyGroupForm
 from .models import (
-    ConnectionRequest, FilesLibrary, Homework, HomeworkResponse,
-    LessonAttendance, Lessons, StudentTariff, StudyGroups, Subjects,
-    Transaction, TutorStudentNote, TutorSubjects, Users, StudentBalance,
+    ConnectionRequest, FileTag, FilesLibrary, Homework, HomeworkResponse,
+    LessonAttendance, Lessons, Notification, PaymentReceipt, StudentTariff,
+    StudyGroups, Subjects, Transaction, TutorStudentNote, TutorSubjects,
+    UnlinkRequest, UserGroupColor, Users, StudentBalance, TestResult,
 )
 from .utils import send_telegram_notification, send_verification_email
 # from ratelimit.decorators import ratelimit  # установите django-ratelimit и пересоберите Docker-образ
 from django.db.models import ProtectedError
 from django.core.paginator import Paginator
+
+
+def safe_referer_redirect(request, default='index'):
+    """Редирект на HTTP_REFERER только если URL разрешён (защита от open redirect)."""
+    referer = request.META.get('HTTP_REFERER')
+    if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts=settings.ALLOWED_HOSTS):
+        return redirect(referer)
+    return redirect(default)
+
+
+def get_tutor_file_ids(tutor_profile, raw_ids):
+    """Возвращает только те ID файлов, которые принадлежат репетитору (защита от привязки чужих файлов)."""
+    if not raw_ids:
+        return []
+    clean = [fid.strip() for fid in raw_ids if fid and str(fid).isdigit()]
+    if not clean:
+        return []
+    return list(FilesLibrary.objects.filter(tutor=tutor_profile, id__in=clean).values_list('id', flat=True))
 
 
 @login_required
@@ -57,6 +78,7 @@ def index(request):
     files = []
     active_hw_count = 0
     active_tutors = []
+    overdue_count = 0
     total_in_period = 0
     done_in_period = 0
     expected_income = 0
@@ -123,15 +145,19 @@ def index(request):
         total_count = lessons_qs.count()
         lessons = lessons_qs[:per_page]
 
-        # 3. Карта посещаемости (для быстрой отметки в JS)
+        # 3. Карта посещаемости (для быстрой отметки в JS) + JSON и счётчики для модалки
         for lesson in lessons:
-            attendance_map[str(lesson.id)] = [
+            att_list = [
                 {
                     "id": att.id,
                     "name": f"{att.student.first_name} {att.student.last_name}",
                     "present": att.was_present
                 } for att in lesson.attendances.all()
             ]
+            attendance_map[str(lesson.id)] = att_list
+            setattr(lesson, 'attendances_json', json.dumps(att_list))
+            setattr(lesson, 'att_present_count', sum(1 for a in att_list if a['present']))
+            setattr(lesson, 'att_total_count', len(att_list))
 
         # 4. Данные для форм и тарифов
         tariffs_qs = StudentTariff.objects.filter(tutor=user_profile).values(
@@ -188,6 +214,14 @@ def index(request):
 
         total_count = lessons_qs.count()
         lessons = lessons_qs[:per_page]  # Теперь переменная lessons заполнена!
+        for lesson in lessons:
+            att_list = [
+                {"id": att.id, "name": f"{att.student.first_name} {att.student.last_name}", "present": att.was_present}
+                for att in lesson.attendances.all()
+            ]
+            setattr(lesson, 'attendances_json', json.dumps(att_list))
+            setattr(lesson, 'att_present_count', sum(1 for a in att_list if a['present']))
+            setattr(lesson, 'att_total_count', len(att_list))
 
         # 2. Доп. данные ученика
         student_debt = LessonAttendance.objects.filter(
@@ -202,6 +236,7 @@ def index(request):
         active_hw = homeworks.filter(status__in=['pending', 'revision']).select_related('tutor')
         active_hw_count = active_hw.count()
         active_tutors = list(set([f"{hw.tutor.first_name} {hw.tutor.last_name}" for hw in active_hw]))
+        overdue_count = homeworks.filter(deadline__lt=timezone.now()).exclude(status='completed').count()
 
         # Логика обработки POST (добавление/удаление предметов)
     if request.method == 'POST' and user_role == 'tutor':
@@ -232,9 +267,56 @@ def index(request):
             )
             return redirect('index')
 
+    # Цветовая индикация: lesson_colors для расписания (без N+1)
+    lesson_colors = {}
+    if user_role == 'tutor' and lessons and hasattr(request.user, 'profile'):
+        profile = request.user.profile
+        group_ids = [l.group_id for l in lessons if getattr(l, 'group_id', None)]
+        group_colors = dict(
+            UserGroupColor.objects.filter(user=profile, group_id__in=group_ids)
+            .exclude(color_hex__isnull=True).exclude(color_hex='')
+            .values_list('group_id', 'color_hex')
+        ) if group_ids else {}
+        student_ids = [l.student_id for l in lessons if getattr(l, 'student_id', None)]
+        connection_tutor_colors = dict(
+            ConnectionRequest.objects.filter(
+                tutor=profile, student_id__in=student_ids, status__in=['confirmed', 'archived']
+            ).exclude(tutor_color_hex__isnull=True).exclude(tutor_color_hex='')
+            .values_list('student_id', 'tutor_color_hex')
+        ) if student_ids else {}
+        for lesson in lessons:
+            if getattr(lesson, 'group_id', None) and lesson.group_id in group_colors:
+                lesson_colors[lesson.id] = group_colors[lesson.group_id]
+            elif getattr(lesson, 'student_id', None):
+                lesson_colors[lesson.id] = connection_tutor_colors.get(lesson.student_id)
+            else:
+                lesson_colors[lesson.id] = None
+    elif user_role == 'student' and lessons and hasattr(request.user, 'profile'):
+        profile = request.user.profile
+        tutor_ids = list({l.tutor_id for l in lessons})
+        group_ids = list({l.group_id for l in lessons if getattr(l, 'group_id', None)})
+        tutor_colors = dict(
+            ConnectionRequest.objects.filter(
+                student=profile, status='confirmed', tutor_id__in=tutor_ids
+            ).exclude(color_hex__isnull=True).exclude(color_hex='').values_list('tutor_id', 'color_hex')
+        )
+        group_colors = dict(
+            UserGroupColor.objects.filter(user=profile, group_id__in=group_ids)
+            .exclude(color_hex__isnull=True).exclude(color_hex='')
+            .values_list('group_id', 'color_hex')
+        ) if group_ids else {}
+        for lesson in lessons:
+            if getattr(lesson, 'group_id', None) and lesson.group_id in group_colors:
+                lesson_colors[lesson.id] = group_colors[lesson.group_id]
+            else:
+                lesson_colors[lesson.id] = tutor_colors.get(lesson.tutor_id)
+
+    for lesson in lessons:
+        setattr(lesson, 'display_color', lesson_colors.get(lesson.id))
 
     context = {
         'lessons': lessons,
+        'lesson_colors': lesson_colors,
         'total_lessons': total_count,
         'has_more': total_count > per_page,
         'role': user_role,
@@ -258,6 +340,7 @@ def index(request):
         'current_date_to': final_end_date,
         'student_tutors': student_tutors,
         'student_groups': student_groups,
+        'overdue_count': overdue_count,
         'current_filter_target': request.GET.get('target'),
         'current_filter_subject': request.GET.get('subject'),
     }
@@ -401,7 +484,18 @@ def my_tutors(request):
         student__user=request.user.id,
         status='confirmed'
     )
-    return smart_render(request, 'core/my_tutors.html', {'connections': confirmed_connections})
+    pending_unlink_tutor_ids = set()
+    if request.user.profile.role == 'student':
+        pending_unlink_tutor_ids = set(
+            UnlinkRequest.objects.filter(
+                student=request.user.profile,
+                status='pending',
+            ).values_list('tutor_id', flat=True)
+        )
+    return smart_render(request, 'core/my_tutors.html', {
+        'connections': confirmed_connections,
+        'pending_unlink_tutor_ids': pending_unlink_tutor_ids,
+    })
 
 
 @login_required
@@ -612,18 +706,24 @@ def delete_lesson(request, lesson_id):
 @login_required
 #@ratelimit(key='ip', rate='5/m', block=True)
 def edit_group(request, group_id):
-    group = get_object_or_404(StudyGroups, id=group_id, tutor=request.user.profile)
+    profile = request.user.profile
+    group = get_object_or_404(StudyGroups, id=group_id, tutor=profile)
 
     if request.method == 'POST':
-        form = StudyGroupForm(request.POST, instance=group, tutor=request.user.profile)
+        form = StudyGroupForm(request.POST, instance=group, tutor=profile)
         if form.is_valid():
             form.save()
             messages.success(request, f"Группа '{group.name}' обновлена!")
             return redirect('my_students')
     else:
-        form = StudyGroupForm(instance=group, tutor=request.user.profile)
+        form = StudyGroupForm(instance=group, tutor=profile)
 
-    return smart_render(request, 'core/edit_group.html', {'form': form, 'group': group})
+    group_color_obj = UserGroupColor.objects.filter(user=profile, group=group).first()
+    group_color_hex = group_color_obj.color_hex if group_color_obj else None
+
+    return smart_render(request, 'core/edit_group.html', {
+        'form': form, 'group': group, 'group_color_hex': group_color_hex,
+    })
 
 
 @login_required
@@ -711,8 +811,8 @@ def bulk_action_lessons(request):
         elif action == 'mass_edit':
             new_date = request.POST.get('mass_date')
             new_time = request.POST.get('mass_time')
-            new_student = request.POST.get('mass_student')
-            new_group = request.POST.get('mass_group')
+            new_student = request.POST.get('mass_student', '').strip()
+            new_group = request.POST.get('mass_group', '').strip()
             new_subject = request.POST.get('mass_subject')
             new_duration = request.POST.get('mass_duration')
             new_price = request.POST.get('mass_price')
@@ -720,6 +820,17 @@ def bulk_action_lessons(request):
             new_location = request.POST.get('mass_location')
             new_notes = request.POST.get('notes')
             selected_materials = request.POST.getlist('materials')
+            tutor_profile = request.user.profile
+
+            # Проверка доступа: студент — только из своих подключений, группа — своя
+            if new_student and not ConnectionRequest.objects.filter(
+                tutor=tutor_profile, student_id=new_student, status__in=['confirmed', 'archived']
+            ).exists():
+                new_student = None
+            if new_group and not StudyGroups.objects.filter(id=new_group, tutor=tutor_profile).exists():
+                new_group = None
+
+            valid_material_ids = get_tutor_file_ids(tutor_profile, selected_materials) if selected_materials else []
 
             with transaction.atomic():
                 for lesson in queryset:
@@ -754,9 +865,7 @@ def bulk_action_lessons(request):
                     lesson.save()
 
                     if 'materials_updated' in request.POST:
-                        # Очищаем от пустых строк на всякий случай
-                        valid_materials = [m for m in selected_materials if m.strip()]
-                        lesson.materials.set(valid_materials)
+                        lesson.materials.set(valid_material_ids)
 
                     if new_student or new_group:
                         lesson.attendances.all().delete()
@@ -933,6 +1042,27 @@ def student_card(request, student_id):
         student=student,
     )
 
+    # связь репетитор–ученик (для формы «Цветовая метка»)
+    connection = ConnectionRequest.objects.filter(
+        tutor=tutor, student=student, status__in=['confirmed', 'archived']
+    ).first()
+
+    # группы этого репетитора, в которых состоит ученик
+    student_groups = StudyGroups.objects.filter(tutor=tutor, students=student).order_by('name')
+
+    # Аналитика: раздельно ДЗ (hw) и проверочные/контрольные (test)
+    performance_all = student.performance.filter(lesson__tutor=tutor).select_related('lesson', 'lesson__subject').order_by('-date')
+    performance_hw = list(performance_all.filter(type='hw')[:15])
+    performance_tests = list(performance_all.filter(type='test')[:15])
+    avg_score_hw = None
+    avg_score_tests = None
+    if performance_hw:
+        scores = [p.score for p in performance_hw]
+        avg_score_hw = round(sum(scores) / len(scores), 1)
+    if performance_tests:
+        scores = [p.score for p in performance_tests]
+        avg_score_tests = round(sum(scores) / len(scores), 1)
+
     context = {
         'student': student,
         'attendances': attendances,
@@ -941,9 +1071,14 @@ def student_card(request, student_id):
         'tutor_files': tutor_files,
         'subjects': subjects,
         'transactions': student.transactions.filter(tutor=tutor).order_by('-date'),
-        'performance': student.performance.all().order_by('-date')[:10],
+        'performance_hw': performance_hw,
+        'performance_tests': performance_tests,
+        'avg_score_hw': avg_score_hw,
+        'avg_score_tests': avg_score_tests,
         'tutor_note': note_obj.text,
         'balance': balance_obj.balance,
+        'connection': connection,
+        'student_groups': student_groups,
     }
 
     return smart_render(request, 'core/student_card.html', context)
@@ -1022,7 +1157,7 @@ def add_homework(request, student_id):
         if student.telegram_id:
             send_telegram_notification(student, msg)
 
-        file_ids = request.POST.getlist('files')
+        file_ids = get_tutor_file_ids(tutor, request.POST.getlist('files'))
         if file_ids:
             hw.files.set(file_ids)
 
@@ -1059,25 +1194,44 @@ def files_library(request):
             messages.error(request, 'Максимальный размер файла — 10 МБ.')
             return redirect('files_library')
         try:
-            FilesLibrary.objects.create(
+            file_obj = FilesLibrary.objects.create(
                 tutor=user_profile,
                 file_name=file_name[:30],
                 file=uploaded,
             )
+            tag_ids = request.POST.getlist('tags')
+            if tag_ids:
+                valid_ids = list(FileTag.objects.filter(tutor=user_profile, id__in=tag_ids).values_list('id', flat=True))
+                file_obj.tags.set(valid_ids)
+            new_tag_name = (request.POST.get('new_tag_name') or '').strip()
+            if new_tag_name:
+                tag, _ = FileTag.objects.get_or_create(tutor=user_profile, name=new_tag_name[:50])
+                file_obj.tags.add(tag)
             messages.success(request, 'Файл успешно загружен.')
         except ValidationError as e:
             messages.error(request, str(e))
         return redirect('files_library')
 
-    # --- ЛОГИКА ПОИСКА ---
-    query = request.GET.get('q', '')  # Берем текст из поиска
-    files_qs = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
+    # --- ЛОГИКА ПОИСКА, ФИЛЬТРА ПО ТЕГАМ И СОРТИРОВКИ ---
+    query = request.GET.get('q', '')
+    tag_ids = request.GET.getlist('tag')
+    sort_param = request.GET.get('sort', 'date-desc')
+    order_map = {
+        'name-asc': ['file_name'],
+        'name-desc': ['-file_name'],
+        'date-desc': ['-upload_date'],
+        'date-asc': ['upload_date'],
+    }
+    order = order_map.get(sort_param, ['-upload_date'])
+    files_qs = FilesLibrary.objects.filter(tutor=user_profile).prefetch_related('tags').order_by(*order)
 
     if query:
-        # Фильтруем по названию (без учета регистра)
         files_qs = files_qs.filter(file_name__icontains=query)
+    if tag_ids:
+        files_qs = files_qs.filter(tags__id__in=tag_ids).distinct()
 
-    # Берем первые 20 для начальной загрузки
+    tutor_tags = FileTag.objects.filter(tutor=user_profile).order_by('name')
+
     files = files_qs[:20]
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         html = render_to_string('core/files_rows.html', {'files': files}, request=request)
@@ -1085,7 +1239,10 @@ def files_library(request):
 
     return smart_render(request, 'core/files_library.html', {
         'files': files,
-        'query': query  # Передаем текст обратно, чтобы он не исчезал из поля
+        'query': query,
+        'tutor_tags': tutor_tags,
+        'selected_tag_ids': [int(x) for x in tag_ids if x.isdigit()],
+        'sort_param': sort_param,
     })
 
 
@@ -1104,6 +1261,10 @@ def edit_file(request, file_id):
                 file_obj.file.delete(save=False)
             file_obj.file = request.FILES['file']
 
+        tag_ids = request.POST.getlist('tags')
+        valid_tag_ids = list(FileTag.objects.filter(tutor=request.user.profile, id__in=tag_ids).values_list('id', flat=True))
+        file_obj.tags.set(valid_tag_ids)
+
         file_obj.save()
         messages.success(request, "Материал успешно обновлен")
     return redirect('files_library')
@@ -1119,6 +1280,32 @@ def delete_file(request, file_id):
         file_obj.delete()
         messages.success(request, "Файл удален")
     return redirect('files_library')
+
+
+@login_required
+@require_POST
+def rename_tag(request, tag_id):
+    tag = get_object_or_404(FileTag, id=tag_id, tutor=request.user.profile)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        data = {}
+    new_name = (data.get('name') or '').strip()[:50]
+    if not new_name:
+        return JsonResponse({'error': 'Имя не может быть пустым'}, status=400)
+    if FileTag.objects.filter(tutor=request.user.profile, name=new_name).exclude(id=tag.id).exists():
+        return JsonResponse({'error': 'Тег с таким именем уже существует'}, status=400)
+    tag.name = new_name
+    tag.save()
+    return JsonResponse({'success': True, 'id': tag.id, 'name': tag.name})
+
+
+@login_required
+@require_POST
+def delete_tag(request, tag_id):
+    tag = get_object_or_404(FileTag, id=tag_id, tutor=request.user.profile)
+    tag.delete()
+    return JsonResponse({'success': True})
 
 
 @login_required
@@ -1139,12 +1326,12 @@ def download_lesson_materials(request, lesson_id):
 
     if not (is_tutor or is_individual_student or is_group_student):
         messages.error(request, "У вас нет доступа к материалам этого урока.")
-        return redirect(request.META.get('HTTP_REFERER', 'index'))
+        return safe_referer_redirect(request, 'index')
 
     files = lesson.materials.all()
     if not files:
         messages.warning(request, "К этому уроку не прикреплено ни одного файла.")
-        return redirect(request.META.get('HTTP_REFERER', 'index'))
+        return safe_referer_redirect(request, 'index')
 
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, 'w') as zip_file:
@@ -1174,12 +1361,12 @@ def download_homework_all(request, hw_id):
 
     if not (is_tutor or is_student):
         messages.error(request, "У вас нет доступа к этим файлам.")
-        return redirect(request.META.get('HTTP_REFERER', 'index'))
+        return safe_referer_redirect(request, 'index')
 
     files = hw.files.all()
     if not files:
         messages.warning(request, "Файлов для скачивания нет")
-        return redirect(request.META.get('HTTP_REFERER', 'index'))
+        return safe_referer_redirect(request, 'index')
 
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, 'w') as zip_f:
@@ -1211,11 +1398,11 @@ def download_homework_response(request, response_id):
 
     if not (is_tutor or is_student):
         messages.error(request, "У вас нет доступа к этому файлу.")
-        return redirect(request.META.get('HTTP_REFERER', 'index'))
+        return safe_referer_redirect(request, 'index')
 
     if not response_obj.file or not os.path.exists(response_obj.file.path):
         messages.error(request, "Файл не найден.")
-        return redirect(request.META.get('HTTP_REFERER', 'index'))
+        return safe_referer_redirect(request, 'index')
 
     ext = os.path.splitext(response_obj.file.name)[1]
     filename = response_obj.file_name if response_obj.file_name.endswith(ext) else response_obj.file_name + ext
@@ -1245,7 +1432,7 @@ def edit_homework(request, hw_id):
         if 'tutor_comment' in request.POST:
             hw.tutor_comment = request.POST.get('tutor_comment')
 
-        file_ids = request.POST.getlist('files')
+        file_ids = get_tutor_file_ids(request.user.profile, request.POST.getlist('files'))
         hw.files.set(file_ids)
 
         hw.save()
@@ -1328,6 +1515,147 @@ def finances(request):
 
 
 @login_required
+def results_page(request):
+    """Аналитика / Результаты: репетитор — фильтры по ученику/предмету; ученик — только свои результаты. Безопасность: QuerySet всегда по request.user."""
+    user_profile = request.user.profile
+
+    # ——— Ученик: только свои результаты, без доступа к чужим ———
+    if user_profile.role == 'student':
+        qs = TestResult.objects.filter(student=user_profile).select_related('tutor', 'subject').order_by('-date')
+        date_from = request.GET.get('date_from')
+        date_to = request.GET.get('date_to')
+        subject_id_param = request.GET.get('subject_id')
+        subject_id_filter = int(subject_id_param) if subject_id_param and subject_id_param.isdigit() else None
+        if date_from:
+            qs = qs.filter(date__gte=date_from)
+        if date_to:
+            qs = qs.filter(date__lte=date_to)
+        if subject_id_filter:
+            qs = qs.filter(subject_id=subject_id_filter)
+        # Используем корректный related_name из модели TestResult.subject
+        subjects_list = Subjects.objects.filter(test_results__student=user_profile).distinct().order_by('name')
+        from collections import defaultdict
+        by_date = defaultdict(list)
+        for r in qs:
+            pct = r.percent
+            if pct is not None:
+                by_date[r.date].append(pct)
+        dates_sorted = sorted(by_date.keys())
+        chart_labels = [d.strftime('%d.%m') for d in dates_sorted]
+        chart_values = [round(sum(by_date[d]) / len(by_date[d]), 1) for d in dates_sorted]
+        context = {
+            'results': qs,
+            'subjects_list': subjects_list,
+            'students_list': [],
+            'date_from': date_from,
+            'date_to': date_to,
+            'subject_id': subject_id_param,
+            'subject_id_filter': subject_id_filter,
+            'chart_labels': json.dumps(chart_labels),
+            'chart_values': json.dumps(chart_values),
+            'is_student_view': True,
+        }
+        return smart_render(request, 'core/results.html', context)
+
+    # ——— Репетитор ———
+    tutor = user_profile
+
+    # POST — добавление результата
+    if request.method == 'POST':
+        student_id = request.POST.get('student_id')
+        subject_id = request.POST.get('subject_id')
+        max_score = request.POST.get('max_score')
+        score = request.POST.get('score')
+        date_str = request.POST.get('result_date')
+        comment = (request.POST.get('comment') or '').strip() or None
+        try:
+            max_score = Decimal(max_score or '0')
+            score = Decimal(score or '0')
+        except Exception:
+            messages.error(request, 'Сумма и балл должны быть числами.')
+            return redirect('results_page')
+        if max_score <= 0:
+            messages.error(request, 'Максимальный балл должен быть больше 0.')
+            return redirect('results_page')
+        if score < 0 or score > max_score:
+            messages.error(request, 'Полученный балл должен быть от 0 до максимального балла.')
+            return redirect('results_page')
+        if not date_str:
+            messages.error(request, 'Укажите дату.')
+            return redirect('results_page')
+        try:
+            result_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            messages.error(request, 'Некорректная дата.')
+            return redirect('results_page')
+        if result_date > timezone.now().date():
+            messages.error(request, 'Дата не может быть в будущем.')
+            return redirect('results_page')
+        student = get_object_or_404(Users, id=student_id, role='student')
+        subject = get_object_or_404(Subjects, id=subject_id)
+        if not TutorSubjects.objects.filter(tutor=tutor, subject=subject).exists():
+            messages.error(request, 'Этот предмет не принадлежит вам.')
+            return redirect('results_page')
+        if not ConnectionRequest.objects.filter(tutor=tutor, student=student, status__in=['confirmed', 'archived']).exists():
+            messages.error(request, 'Ученик не привязан к вам.')
+            return redirect('results_page')
+        TestResult.objects.create(tutor=tutor, student=student, subject=subject, max_score=max_score, score=score, date=result_date, comment=comment)
+        messages.success(request, 'Результат добавлен.')
+        return redirect('results_page')
+
+    # GET — список и фильтры (всегда по tutor=request.user, student_id только из своих учеников)
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    subject_id_param = request.GET.get('subject_id')
+    subject_id_filter = int(subject_id_param) if subject_id_param and subject_id_param.isdigit() else None
+    student_id_param = request.GET.get('student_id')
+    confirmed_ids = list(ConnectionRequest.objects.filter(tutor=tutor, status__in=['confirmed', 'archived']).values_list('student_id', flat=True))
+    student_id_filter = None
+    if student_id_param and student_id_param.isdigit():
+        sid = int(student_id_param)
+        if sid in confirmed_ids:
+            student_id_filter = sid
+
+    qs = TestResult.objects.filter(tutor=tutor).select_related('student', 'subject').order_by('-date')
+    if date_from:
+        qs = qs.filter(date__gte=date_from)
+    if date_to:
+        qs = qs.filter(date__lte=date_to)
+    if subject_id_filter:
+        qs = qs.filter(subject_id=subject_id_filter)
+    if student_id_filter is not None:
+        qs = qs.filter(student_id=student_id_filter)
+
+    subjects_list = Subjects.objects.filter(tutorsubjects__tutor=tutor).order_by('name')
+    students_list = Users.objects.filter(id__in=confirmed_ids, role='student').order_by('last_name', 'first_name')
+
+    from collections import defaultdict
+    by_date = defaultdict(list)
+    for r in qs:
+        pct = r.percent
+        if pct is not None:
+            by_date[r.date].append(pct)
+    dates_sorted = sorted(by_date.keys())
+    chart_labels = [d.strftime('%d.%m') for d in dates_sorted]
+    chart_values = [round(sum(by_date[d]) / len(by_date[d]), 1) for d in dates_sorted]
+
+    context = {
+        'results': qs,
+        'subjects_list': subjects_list,
+        'students_list': students_list,
+        'date_from': date_from,
+        'date_to': date_to,
+        'subject_id': subject_id_param,
+        'subject_id_filter': subject_id_filter,
+        'student_id_filter': student_id_filter,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_values': json.dumps(chart_values),
+        'is_student_view': False,
+    }
+    return smart_render(request, 'core/results.html', context)
+
+
+@login_required
 @require_POST
 #@ratelimit(key='ip', rate='5/m', block=True)
 def submit_homework(request, hw_id):
@@ -1398,7 +1726,7 @@ def submit_homework(request, hw_id):
             messages.error(request, "Файлы не были выбраны.")
 
         # Возвращаем пользователя на ту страницу, с которой он отправлял форму
-        return redirect(request.META.get('HTTP_REFERER', 'my_assignments'))
+        return safe_referer_redirect(request, 'my_assignments')
 
 
 @login_required
@@ -1408,11 +1736,27 @@ def my_assignments(request):
     if profile.role != 'student':
         return redirect('index')
 
-    homeworks = Homework.objects.filter(student=profile).order_by('-deadline')
+    now = timezone.now()
+    homeworks = list(Homework.objects.filter(student=profile).select_related('tutor', 'subject').order_by('-deadline'))
+    tutor_ids = list({hw.tutor_id for hw in homeworks})
+    tutor_colors = dict(
+        ConnectionRequest.objects.filter(
+            student=profile, status='confirmed', tutor_id__in=tutor_ids
+        ).exclude(color_hex__isnull=True).exclude(color_hex='').values_list('tutor_id', 'color_hex')
+    ) if tutor_ids else {}
+    overdue_count = 0
+    for hw in homeworks:
+        setattr(hw, 'display_color', tutor_colors.get(hw.tutor_id))
+        is_overdue = hw.deadline and hw.deadline < now and hw.status != 'completed'
+        setattr(hw, 'is_overdue', is_overdue)
+        if is_overdue:
+            overdue_count += 1
 
     context = {
         'homeworks': homeworks,
         'profile': profile,
+        'tutor_colors': tutor_colors,
+        'overdue_count': overdue_count,
     }
     return smart_render(request, 'core/my_assignments.html', context)
 
@@ -1502,18 +1846,21 @@ def activate(request, uidb64, token):
 
 @login_required
 def group_card(request, group_id):
-    tutor = request.user.profile
-    group = get_object_or_404(StudyGroups, id=group_id, tutor=tutor)
-    now = timezone.now()
+    profile = request.user.profile
+    group = get_object_or_404(StudyGroups, id=group_id)
+    is_tutor_owner = group.tutor == profile
+    is_student_member = not is_tutor_owner and group.students.filter(id=profile.id).exists()
+    if not (is_tutor_owner or is_student_member):
+        return redirect('index')
 
-    if request.method == 'POST' and 'assign_group_homework' in request.POST:
+    if request.method == 'POST' and 'assign_group_homework' in request.POST and is_tutor_owner:
         description = request.POST.get('description')
         deadline = request.POST.get('deadline')
-        file_ids = request.POST.getlist('files')
+        file_ids = get_tutor_file_ids(profile, request.POST.getlist('files'))
 
         for student in group.students.all():
             hw = Homework.objects.create(
-                tutor=tutor,
+                tutor=profile,
                 student=student,
                 subject=group.subject,
                 description=description,
@@ -1527,16 +1874,22 @@ def group_card(request, group_id):
 
     attendances = LessonAttendance.objects.filter(
         lesson__group=group,
-        lesson__tutor=tutor
+        lesson__tutor=group.tutor
     ).select_related('lesson', 'lesson__subject', 'student').order_by('-lesson__start_time')
 
-    tutor_files = FilesLibrary.objects.filter(tutor=tutor).order_by('-upload_date')
+    tutor_files = FilesLibrary.objects.filter(tutor=group.tutor).order_by('-upload_date') if is_tutor_owner else []
+
+    # Текущий цвет группы для этого пользователя (репетитор или ученик)
+    group_color_obj = UserGroupColor.objects.filter(user=profile, group=group).first()
+    group_color_hex = group_color_obj.color_hex if group_color_obj else None
 
     context = {
         'group': group,
         'attendances': attendances,
         'members': group.students.all(),
         'tutor_files': tutor_files,
+        'is_tutor_owner': is_tutor_owner,
+        'group_color_hex': group_color_hex,
     }
     return smart_render(request, 'core/group_card.html', context)
 
@@ -1580,10 +1933,64 @@ def load_more_lessons(request):
     start = (page - 1) * per_page
     end = page * per_page
     lessons = list(lessons_qs[start:end])
+    for lesson in lessons:
+        att_list = [
+            {"id": att.id, "name": f"{att.student.first_name} {att.student.last_name}", "present": att.was_present}
+            for att in lesson.attendances.all()
+        ]
+        setattr(lesson, 'attendances_json', json.dumps(att_list))
+        setattr(lesson, 'att_present_count', sum(1 for a in att_list if a['present']))
+        setattr(lesson, 'att_total_count', len(att_list))
+
+    # Цветовая индикация для среза уроков (без N+1)
+    lesson_colors = {}
+    if role == 'tutor' and lessons:
+        group_ids = [l.group_id for l in lessons if getattr(l, 'group_id', None)]
+        group_colors = dict(
+            UserGroupColor.objects.filter(user=user_profile, group_id__in=group_ids)
+            .exclude(color_hex__isnull=True).exclude(color_hex='')
+            .values_list('group_id', 'color_hex')
+        ) if group_ids else {}
+        student_ids = [l.student_id for l in lessons if getattr(l, 'student_id', None)]
+        connection_tutor_colors = dict(
+            ConnectionRequest.objects.filter(
+                tutor=user_profile, student_id__in=student_ids, status__in=['confirmed', 'archived']
+            ).exclude(tutor_color_hex__isnull=True).exclude(tutor_color_hex='')
+            .values_list('student_id', 'tutor_color_hex')
+        ) if student_ids else {}
+        for lesson in lessons:
+            if getattr(lesson, 'group_id', None) and lesson.group_id in group_colors:
+                lesson_colors[lesson.id] = group_colors[lesson.group_id]
+            elif getattr(lesson, 'student_id', None):
+                lesson_colors[lesson.id] = connection_tutor_colors.get(lesson.student_id)
+            else:
+                lesson_colors[lesson.id] = None
+    elif role == 'student' and lessons:
+        tutor_ids = list({l.tutor_id for l in lessons})
+        group_ids = list({l.group_id for l in lessons if getattr(l, 'group_id', None)})
+        tutor_colors = dict(
+            ConnectionRequest.objects.filter(
+                student=user_profile, status='confirmed', tutor_id__in=tutor_ids
+            ).exclude(color_hex__isnull=True).exclude(color_hex='').values_list('tutor_id', 'color_hex')
+        )
+        group_colors = dict(
+            UserGroupColor.objects.filter(user=user_profile, group_id__in=group_ids)
+            .exclude(color_hex__isnull=True).exclude(color_hex='')
+            .values_list('group_id', 'color_hex')
+        ) if group_ids else {}
+        for lesson in lessons:
+            if getattr(lesson, 'group_id', None) and lesson.group_id in group_colors:
+                lesson_colors[lesson.id] = group_colors[lesson.group_id]
+            else:
+                lesson_colors[lesson.id] = tutor_colors.get(lesson.tutor_id)
+
+    for lesson in lessons:
+        setattr(lesson, 'display_color', lesson_colors.get(lesson.id))
 
     # Рендерим строки
     html = render_to_string('core/lessons_rows.html', {
         'lessons': lessons,
+        'lesson_colors': lesson_colors,
         'role': role
     }, request=request)
 
@@ -1641,9 +2048,23 @@ def tutor_card(request, tutor_id):
         total=Sum('lesson__price')
     )['total'] or 0
 
+    # Связь ученик–репетитор для формы цвета (только для ученика)
+    connection = None
+    has_pending_unlink = False
+    if student_profile.role == 'student':
+        connection = ConnectionRequest.objects.filter(
+            student=student_profile, tutor=tutor, status='confirmed'
+        ).first()
+        if connection:
+            has_pending_unlink = UnlinkRequest.objects.filter(
+                student=student_profile, tutor=tutor, status='pending'
+            ).exists()
+
     context = {
         'tutor': tutor,
         'student': student_profile,
+        'connection': connection,
+        'has_pending_unlink': has_pending_unlink,
         'attendances': attendances,
         'homeworks': homeworks,
         'transactions': transactions,
@@ -1651,6 +2072,66 @@ def tutor_card(request, tutor_id):
         'total_debt': total_debt,
     }
     return smart_render(request, 'core/tutor_card.html', context)
+
+
+@login_required
+@require_POST
+def update_tutor_color(request, connection_id):
+    """Обновление цвета репетитора (только для ученика, владеющего связью)."""
+    connection = get_object_or_404(ConnectionRequest, id=connection_id)
+    if connection.student != request.user.profile:
+        return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+    color_hex = (request.POST.get('color_hex') or '').strip() or None
+    if color_hex and len(color_hex) > 7:
+        color_hex = color_hex[:7]
+    connection.color_hex = color_hex
+    connection.save()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'ok': True, 'color_hex': color_hex})
+    return safe_referer_redirect(request, 'my_tutors')
+
+
+@login_required
+@require_POST
+def update_connection_tutor_color(request, connection_id):
+    """Обновление цвета связи для репетитора (только репетитор — владелец связи)."""
+    connection = get_object_or_404(ConnectionRequest, id=connection_id)
+    if connection.tutor != request.user.profile:
+        return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+    color_hex = (request.POST.get('color_hex') or '').strip() or None
+    if color_hex and len(color_hex) > 7:
+        color_hex = color_hex[:7]
+    connection.tutor_color_hex = color_hex
+    connection.save()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'ok': True, 'color_hex': color_hex})
+    return redirect('student_card', student_id=connection.student_id)
+
+
+@login_required
+@require_POST
+def update_group_color(request, group_id):
+    """Обновление цвета группы (репетитор — владелец, ученик — участник)."""
+    group = get_object_or_404(StudyGroups, id=group_id)
+    profile = request.user.profile
+    if profile.role == 'tutor':
+        if group.tutor != profile:
+            return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+    else:
+        if not group.students.filter(id=profile.id).exists():
+            return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+    color_hex = (request.POST.get('color_hex') or '').strip() or None
+    if color_hex and len(color_hex) > 7:
+        color_hex = color_hex[:7]
+    obj, _ = UserGroupColor.objects.get_or_create(user=profile, group=group, defaults={'color_hex': color_hex})
+    obj.color_hex = color_hex
+    obj.save()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'ok': True, 'color_hex': color_hex})
+    referer = request.META.get('HTTP_REFERER')
+    if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts=settings.ALLOWED_HOSTS):
+        return redirect(referer)
+    return redirect('group_card', group_id=group_id)
 
 
 # views.py
@@ -1816,16 +2297,28 @@ def load_more_files(request):
     page = int(request.GET.get('page', 1))
     per_page = 20
     user_profile = request.user.profile
-
-    files_qs = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
+    query = request.GET.get('q', '')
+    tag_ids = request.GET.getlist('tag')
+    sort_param = request.GET.get('sort', 'date-desc')
+    order_map = {
+        'name-asc': ['file_name'],
+        'name-desc': ['-file_name'],
+        'date-desc': ['-upload_date'],
+        'date-asc': ['upload_date'],
+    }
+    order = order_map.get(sort_param, ['-upload_date'])
+    files_qs = FilesLibrary.objects.filter(tutor=user_profile).prefetch_related('tags').order_by(*order)
+    if query:
+        files_qs = files_qs.filter(file_name__icontains=query)
+    if tag_ids:
+        files_qs = files_qs.filter(tags__id__in=tag_ids).distinct()
 
     start = (page - 1) * per_page
     end = page * per_page
     files = list(files_qs[start:end])
 
-    # Рендерим HTML только для новых карточек
-    html = render_to_string('core/files_rows.html', {'files': files}, request=request)
-
+    rows_template = 'mobile/files_rows.html' if getattr(request, 'is_mobile', False) else 'core/files_rows.html'
+    html = render_to_string(rows_template, {'files': files}, request=request)
     has_more = files_qs.count() > end
     return JsonResponse({'html': html, 'has_more': has_more})
 
@@ -1837,7 +2330,7 @@ def download_library_file(request, file_id):
 
     if not file_obj.file or not os.path.exists(file_obj.file.path):
         messages.error(request, "Файл не найден на сервере.")
-        return redirect(request.META.get('HTTP_REFERER', 'files_library'))
+        return safe_referer_redirect(request, 'files_library')
 
     # Формируем правильное имя с расширением
     ext = os.path.splitext(file_obj.file.name)[1]
@@ -1849,6 +2342,155 @@ def download_library_file(request, file_id):
         as_attachment=True,  # True - скачивание, False - открытие в браузере
         filename=filename,
     )
+
+
+@login_required
+def payment_receipts(request):
+    """Страница оплат: ученик — форма отправки чека и список своих чеков; репетитор — заявки на подтверждение."""
+    user_profile = request.user.profile
+    if user_profile.role == 'student':
+        confirmed_tutor_ids = ConnectionRequest.objects.filter(
+            student=user_profile, status='confirmed'
+        ).values_list('tutor_id', flat=True)
+        my_tutors = Users.objects.filter(id__in=confirmed_tutor_ids)
+        my_receipts = PaymentReceipt.objects.filter(student=user_profile).select_related('tutor').order_by('-created_at')
+        return smart_render(request, 'core/payment_receipts_student.html', {
+            'my_tutors': my_tutors,
+            'my_receipts': my_receipts,
+        })
+    else:
+        pending_receipts = PaymentReceipt.objects.filter(
+            tutor=user_profile, status='pending'
+        ).select_related('student').order_by('-created_at')
+        return smart_render(request, 'core/payment_receipts_tutor.html', {
+            'pending_receipts': pending_receipts,
+        })
+
+
+@login_required
+@require_POST
+def submit_receipt(request):
+    """Ученик отправляет чек на верификацию."""
+    user_profile = request.user.profile
+    if user_profile.role != 'student':
+        messages.error(request, 'Только ученик может отправить чек.')
+        return redirect('payment_receipts')
+    tutor_id = request.POST.get('tutor_id')
+    tutor = get_object_or_404(Users, id=tutor_id, role='tutor')
+    if not ConnectionRequest.objects.filter(student=user_profile, tutor=tutor, status='confirmed').exists():
+        messages.error(request, 'Нет подтверждённой связи с этим репетитором.')
+        return redirect('payment_receipts')
+    try:
+        amount = Decimal((request.POST.get('amount') or '').replace(',', '.'))
+        if amount <= 0:
+            raise ValueError('Сумма должна быть больше нуля')
+    except (ValueError, TypeError):
+        messages.error(request, 'Укажите корректную сумму.')
+        return redirect('payment_receipts')
+    receipt_date_str = request.POST.get('receipt_date')
+    if not receipt_date_str:
+        messages.error(request, 'Укажите дату платежа.')
+        return redirect('payment_receipts')
+    try:
+        receipt_date = datetime.strptime(receipt_date_str, '%Y-%m-%d').date()
+        if receipt_date > timezone.now().date():
+            messages.error(request, 'Дата не может быть в будущем.')
+            return redirect('payment_receipts')
+    except ValueError:
+        messages.error(request, 'Некорректная дата.')
+        return redirect('payment_receipts')
+    uploaded = request.FILES.get('file')
+    if not uploaded:
+        messages.error(request, 'Прикрепите скан чека.')
+        return redirect('payment_receipts')
+    try:
+        from core.validators import validate_receipt_file
+        validate_receipt_file(uploaded)
+    except ValidationError as e:
+        messages.error(request, str(e))
+        return redirect('payment_receipts')
+    if amount > Decimal('999999.99'):
+        messages.error(request, 'Сумма не должна превышать 999 999,99 ₽.')
+        return redirect('payment_receipts')
+    try:
+        PaymentReceipt.objects.create(
+            student=user_profile,
+            tutor=tutor,
+            amount=amount,
+            receipt_date=receipt_date,
+            file=uploaded,
+            comment=(request.POST.get('comment') or '').strip() or None,
+            status='pending',
+        )
+        messages.success(request, 'Чек отправлен на проверку репетитору.')
+    except ValidationError as e:
+        messages.error(request, str(e))
+    return redirect('payment_receipts')
+
+
+@login_required
+@require_POST
+def approve_receipt(request, receipt_id):
+    """Репетитор подтверждает чек: обновляет статус, баланс и создаёт транзакцию (атомарно)."""
+    receipt = get_object_or_404(PaymentReceipt, id=receipt_id, tutor=request.user.profile, status='pending')
+    try:
+        with transaction.atomic():
+            receipt.status = 'approved'
+            receipt.reviewed_at = timezone.now()
+            receipt.save()
+            balance_obj, _ = StudentBalance.objects.select_for_update().get_or_create(
+                tutor=receipt.tutor,
+                student=receipt.student,
+            )
+            balance_obj.balance += receipt.amount
+            balance_obj.save()
+            Transaction.objects.create(
+                student=receipt.student,
+                tutor=receipt.tutor,
+                amount=receipt.amount,
+                type='deposit',
+                description='Пополнение по чеку от %s' % receipt.receipt_date.strftime('%d.%m.%Y'),
+                date=timezone.now(),
+            )
+        student_name = '%s %s' % (receipt.student.first_name, receipt.student.last_name)
+        messages.success(request, 'Чек подтверждён. Баланс ученика %s пополнен на %s ₽.' % (student_name, receipt.amount))
+    except Exception:
+        messages.error(request, 'Ошибка при подтверждении.')
+    return redirect('payment_receipts')
+
+
+@login_required
+@require_POST
+def reject_receipt(request, receipt_id):
+    """Репетитор отклоняет чек."""
+    receipt = get_object_or_404(PaymentReceipt, id=receipt_id, tutor=request.user.profile, status='pending')
+    receipt.status = 'rejected'
+    receipt.reviewed_at = timezone.now()
+    receipt.save()
+    messages.success(request, 'Чек отклонён.')
+    return redirect('payment_receipts')
+
+
+@login_required
+@require_POST
+def request_unlink(request, connection_id):
+    """Ученик создаёт заявку на открепление от репетитора (обрабатывается администратором)."""
+    user_profile = request.user.profile
+    if user_profile.role != 'student':
+        messages.error(request, 'Только ученик может подать заявку на открепление.')
+        return redirect('my_tutors')
+    connection = get_object_or_404(
+        ConnectionRequest,
+        id=connection_id,
+        student=user_profile,
+        status='confirmed',
+    )
+    if UnlinkRequest.objects.filter(student=user_profile, tutor=connection.tutor, status='pending').exists():
+        messages.info(request, 'Заявка на открепление уже отправлена и ожидает рассмотрения администратором.')
+        return redirect('my_tutors')
+    UnlinkRequest.objects.create(student=user_profile, tutor=connection.tutor, status='pending')
+    messages.success(request, 'Заявка на открепление отправлена. Решение примет администратор платформы.')
+    return redirect('my_tutors')
 
 
 @login_required
@@ -1937,20 +2579,33 @@ def delete_homework_response(request, response_id):
     # Проверка безопасности: удалить может только автор (ученик)
     if request.user.profile != response_obj.student:
         messages.error(request, "У вас нет прав для удаления этого файла.")
-        return redirect(request.META.get('HTTP_REFERER', 'index'))
+        return safe_referer_redirect(request, 'index')
 
     # Запрещаем удалять, если ДЗ уже принято
     if hw.status == 'completed':
         messages.error(request, "Нельзя удалять файлы из завершенного задания.")
-        return redirect(request.META.get('HTTP_REFERER', 'index'))
+        return safe_referer_redirect(request, 'index')
 
     # Удаляем и возвращаем обратно
     response_obj.delete()
     messages.success(request, "Ответ успешно удален.")
 
-    return redirect(request.META.get('HTTP_REFERER', 'index'))
+    return safe_referer_redirect(request, 'index')
 
 @login_required
+@require_POST
+def api_notification_mark_read(request, notification_id):
+    """Пометить уведомление прочитанным. Возвращает JSON."""
+    notification = get_object_or_404(
+        Notification,
+        id=notification_id,
+        user=request.user,
+    )
+    notification.is_read = True
+    notification.save(update_fields=['is_read'])
+    return JsonResponse({'ok': True})
+
+
 @require_POST
 def update_timezone(request):
     tz = request.POST.get('timezone', '').strip()
@@ -1972,3 +2627,136 @@ def update_timezone(request):
         except Exception:
             pass
     return JsonResponse({'status': 'ignored'})
+
+
+# --- Custom Admin Dashboard (superuser only) ---
+
+def _admin_required(view_func):
+    """Decorator: login + is_superuser. Use for all dashboard admin views. Redirect to index if not superuser."""
+    decorated = login_required(view_func)
+    return user_passes_test(lambda u: u.is_superuser, login_url='/')(decorated)
+
+
+@_admin_required
+def dashboard_admin_index(request):
+    """Главная панели администратора — редирект на список пользователей."""
+    return redirect('dashboard_admin_users')
+
+
+@_admin_required
+def dashboard_admin_users(request):
+    """Список пользователей с пагинацией, поиском и фильтром по роли."""
+    User = get_user_model()
+    qs = User.objects.filter(profile__isnull=False).select_related('profile').order_by('-date_joined')
+
+    search = request.GET.get('q', '').strip()
+    if search:
+        qs = qs.filter(
+            Q(email__icontains=search) | Q(profile__first_name__icontains=search) |
+            Q(profile__last_name__icontains=search) | Q(username__icontains=search)
+        )
+    role = request.GET.get('role', '').strip().lower()
+    if role in ('tutor', 'student'):
+        qs = qs.filter(profile__role=role)
+
+    paginator = Paginator(qs, 25)
+    page_num = request.GET.get('page', 1)
+    try:
+        page = paginator.page(int(page_num))
+    except (ValueError, TypeError):
+        page = paginator.page(1)
+    return render(request, 'core/dashboard_admin/users.html', {
+        'page_obj': page,
+        'search': search,
+        'role_filter': role,
+    })
+
+
+@_admin_required
+def dashboard_admin_unlink_requests(request):
+    """Список заявок на открепление с пагинацией."""
+    qs = UnlinkRequest.objects.select_related('student', 'tutor', 'reviewed_by').order_by('-created_at')
+    paginator = Paginator(qs, 25)
+    page_num = request.GET.get('page', 1)
+    try:
+        page = paginator.page(int(page_num))
+    except (ValueError, TypeError):
+        page = paginator.page(1)
+    return render(request, 'core/dashboard_admin/unlink_requests.html', {'page_obj': page})
+
+
+@_admin_required
+@require_POST
+def dashboard_admin_toggle_active(request, user_id):
+    """POST: переключение User.is_active. Ответ JSON."""
+    User = get_user_model()
+    user = get_object_or_404(User, pk=user_id)
+    if user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Нельзя заблокировать суперпользователя.'}, status=400)
+    user.is_active = not user.is_active
+    user.save(update_fields=['is_active'])
+    return JsonResponse({'success': True, 'is_active': user.is_active, 'message': 'Статус обновлён.'})
+
+
+@_admin_required
+@require_POST
+def dashboard_admin_delete_user(request, user_id):
+    """POST: удаление пользователя. Тело: {"confirm": "УДАЛИТЬ"}. В transaction.atomic()."""
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Неверный JSON.'}, status=400)
+    if body.get('confirm') != 'УДАЛИТЬ':
+        return JsonResponse({'success': False, 'error': 'Подтверждение не совпадает.'}, status=400)
+
+    User = get_user_model()
+    user = get_object_or_404(User, pk=user_id)
+    if user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Нельзя удалить суперпользователя.'}, status=400)
+    try:
+        with transaction.atomic():
+            profile = getattr(user, 'profile', None)
+            if profile:
+                profile.delete()
+            user.delete()
+        return JsonResponse({'success': True, 'message': 'Пользователь удалён.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@_admin_required
+@require_POST
+def dashboard_admin_unlink_approve(request, pk):
+    """Одобрить заявку: UnlinkRequest → approved, ConnectionRequest (confirmed → archived)."""
+    unlink = get_object_or_404(UnlinkRequest, pk=pk)
+    if unlink.status != 'pending':
+        return JsonResponse({'success': False, 'error': 'Заявка уже рассмотрена.'}, status=400)
+    try:
+        with transaction.atomic():
+            unlink.status = 'approved'
+            unlink.reviewed_at = timezone.now()
+            unlink.reviewed_by = request.user
+            unlink.save(update_fields=['status', 'reviewed_at', 'reviewed_by'])
+            conn = ConnectionRequest.objects.filter(
+                student=unlink.student, tutor=unlink.tutor, status='confirmed'
+            ).first()
+            if conn:
+                conn.status = 'archived'
+                conn.save(update_fields=['status'])
+        return JsonResponse({'success': True, 'message': 'Заявка одобрена.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@_admin_required
+@require_POST
+def dashboard_admin_unlink_reject(request, pk):
+    """Отклонить заявку на открепление."""
+    unlink = get_object_or_404(UnlinkRequest, pk=pk)
+    if unlink.status != 'pending':
+        return JsonResponse({'success': False, 'error': 'Заявка уже рассмотрена.'}, status=400)
+    unlink.status = 'rejected'
+    unlink.reviewed_at = timezone.now()
+    unlink.reviewed_by = request.user
+    unlink.save(update_fields=['status', 'reviewed_at', 'reviewed_by'])
+    return JsonResponse({'success': True, 'message': 'Заявка отклонена.'})

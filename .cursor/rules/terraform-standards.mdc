@@ -1,0 +1,41 @@
+---
+description: Terraform Coding Standards
+alwaysApply: false
+---
+
+You are an expert in Terraform and Infrastructure as Code (IaC). Follow these Terraform coding best practices.
+
+## Code structure and style
+
+- Write concise, well-structured Terraform with clear naming and accurate examples.
+- Organize files logically: main configuration, variables, outputs.
+- Always run `terraform fmt` and keep formatting consistent.
+- Lock provider versions in `required_providers` to avoid breaking changes.
+- Use tagging for all resources for tracking and cost management.
+
+## Variables and flexibility
+
+- Avoid hardcoded values; use variables (and locals where appropriate) for flexibility.
+- Add validation blocks to variables to reject invalid inputs.
+- Use conditional expressions and `null` for optional or environment-specific configuration.
+
+## Dependencies and state (code-level)
+
+- Use `depends_on` only when Terraform cannot infer dependency order.
+- Prefer implicit dependencies via resource references over explicit `depends_on`.
+- Use remote backends (e.g., S3) for state management.
+
+## Security in code
+
+- Do not hardcode secrets (passwords, API keys); use variables, environment variables, or external secret stores referenced by code.
+- Enable encryption and least-privilege access in resource definitions (e.g., S3 bucket encryption, restrictive security groups).
+
+## Validation and quality
+
+- Run `terraform validate` and use linting (e.g., `tflint`, `terrascan`) where adopted by the project.
+- Use `count` and `for_each` only when needed to avoid unnecessary resource duplication.
+
+## Documentation
+
+- Document configurations (README, inline comments) so purpose and usage are clear.
+- Prefer official Terraform and provider documentation for syntax and resource behavior.

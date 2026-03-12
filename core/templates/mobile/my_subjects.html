@@ -8,7 +8,7 @@
 <style>
     .subjects-page { padding: 20px 15px; }
     .subjects-title { font-size: 20px; font-weight: 800; color: var(--tg-text); margin-bottom: 20px; }
-    .subjects-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; }
+    .subjects-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
     .subject-pill {
         display: inline-flex; align-items: center; gap: 8px;
         background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
@@ -17,7 +17,7 @@
     }
     .subject-pill-actions { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; }
     .subject-action-btn {
-        width: 32px; height: 32px; border-radius: 50%;
+        width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 50%;
         border: none; background: var(--tg-bg); color: var(--tg-hint);
         display: inline-flex; align-items: center; justify-content: center;
         font-size: 14px; padding: 0; line-height: 1;
@@ -27,18 +27,18 @@
     .subject-action-btn.delete { color: #ef4444; }
     .add-form {
         background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
-        border-radius: 16px; padding: 15px;
+        border-radius: 16px; padding: 16px;
     }
-    .add-form-row { display: flex; gap: 10px; }
+    .add-form-row { display: flex; gap: 8px; }
     .add-input {
         flex-grow: 1; background: transparent; border: 1px solid var(--tg-separator);
-        color: var(--tg-text); padding: 12px; border-radius: 10px; font-size: 15px; outline: none;
+        color: var(--tg-text); padding: 12px; border-radius: 10px; font-size: 16px; min-height: 44px; outline: none;
     }
     .add-input::placeholder { color: var(--tg-hint); }
     .add-btn {
         background: var(--tg-active); color: white; border: none;
-        padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: 15px;
-        white-space: nowrap;
+        padding: 12px 20px; min-height: 44px; border-radius: 10px; font-weight: 700; font-size: 16px;
+        white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;
     }
     .add-btn:active { opacity: 0.8; }
     .empty-state { text-align: center; padding: 60px 20px; color: var(--tg-hint); }

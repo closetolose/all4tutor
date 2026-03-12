@@ -1,10 +1,16 @@
+{% load static %}
+{% if user.is_authenticated %}
 {% extends 'core/base.html' %}
+{% endif %}
 {% block title %}Страница не найдена{% endblock %}
 {% block content %}
-<div class="card" style="max-width: 500px; margin: 40px auto; text-align: center; padding: 40px;">
-    <div style="font-size: 48px; color: var(--text-muted); margin-bottom: 16px;"><i class="fas fa-search"></i></div>
-    <h2 style="margin-bottom: 12px;">Страница не найдена</h2>
-    <p style="color: var(--text-muted); margin-bottom: 24px;">Запрашиваемая страница не существует или была перемещена.</p>
-    <a href="{% url 'index' %}" class="btn btn-primary">На главную</a>
+<div class="error-page">
+    <div class="error-page-card card">
+        <div class="error-page-code">404</div>
+        <div class="error-page-icon"><i class="fas fa-search"></i></div>
+        <h2 class="error-page-title">Страница не найдена</h2>
+        <p class="error-page-text">Запрашиваемая страница не существует или была перемещена.</p>
+        <a href="{% url 'index' %}" class="btn btn-primary error-page-btn">На главную</a>
+    </div>
 </div>
 {% endblock %}

@@ -1,0 +1,32 @@
+{% comment %}
+Color swatch picker. Requires context:
+  form_id    - id of the <form>
+  form_action - url for the form action
+  hidden_id  - id of the hidden input for color_hex
+  picker_id  - id of the color picker input
+  current_color - current color value (may be empty)
+  csrf_token - CSRF token
+  extra_swatches - if True, show 8 swatches instead of 4
+{% endcomment %}
+<form action="{{ form_action }}" method="post" id="{{ form_id }}">
+    {% csrf_token %}
+    <input type="hidden" name="color_hex" id="{{ hidden_id }}" value="{{ current_color|default:'' }}">
+    <div class="entity-color-palette" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
+        <span class="color-swatch" data-color="#6366f1" style="border-radius:8px;background:#6366f1;cursor:pointer;"></span>
+        <span class="color-swatch" data-color="#22c55e" style="border-radius:8px;background:#22c55e;cursor:pointer;"></span>
+        <span class="color-swatch" data-color="#f59e0b" style="border-radius:8px;background:#f59e0b;cursor:pointer;"></span>
+        <span class="color-swatch" data-color="#ef4444" style="border-radius:8px;background:#ef4444;cursor:pointer;"></span>
+        {% if extra_swatches %}
+        <span class="color-swatch" data-color="#ec4899" style="border-radius:8px;background:#ec4899;cursor:pointer;"></span>
+        <span class="color-swatch" data-color="#8b5cf6" style="border-radius:8px;background:#8b5cf6;cursor:pointer;"></span>
+        <span class="color-swatch" data-color="#06b6d4" style="border-radius:8px;background:#06b6d4;cursor:pointer;"></span>
+        <span class="color-swatch" data-color="#84cc16" style="border-radius:8px;background:#84cc16;cursor:pointer;"></span>
+        {% endif %}
+        <input type="color" id="{{ picker_id }}" value="{{ current_color|default:'#6366f1' }}" style="width: 36px; height: 36px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; flex-shrink: 0;">
+        <span style="font-size: 12px; color: var(--text-muted);">свой цвет</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <button type="submit" class="btn btn-primary" style="flex: 1;">Сохранить</button>
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('{{ hidden_id }}').value=''; document.getElementById('{{ form_id }}').submit();">Убрать цвет</button>
+    </div>
+</form>

@@ -1,46 +1,194 @@
 {% extends 'core/base.html' %}
 {% block content %}
+<style>
+    .fl-toolbar {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-xl);
+        padding: 24px;
+        margin-bottom: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    .fl-toolbar-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+    }
+    .fl-toolbar-top h2 {
+        margin: 0;
+        font-size: var(--font-2xl);
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .fl-toolbar-top h2 i { color: var(--primary); }
+    .fl-search-wrap {
+        position: relative;
+        max-width: 480px;
+    }
+    .fl-search-wrap i.fa-search {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        pointer-events: none;
+        font-size: 14px;
+    }
+    .fl-search-input {
+        width: 100%;
+        min-height: 44px;
+        padding: 0 14px 0 44px;
+        border-radius: var(--radius-md);
+        border: 1.5px solid var(--border);
+        outline: none;
+        box-sizing: border-box;
+        font-size: var(--font-md);
+        background: var(--bg-white);
+        color: var(--text-main);
+        transition: border-color var(--transition), box-shadow var(--transition);
+        margin: 0;
+    }
+    .fl-search-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.08);
+    }
+    .fl-controls-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .fl-tags-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        flex: 1;
+    }
+    .fl-tags-label {
+        font-size: var(--font-sm);
+        color: var(--text-muted);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .fl-tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        padding: 6px 14px;
+        border-radius: var(--radius-pill);
+        border: 1.5px solid var(--border);
+        background: var(--bg-white);
+        color: var(--text-secondary);
+        transition: all 0.2s;
+        font-weight: 500;
+    }
+    .fl-tag-badge.active {
+        background: var(--primary-light);
+        color: var(--primary);
+        border-color: var(--primary);
+        font-weight: 600;
+    }
+    .fl-tag-badge input[type="checkbox"] { display: none; }
+    .fl-sort-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+    .fl-sort-wrap select {
+        padding: 8px 14px;
+        min-height: 40px;
+        border-radius: var(--radius-md);
+        border: 1.5px solid var(--border);
+        font-size: var(--font-sm);
+        color: var(--text-secondary);
+        background: var(--bg-white);
+        margin: 0;
+        cursor: pointer;
+    }
+    [data-theme="dark"] .fl-toolbar { background: var(--bg-card); border-color: var(--border); }
+    [data-theme="dark"] .fl-search-input { background: var(--bg-card); }
+    [data-theme="dark"] .fl-tag-badge { background: var(--bg-card); }
+    [data-theme="dark"] .fl-sort-wrap select { background: var(--bg-card); }
+</style>
 
-<div style="margin-bottom: 25px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; flex-wrap: wrap;">
-        <h2 style="margin: 0; white-space: nowrap;">
-            <i class="fas fa-folder-open" style="color: #4f46e5;"></i> Мои материалы
-        </h2>
-        <button onclick="openModal('uploadFileModal')" class="btn btn-primary" style="height: 42px; padding: 0 20px; border-radius: 10px; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
+<div class="fl-toolbar">
+    <div class="fl-toolbar-top">
+        <h2><i class="fas fa-folder-open"></i> Мои материалы</h2>
+        <button onclick="openModal('uploadFileModal')" class="btn btn-primary">
             <i class="fas fa-plus"></i> Добавить файл
         </button>
     </div>
-    <form id="search-form" onsubmit="return false;" style="display: flex; gap: 8px; align-items: center; max-width: 560px;">
-        <div style="position: relative; flex-grow: 1;">
-            <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;"></i>
+
+    <form id="search-form" method="get" action="{% url 'files_library' %}" style="display: flex; gap: 8px; align-items: center;">
+        <div class="fl-search-wrap" style="flex: 1;">
+            <i class="fas fa-search"></i>
             <input type="text" id="search-input" name="q" value="{{ query|default:'' }}"
-                   placeholder="Поиск по названию..." autocomplete="off"
-                   style="width: 100%; height: 44px; padding: 0 14px 0 40px; border-radius: 10px; border: 1px solid var(--border); outline: none; box-sizing: border-box; font-size: 15px;">
+                   placeholder="Поиск по названию..." autocomplete="off" class="fl-search-input">
         </div>
         {% if query %}
-            <a href="{% url 'files_library' %}" class="btn btn-secondary" style="width: 44px; height: 44px; padding: 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; text-decoration: none; flex-shrink: 0;" title="Сбросить поиск">
-                <i class="fas fa-times"></i>
-            </a>
+        <a href="{% url 'files_library' %}{% if selected_tag_ids %}?{% for tid in selected_tag_ids %}tag={{ tid }}{% if not forloop.last %}&{% endif %}{% endfor %}{% endif %}" class="btn-icon" style="text-decoration: none; flex-shrink: 0;" title="Сбросить поиск">
+            <i class="fas fa-times"></i>
+        </a>
         {% endif %}
     </form>
+
+    <div class="fl-controls-row">
+        {% if tutor_tags %}
+        <div class="fl-tags-wrap">
+            <span class="fl-tags-label">Теги:</span>
+            <form method="get" action="{% url 'files_library' %}" id="tag-filter-form" style="display: contents;">
+                <input type="hidden" name="q" value="{{ query|default:'' }}">
+                {% for tag in tutor_tags %}
+                <label class="fl-tag-badge {% if tag.id in selected_tag_ids %}active{% endif %}">
+                    <input type="checkbox" name="tag" value="{{ tag.id }}" {% if tag.id in selected_tag_ids %}checked{% endif %} onchange="this.form.submit()">
+                    {{ tag.name }}
+                </label>
+                {% endfor %}
+            </form>
+            <button type="button" onclick="openModal('manageTagsModal')" class="btn-icon" title="Управление тегами" style="flex-shrink: 0;">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+        {% endif %}
+
+        <div class="fl-sort-wrap">
+            <i class="fas fa-sort-amount-down" style="color: var(--text-muted); font-size: 13px;"></i>
+            <select id="files-sort-by">
+                <option value="name-asc" {% if sort_param == 'name-asc' %}selected{% endif %}>Название А→Я</option>
+                <option value="name-desc" {% if sort_param == 'name-desc' %}selected{% endif %}>Название Я→А</option>
+                <option value="date-desc" {% if sort_param == 'date-desc' or not sort_param %}selected{% endif %}>Новые первые</option>
+                <option value="date-asc" {% if sort_param == 'date-asc' %}selected{% endif %}>Старые первые</option>
+            </select>
+        </div>
+    </div>
 </div>
 
-<div id="files-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; transition: opacity 0.2s;">
+<div id="files-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; transition: opacity 0.2s;">
     {% include 'core/files_rows.html' %}
 
     {% if not files %}
     <div id="empty-state-container" style="grid-column: 1/-1;">
-        <div class="empty-state" style="border: 2px dashed var(--border); border-radius: 16px; padding: 40px; text-align: center;">
-            <div class="empty-state-icon" style="font-size: 40px; color: #cbd5e1; margin-bottom: 15px;"><i class="fas fa-cloud-upload-alt"></i></div>
+        <div class="empty-state" style="border: 2px dashed var(--border); border-radius: var(--radius-xl); padding: 40px; text-align: center;">
+            <div class="empty-state-icon"><i class="fas fa-cloud-upload-alt"></i></div>
             <h3>Библиотека пуста</h3>
-            <p style="color: #64748b;">Загрузите свои методички, книги или тесты для удобного доступа</p>
-            <button onclick="openModal('uploadFileModal')" class="btn btn-primary btn-sm" style="margin-top: 15px;"><i class="fas fa-plus"></i> Загрузить файл</button>
+            <p style="color: var(--text-secondary);">Загрузите свои методички, книги или тесты для удобного доступа</p>
+            <button onclick="openModal('uploadFileModal')" class="btn btn-primary btn-sm" style="margin-top: 16px;"><i class="fas fa-plus"></i> Загрузить файл</button>
         </div>
     </div>
     {% endif %}
 </div>
 
-<div id="lazy-loader" style="display: none; text-align: center; padding: 30px; color: #94a3b8;">
+<div id="lazy-loader" style="display: none; text-align: center; padding: 32px; color: var(--text-muted);">
     <i class="fas fa-spinner fa-spin fa-2x"></i>
     <div style="margin-top: 10px; font-size: 14px;">Загружаем ещё файлы...</div>
 </div>
@@ -54,6 +202,15 @@
             <div class="mb-15">
                 <label class="form-label">Название (видят ученики)</label>
                 <input type="text" name="file_name" class="filter-select" placeholder="Например: ЕГЭ 2024 Вариант 1" required>
+            </div>
+            <div class="mb-15">
+                <label class="form-label">Теги</label>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    {% for tag in tutor_tags %}
+                    <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px;"><input type="checkbox" name="tags" value="{{ tag.id }}"> {{ tag.name }}</label>
+                    {% endfor %}
+                </div>
+                <input type="text" name="new_tag_name" class="filter-select" placeholder="Или введите новый тег" style="margin-top: 8px;" maxlength="50">
             </div>
             <div class="mb-20">
                 <label class="form-label">Выберите файл</label>
@@ -74,7 +231,15 @@
                 <label class="form-label">Название</label>
                 <input type="text" name="file_name" id="editFileNameInput" class="filter-select" required>
             </div>
-            <div class="mb-20" style="background: #f8fafc; padding: 15px; border-radius: 8px;">
+            <div class="mb-15">
+                <label class="form-label">Теги</label>
+                <div id="edit-file-tags-wrap" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    {% for tag in tutor_tags %}
+                    <label class="edit-tag-label" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px;"><input type="checkbox" name="tags" value="{{ tag.id }}" class="edit-tag-cb"> {{ tag.name }}</label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="mb-20" style="background: var(--bg-table-header); padding: 15px; border-radius: var(--radius-md);">
                 <label class="form-label">Заменить файл (опционально)</label>
                 <input type="file" name="file" class="filter-select">
             </div>
@@ -83,7 +248,128 @@
     </div>
 </div>
 
+<div id="manageTagsModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 450px;">
+        <div class="close-btn" onclick="closeModal('manageTagsModal')">&times;</div>
+        <h3 class="modal-title"><i class="fas fa-tags"></i> Управление тегами</h3>
+        <ul id="manageTagsList" style="list-style: none; margin: 0 0 16px; padding: 0;">
+            {% for tag in tutor_tags %}
+            <li class="manage-tag-row" data-tag-id="{{ tag.id }}" style="display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border);">
+                <span class="manage-tag-name" style="flex: 1; font-weight: 600;">{{ tag.name }}</span>
+                <button type="button" class="btn btn-outline btn-sm" onclick="startRenameTag(this)" title="Переименовать"><i class="fas fa-pen"></i></button>
+                <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: var(--danger);" onclick="deleteTag(this)" title="Удалить"><i class="fas fa-trash-alt"></i></button>
+            </li>
+            {% endfor %}
+        </ul>
+        {% if not tutor_tags %}
+        <p style="color: var(--text-muted); text-align: center; padding: 20px 0;">Тегов пока нет</p>
+        {% endif %}
+        <button type="button" class="btn btn-outline btn-full" onclick="closeModal('manageTagsModal')">Закрыть</button>
+    </div>
+</div>
+
 <script>
+function getCsrf() {
+    return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+}
+
+function startRenameTag(btn) {
+    var row = btn.closest('.manage-tag-row');
+    var nameEl = row.querySelector('.manage-tag-name');
+    var oldName = nameEl.textContent.trim();
+    nameEl.innerHTML = '<input type="text" class="filter-select" value="' + oldName.replace(/"/g, '&quot;') + '" style="padding: 6px 10px; font-size: 14px; min-height: 36px;">';
+    var input = nameEl.querySelector('input');
+    input.focus();
+    input.select();
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+    btn.title = 'Сохранить';
+    btn.onclick = function() { saveRenameTag(row, input, btn, oldName); };
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); saveRenameTag(row, input, btn, oldName); }
+        if (e.key === 'Escape') { cancelRename(nameEl, btn, oldName); }
+    });
+}
+
+function saveRenameTag(row, input, btn, oldName) {
+    var newName = input.value.trim();
+    if (!newName || newName === oldName) { cancelRename(row.querySelector('.manage-tag-name'), btn, oldName); return; }
+    var tagId = row.dataset.tagId;
+    btn.disabled = true;
+    fetch('/tags/' + tagId + '/rename/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        if (data.success) {
+            row.querySelector('.manage-tag-name').textContent = data.name;
+            btn.innerHTML = '<i class="fas fa-pen"></i>';
+            btn.title = 'Переименовать';
+            btn.onclick = function() { startRenameTag(btn); };
+            if (typeof showToast === 'function') showToast('Тег переименован', 'success');
+            updateTagLabelsOnPage(tagId, data.name);
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Ошибка', 'error');
+            cancelRename(row.querySelector('.manage-tag-name'), btn, oldName);
+        }
+    })
+    .catch(function() { btn.disabled = false; if (typeof showToast === 'function') showToast('Ошибка сети', 'error'); cancelRename(row.querySelector('.manage-tag-name'), btn, oldName); });
+}
+
+function cancelRename(nameEl, btn, oldName) {
+    nameEl.textContent = oldName;
+    btn.innerHTML = '<i class="fas fa-pen"></i>';
+    btn.title = 'Переименовать';
+    btn.onclick = function() { startRenameTag(btn); };
+}
+
+function deleteTag(btn) {
+    var row = btn.closest('.manage-tag-row');
+    var tagId = row.dataset.tagId;
+    var tagName = row.querySelector('.manage-tag-name').textContent.trim();
+    if (!confirm('Удалить тег «' + tagName + '»? Он будет убран со всех файлов.')) return;
+    btn.disabled = true;
+    fetch('/tags/' + tagId + '/delete/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            row.remove();
+            removeTagFromPage(tagId);
+            if (typeof showToast === 'function') showToast('Тег удалён', 'success');
+        } else {
+            btn.disabled = false;
+            if (typeof showToast === 'function') showToast(data.error || 'Ошибка', 'error');
+        }
+    })
+    .catch(function() { btn.disabled = false; if (typeof showToast === 'function') showToast('Ошибка сети', 'error'); });
+}
+
+function updateTagLabelsOnPage(tagId, newName) {
+    document.querySelectorAll('#tag-filter-form .fl-tag-badge').forEach(function(label) {
+        var cb = label.querySelector('input[value="' + tagId + '"]');
+        if (cb) { label.childNodes.forEach(function(n) { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = ' ' + newName; }); }
+    });
+    document.querySelectorAll('#uploadFileModal label, #editFileModal .edit-tag-label').forEach(function(label) {
+        var cb = label.querySelector('input[value="' + tagId + '"]');
+        if (cb) { label.childNodes.forEach(function(n) { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = ' ' + newName; }); }
+    });
+}
+
+function removeTagFromPage(tagId) {
+    document.querySelectorAll('#tag-filter-form .fl-tag-badge').forEach(function(label) {
+        if (label.querySelector('input[value="' + tagId + '"]')) label.remove();
+    });
+    document.querySelectorAll('#uploadFileModal label, #editFileModal .edit-tag-label').forEach(function(label) {
+        if (label.querySelector('input[value="' + tagId + '"]')) label.remove();
+    });
+}
+
     // ЖИВОЙ ПОИСК (AJAX)
     const searchInput = document.getElementById('search-input');
     const filesGrid = document.getElementById('files-grid');
@@ -93,9 +379,12 @@
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(async () => {
             const query = searchInput.value;
+            const params = new URLSearchParams(window.location.search);
+            params.set('q', query);
+            params.delete('page');
             filesGrid.style.opacity = '0.5';
             try {
-                const response = await fetch(`?q=${query}`, { headers: {'X-Requested-With': 'XMLHttpRequest'} });
+                const response = await fetch(`?${params.toString()}`, { headers: {'X-Requested-With': 'XMLHttpRequest'} });
                 const data = await response.json();
                 filesGrid.innerHTML = data.html;
                 currentPage = 1;
@@ -126,6 +415,7 @@
             const data = await response.json();
             hasMore = data.has_more;
             filesGrid.insertAdjacentHTML('beforeend', data.html);
+            sortFilesGrid();
         } catch (error) { console.error("Ошибка загрузки:", error); }
         finally {
             isLoading = false;
@@ -133,9 +423,36 @@
         }
     }
 
-    function prepareEditModal(id, currentName) {
+    function sortFilesGrid() {
+        var grid = document.getElementById('files-grid');
+        if (!grid) return;
+        var sel = document.getElementById('files-sort-by');
+        var value = (sel && sel.value) || 'date-desc';
+        var cards = Array.from(grid.querySelectorAll('.file-card-item'));
+        var parts = value.split('-');
+        var key = parts[0];
+        var dir = parts[1] === 'asc' ? 1 : -1;
+        cards.sort(function(a, b) {
+            var va = key === 'name' ? (a.getAttribute('data-sort-name') || '') : (a.getAttribute('data-sort-date') || '');
+            var vb = key === 'name' ? (b.getAttribute('data-sort-name') || '') : (b.getAttribute('data-sort-date') || '');
+            var cmp = va.localeCompare ? va.localeCompare(vb, 'ru') : (va < vb ? -1 : va > vb ? 1 : 0);
+            return cmp * dir;
+        });
+        cards.forEach(function(c) { grid.appendChild(c); });
+    }
+    document.getElementById('files-sort-by')?.addEventListener('change', sortFilesGrid);
+
+    function prepareEditModal(id, currentName, tagIdsStr) {
         document.getElementById('editFileNameInput').value = currentName;
         document.getElementById('editFileForm').action = `/files/edit/${id}/`;
+        document.querySelectorAll('#editFileModal .edit-tag-cb').forEach(function(cb) { cb.checked = false; });
+        if (tagIdsStr) {
+            var ids = tagIdsStr.split(',').map(function(x) { return x.trim(); }).filter(Boolean);
+            ids.forEach(function(id) {
+                var cb = document.querySelector('#editFileModal .edit-tag-cb[value="' + id + '"]');
+                if (cb) cb.checked = true;
+            });
+        }
         openModal('editFileModal');
     }
 </script>

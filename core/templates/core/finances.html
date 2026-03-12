@@ -2,7 +2,7 @@
 {% block content %}
     <h1 class="page-title">Мои финансы</h1>
 
-    <div class="grid-stats" style="margin-bottom: 25px;">
+    <div class="grid-stats" style="margin-bottom: 24px;">
         <div class="card">
             <div class="stat-label">Заработано за период</div>
             <div class="stat-value">{{ total_earned }} ₽</div>
@@ -13,20 +13,20 @@
         </div>
     </div>
 
-    <div class="card" style="margin-bottom: 30px; padding: 20px;">
-        <form method="GET" class="finance-filters">
-            <div class="input-group">
+    <div class="card" style="margin-bottom: 32px; padding: 24px;">
+        <form method="GET" class="finance-filters filter-row">
+            <div class="input-group" style="margin-bottom: 0;">
                 <label>Период с</label>
-                <input type="date" name="date_from" value="{{ date_from }}" class="date-input">
+                <input type="date" name="date_from" value="{{ date_from }}" class="date-input" style="margin-bottom: 0;">
             </div>
-            <div class="input-group">
+            <div class="input-group" style="margin-bottom: 0;">
                 <label>по</label>
-                <input type="date" name="date_to" value="{{ date_to }}" class="date-input">
+                <input type="date" name="date_to" value="{{ date_to }}" class="date-input" style="margin-bottom: 0;">
             </div>
-            <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">
+            <button type="submit" class="btn btn-primary btn-sm">
                 <i class="fas fa-search"></i> Показать
             </button>
-            <a href="{% url 'finances' %}" class="btn-icon" style="height: 38px; width: 38px; text-decoration: none;">
+            <a href="{% url 'finances' %}" class="btn-icon" style="text-decoration: none;">
                 <i class="fas fa-undo"></i>
             </a>
         </form>
@@ -39,31 +39,30 @@
 
     <div class="card">
         <h3>История выплат и пополнений</h3>
-        <table class="table-fixed">
+        <div class="table-container">
+        <table class="sortable-table" style="width: 100%;">
             <thead>
-                <tr style="background: #f8fafc; color: #64748b; font-size: 11px;">
-                    <th style="padding: 15px;">Дата</th>
-                    <th>Сумма</th>
-                    <th>Комментарий</th>
+                <tr style="background: var(--bg-table-header); color: var(--text-muted); font-size: 11px;">
+                    <th style="padding: 15px;" data-sort-type="date">Дата</th>
+                    <th style="padding: 15px;" data-sort-type="number">Сумма</th>
+                    <th style="padding: 15px;">Комментарий</th>
                 </tr>
             </thead>
             <tbody>
                 {% for t in transactions %}
-                {% if t.type == 'withdrawal' %}
-                <tr style="border-bottom: 1px solid var(--tg-separator);">
-                    <td style="padding: 15px; font-size: 13px;">{{ t.date|date:"d.m.Y H:i" }}</td>
-
-                    <td style="font-weight: 700; color: {% if t.type == 'deposit' %}var(--tg-green){% else %}var(--tg-red){% endif %};">
-                        {% if t.type == 'deposit' %}{% else %}+{% endif %}{{ t.amount }} ₽
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 15px; font-size: 13px;" data-sort="{{ t.date|date:'Y-m-d H:i' }}">{{ t.date|date:"d.m.Y H:i" }}</td>
+                    <td style="font-weight: 700; color: {% if t.type == 'deposit' %}var(--success){% else %}var(--danger){% endif %};" data-sort="{{ t.amount }}">
+                        {% if t.type == 'deposit' %}+{% endif %}{{ t.amount }} ₽
                     </td>
-                    <td style="color: var(--tg-hint); font-size: 13px;">{{ t.description|default:"Транзакция" }}</td>
+                    <td style="color: var(--text-muted); font-size: 13px;">{{ t.description|default:"Транзакция" }}</td>
                 </tr>
-                {% endif %}
                 {% empty %}
-                <tr><td colspan="4" style="text-align: center; padding: 30px; color: var(--tg-hint);">Транзакций за этот период нет</td></tr>
+                <tr><td colspan="3" style="text-align: center; padding: 30px; color: var(--text-muted);">Транзакций за этот период нет</td></tr>
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

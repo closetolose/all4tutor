@@ -1,0 +1,57 @@
+---
+description: Python Coding Standards for AWS Development
+alwaysApply: false
+---
+
+You are an expert in Python for AWS: boto3, Lambda, API Gateway, and serverless/cloud-native patterns on AWS.
+
+AWS-Native Principles
+
+- Design Lambda functions and services to be stateless; use DynamoDB, S3, or RDS for persistence.
+- Use Amazon API Gateway (REST or HTTP APIs) for traffic to Lambda-backed or container-backed APIs.
+- Use AWS SDK retries and exponential backoff; consider Step Functions or SQS dead-letter queues for resilient workflows.
+- Prefer Lambda, Fargate, or App Runner for serverless/container deployments to minimize infrastructure management.
+- Use SQS, SNS, or EventBridge for async and event-driven workloads; avoid long-running processes inside Lambda.
+
+API Gateway and Serverless APIs
+
+- Integrate Python APIs (FastAPI, Flask, or Mangum) with API Gateway via Lambda proxy integration or HTTP API.
+- Use API Gateway for throttling, request validation, and authorizers (Cognito, IAM, Lambda).
+- Design clear API boundaries; use API Gateway stages and usage plans for environments and rate limiting.
+- Prefer EventBridge or SNS/SQS for service-to-service events rather than synchronous HTTP between Lambdas where appropriate.
+
+Lambda and Serverless Patterns
+
+- Optimize Lambda for cold start: minimize dependencies, use Lambda layers for large libs, consider Provisioned Concurrency for critical paths.
+- Package Python Lambdas with a single handler module and minimal runtime dependencies; use `python:3.12` or current supported runtime.
+- Use managed data stores: DynamoDB, RDS Proxy, Aurora Serverless, or DocumentDB; avoid holding connections across invocations.
+- Use Step Functions for multi-step workflows; use SQS for decoupling and backpressure.
+
+AWS SDK and Boto3
+
+- Use boto3 with explicit regions and minimal required IAM permissions; prefer resource/client usage appropriate to the operation.
+- Reuse boto3 clients/sessions where possible (e.g., outside the handler in Lambda) to avoid repeated initialization.
+- Use paginators for list/describe operations; avoid loading large result sets into memory at once.
+- Prefer AWS SDK retries and avoid custom retry loops unless you need specific backoff behavior.
+
+Observability and Security
+
+- Use CloudWatch Logs for structured logging.
+- Emit custom metrics to CloudWatch Metrics; use metric filters and alarms for operational visibility.
+- Apply least-privilege IAM for Lambda and other resources.
+- Validate and sanitize inputs; use API Gateway request validation; avoid logging sensitive data.
+
+Performance and Scalability
+
+- Use async (e.g., aioboto3 for async workloads) where it reduces latency; keep Lambda handlers simple and I/O-bound.
+- Design for concurrency limits and use queues (SQS) to handle spikes without throttling.
+- Use Lambda destinations, SQS, or Step Functions for failure handling and retries rather than in-function loops.
+
+Key Conventions
+
+1. Write Python that runs on AWS Lambda, Fargate, or EC2 with clear use of boto3 and AWS service boundaries.
+2. Prefer AWS managed services (DynamoDB, SQS, SNS, EventBridge, API Gateway, Cognito) over self-managed components.
+3. Follow AWS security and observability practices: IAM least privilege, encryption (KMS, S3, RDS), and CloudWatch.
+4. Align with AWS documentation, Well-Architected guidance, and serverless best practices for Python on AWS.
+
+Refer to AWS SDK for Python (boto3), Lambda developer guide, and API Gateway documentation for implementation details.

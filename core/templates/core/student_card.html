@@ -6,22 +6,22 @@
 <style>
     .scrollable-container {
         max-height: 400px; overflow-y: auto; border: 1px solid var(--border);
-        border-radius: 12px; background: white;
+        border-radius: var(--radius-lg); background: var(--bg-white);
     }
     .scrollable-container table { width: 100%; border-collapse: collapse; }
     .scrollable-container thead {
-        position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 1px 0 var(--border);
+        position: sticky; top: 0; background: var(--bg-table-header); z-index: 10; box-shadow: 0 1px 0 var(--border);
     }
-    .info-stat-card { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
+    .info-stat-card { padding: 16px; border-radius: var(--radius-lg); text-align: center; margin-bottom: 16px; }
     .balance-box { background: #f0fdf4; color: #166534; border: 1px solid #dcfce7; }
     .debt-box { background: #fff1f2; color: #991b1b; border: 1px solid #ffe4e6; }
     .box-label { font-size: 11px; font-weight: 700; opacity: 0.8; text-transform: uppercase; display: block; margin-bottom: 5px; }
     .user-avatar-large {
         width: 70px; height: 70px; background: #e2e8f0; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        margin: 0 auto 15px; font-size: 28px; color: #64748b; font-weight: 600;
+        margin: 0 auto 15px; font-size: 28px; color: var(--text-muted); font-weight: 600;
     }
-    .badge-hw { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; position: relative; }
+    .badge-hw { padding: 4px 12px; border-radius: var(--radius-pill); font-size: 11px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; position: relative; }
     .badge-hw:hover { opacity: 0.8; }
     .status-pending { background: #fef3c7; color: #92400e; }
 
@@ -41,7 +41,7 @@
 
     .badge-hw {
         padding: 5px 12px;
-        border-radius: 8px;
+        border-radius: var(--radius-pill);
         font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
@@ -52,14 +52,14 @@
     .badge-hw:active { transform: scale(0.95); }
 </style>
 
-<div style="display: flex; gap: 25px; align-items: flex-start;">
-    <div style="width: 320px; flex-shrink: 0;">
+<div class="two-col-layout">
+    <div class="two-col-sidebar">
         <div class="card" style="text-align: center; border-top: 5px solid var(--primary);">
             <div class="user-avatar-large">
                 {{ student.first_name|slice:":1" }}{{ student.last_name|slice:":1" }}
             </div>
             <h2 style="margin: 0;">{{ student.first_name }} {{ student.last_name }}</h2>
-            <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">{{ student.contact|default:"Нет контактов" }}</p>
+            <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">{{ student.contact|default:"Нет контактов" }}</p>
             <div class="details-container">
                 <div class="detail-row">
                     <i class="fas fa-graduation-cap"></i>
@@ -98,39 +98,78 @@
                 <button onclick="openModal('depositModal')" class="btn btn-primary" style="width: 100%;"><i class="fas fa-plus-circle"></i> Пополнить</button>
                 <button onclick="openModal('historyModal')" class="btn btn-outline" style="width: 100%;"><i class="fas fa-history"></i> История транзакций</button>
             </div>
+
+            {% if connection %}
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;">Цветовая метка (ваш цвет)</div>
+                <form action="{% url 'update_connection_tutor_color' connection.id %}" method="post" id="student-card-tutor-color-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="color_hex" id="student-card-tutor-color-hex" value="{{ connection.tutor_color_hex|default:'' }}">
+                    <div class="entity-color-palette" style="align-items: center; margin-bottom: 10px;">
+                        <span class="color-swatch" data-color="#6366f1" style="width:28px;height:28px;border-radius:8px;background:#6366f1;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#22c55e" style="width:28px;height:28px;border-radius:8px;background:#22c55e;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#f59e0b" style="width:28px;height:28px;border-radius:8px;background:#f59e0b;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#ef4444" style="width:28px;height:28px;border-radius:8px;background:#ef4444;cursor:pointer;"></span>
+                        <input type="color" id="student-card-tutor-color-picker" value="{{ connection.tutor_color_hex|default:'#6366f1' }}" style="width: 36px; height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; flex-shrink: 0;">
+                        <span style="font-size: 12px; color: var(--text-muted);">свой цвет</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="submit" class="btn btn-primary" style="flex:1;">Сохранить</button>
+                        <button type="button" class="btn btn-outline" onclick="document.getElementById('student-card-tutor-color-hex').value=''; document.getElementById('student-card-tutor-color-form').submit();">Убрать цвет</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+
+            {% if student_groups %}
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;">Группы</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    {% for gr in student_groups %}
+                    <a href="{% url 'group_card' gr.id %}" class="group-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; background: var(--primary-light); color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid rgba(99, 102, 241, 0.3);">
+                        <i class="fas fa-users" style="font-size: 12px;"></i> {{ gr.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
-    <div style="flex: 1; display: flex; flex-direction: column; gap: 25px;">
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 24px;">
         <div class="card" style="padding: 0; overflow: hidden;">
             <div style="padding: 20px; border-bottom: 1px solid var(--border);">
                 <h3 style="margin: 0;">Журнал прошедших занятий</h3>
             </div>
             <div class="scrollable-container">
-                <table style="width: 100%;">
+                <div class="table-container">
+                <table class="sortable-table" style="width: 100%;">
                     <thead>
-                        <tr style="text-align: left; font-size: 12px; color: #64748b;">
-                            <th style="padding: 15px;">ДАТА</th>
+                        <tr style="text-align: left; font-size: 12px; color: var(--text-muted);">
+                            <th style="padding: 16px;" data-sort-type="date">ДАТА</th>
                             <th>ПРЕДМЕТ</th>
-                            <th>СТОИМОСТЬ</th>
+                            <th data-sort-type="number">СТОИМОСТЬ</th>
                             <th>СТАТУС ОПЛАТЫ</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for att in attendances %}
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td style="padding: 15px;">{{ att.lesson.start_time|date:"d.m.Y" }}</td>
+                        <tr style="border-bottom: 1px solid var(--border-light);">
+                            <td style="padding: 15px;" data-sort="{{ att.lesson.start_time|date:'Y-m-d' }}">{{ att.lesson.start_time|date:"d.m.Y" }}</td>
                             <td style="font-weight: 600;">{{ att.lesson.subject.name }}</td>
-                            <td>{{ att.lesson.price }} ₽</td>
+                            <td data-sort="{{ att.lesson.price }}">{{ att.lesson.price }} ₽</td>
                             <td>
-                                <span onclick="togglePay(this, {{ att.id }})" class="pay-dot {% if att.is_paid %}paid{% else %}debt{% endif %}" style="cursor: pointer; padding: 5px 12px; border-radius: 20px; font-size: 11px;">
+                                <button type="button" class="pay-dot pay-dot-label attendance-open-btn {% if att.is_paid %}paid{% else %}debt{% endif %}"
+                                        data-att-id="{{ att.id }}" data-is-paid="{{ att.is_paid|yesno:'1,0' }}"
+                                        onclick="openAttendanceModal({{ att.id }}, '{{ att.lesson.start_time|date:'d.m.Y' }}', '{{ att.lesson.subject.name|escapejs }}', '{{ att.lesson.price }}', {{ att.is_paid|yesno:'true,false' }}, this)">
                                     {% if att.is_paid %}Оплачено{% else %}Долг{% endif %}
-                                </span>
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
 
@@ -140,10 +179,11 @@
                 <button onclick="openModal('homeworkModal')" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Задать ДЗ</button>
             </div>
             <div class="scrollable-container">
+                <div class="table-container">
                 <table style="width: 100%;">
                     <thead>
-                        <tr style="text-align: left; font-size: 12px; color: #64748b;">
-                            <th style="padding: 15px;">ПРЕДМЕТ</th>
+                        <tr style="text-align: left; font-size: 12px; color: var(--text-muted);">
+                            <th style="padding: 16px;">ПРЕДМЕТ</th>
                             <th>ЗАДАНИЕ И ФАЙЛЫ</th>
                             <th>ДЕДЛАЙН</th>
                             <th>СТАТУС</th>
@@ -152,10 +192,8 @@
                     </thead>
                    <tbody>
     {% for hw in homeworks %}
-    <tr style="border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s;"
-        onclick="window.location.href='{% url 'homework_detail' hw.id %}'"
-        onmouseover="this.style.background='#f8fafc'"
-        onmouseout="this.style.background='transparent'">
+    <tr style="border-bottom: 1px solid var(--border-light); cursor: pointer; transition: background 0.2s;"
+        onclick="window.location.href='{% url 'homework_detail' hw.id %}'">
 
         <td style="padding: 15px;"><strong>{{ hw.subject.name }}</strong></td>
 
@@ -168,7 +206,7 @@
                     {% for f in hw.files.all %}
                         <a href="#"
                            onclick="event.stopPropagation(); window.open('{% url 'download_homework_all' hw.id %}', '_blank')"
-                           style="font-size: 10px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; color: var(--primary); text-decoration: none;">
+                           style="font-size: 10px; background: var(--bg-light); padding: 2px 8px; border-radius: 4px; color: var(--primary); text-decoration: none;">
                             <i class="fas fa-paperclip"></i> {{ f.file_name|truncatechars:15 }}
                         </a>
                     {% endfor %}
@@ -192,7 +230,7 @@
             {% endif %}
         </td>
 
-        <td style="font-size: 13px;">{{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}</td>
+        <td style="font-size: 14px;">{{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}</td>
 
         <td>
             <a href="javascript:void(0);"
@@ -239,8 +277,55 @@
     {% endfor %}
 </tbody>
                 </table>
+                </div>
             </div>
         </div>
+
+        {% if performance_hw or performance_tests %}
+        <div class="card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 20px; border-bottom: 1px solid var(--border);">
+                <h3 style="margin: 0;"><i class="fas fa-chart-line" style="color: var(--primary); margin-right: 8px;"></i> Результаты: ДЗ и контрольные</h3>
+            </div>
+            <div style="padding: 20px; display: flex; flex-direction: column; gap: 24px;">
+                {% if performance_hw %}
+                <div>
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;">Домашние работы</div>
+                    {% if avg_score_hw is not None %}<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Средний балл: <strong>{{ avg_score_hw }}</strong></div>{% endif %}
+                    <div class="scrollable-container" style="max-height: 200px;">
+                        <div class="table-container">
+                        <table style="width: 100%; font-size: 14px;">
+                            <thead><tr style="text-align: left; color: var(--text-muted);"><th style="padding: 12px;">Дата</th><th>Предмет</th><th>Оценка</th><th>Комментарий</th></tr></thead>
+                            <tbody>
+                                {% for p in performance_hw %}
+                                <tr style="border-bottom: 1px solid var(--border-light);"><td style="padding: 12px;">{{ p.date|date:"d.m.Y" }}</td><td>{% if p.lesson %}{{ p.lesson.subject.name }}{% else %}—{% endif %}</td><td style="font-weight: 700;">{{ p.score }}</td><td style="color: var(--text-muted);">{{ p.comment|default:""|truncatechars:40 }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if performance_tests %}
+                <div style="border-left: 4px solid var(--primary); background: color-mix(in srgb, var(--primary) 8%, transparent); border-radius: 0 12px 12px 0; padding: 16px;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--primary); margin-bottom: 10px;">Контрольные / проверочные работы</div>
+                    {% if avg_score_tests is not None %}<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Средний балл: <strong>{{ avg_score_tests }}</strong></div>{% endif %}
+                    <div class="scrollable-container" style="max-height: 200px;">
+                        <div class="table-container">
+                        <table style="width: 100%; font-size: 14px;">
+                            <thead><tr style="text-align: left; color: var(--text-muted);"><th style="padding: 12px;">Дата</th><th>Предмет</th><th>Оценка</th><th>Комментарий</th></tr></thead>
+                            <tbody>
+                                {% for p in performance_tests %}
+                                <tr style="border-bottom: 1px solid rgba(99,102,241,0.15);"><td style="padding: 12px;">{{ p.date|date:"d.m.Y" }}</td><td>{% if p.lesson %}{{ p.lesson.subject.name }}{% else %}—{% endif %}</td><td style="font-weight: 700;">{{ p.score }}</td><td style="color: var(--text-muted);">{{ p.comment|default:""|truncatechars:40 }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -281,7 +366,7 @@
                 <label class="form-label"><i class="fas fa-paperclip"></i> Прикрепить файлы к ДЗ</label>
 
                 <button type="button" onclick="openFilePickerModal('add-hw-display', 'add-hw-select')"
-                        style="display: block; width: 100%; padding: 10px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; color: var(--primary); cursor: pointer; text-align: center; font-size: 13px; font-weight: 600;">
+                        class="file-picker-trigger">
                     <i class="fas fa-plus-circle"></i> Выбрать файлы
                 </button>
 
@@ -322,7 +407,7 @@
                 <label class="form-label"><i class="fas fa-paperclip"></i> Изменить материалы</label>
 
                 <button type="button" onclick="openFilePickerModal('edit-hw-display', 'edit-hw-select')"
-                        style="display: block; width: 100%; padding: 10px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; color: var(--primary); cursor: pointer; text-align: center; font-size: 13px; font-weight: 600;">
+                        class="file-picker-trigger">
                     <i class="fas fa-plus-circle"></i> Выбрать материалы из библиотеки
                 </button>
 
@@ -335,6 +420,21 @@
     </div>
 </div>
 
+<div id="attendanceModal" class="modal-overlay attendance-modal-overlay" role="dialog" aria-label="Статус оплаты">
+    <div class="modal-window attendance-modal-window">
+        <div class="close-btn" onclick="closeAttendanceModal()">&times;</div>
+        <h3 class="modal-title">Статус оплаты</h3>
+        <div class="attendance-modal-body">
+            <p id="attModalLessonInfo" style="margin: 0 0 12px; color: var(--text-secondary); font-size: 14px;"></p>
+            <p id="attModalStatus" style="margin: 0 0 16px; font-weight: 700;"></p>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button type="button" id="attModalToggleBtn" class="btn btn-primary" onclick="submitAttendanceToggle()">Переключить статус</button>
+                <button type="button" class="btn btn-outline" onclick="closeAttendanceModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="historyModal" class="modal-overlay">
     <div class="modal-window" style="max-width: 700px; width: 90%;">
         <div class="close-btn" onclick="closeModal('historyModal')">&times;</div>
@@ -342,19 +442,20 @@
         <h2 class="modal-title"><i class="fas fa-history" style="color: var(--primary); margin-right: 10px;"></i> История транзакций</h2>
 
         <div class="scrollable-container" style="max-height: 450px;">
+            <div class="table-container">
             <table style="width: 100%;">
                 <thead>
-                    <tr style="text-align: left; background: #f8fafc; color: #64748b; font-size: 12px;">
-                        <th style="padding: 15px;">Дата</th>
+                    <tr style="text-align: left; background: var(--bg-table-header); color: var(--text-muted); font-size: 12px;">
+                        <th style="padding: 16px;">Дата</th>
                         <th>Описание</th>
                         <th style="text-align: right; padding-right: 20px;">Сумма</th>
-                        <th style="padding: 15px; width: 80px;"></th>
+                        <th style="padding: 16px; width: 80px;"></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for tx in transactions %}
-                    <tr style="border-bottom: 1px solid #f1f5f9;">
-                        <td style="padding: 15px; font-size: 13px; color: var(--text-muted);">
+                    <tr style="border-bottom: 1px solid var(--border-light);">
+                        <td style="padding: 16px; font-size: 14px; color: var(--text-muted);">
                             {{ tx.date|date:"d.m.Y H:i" }} </td>
                         <td style="font-weight: 500;">{{ tx.description|default:"Транзакция" }}</td>
                         <td style="text-align: right; padding-right: 20px; font-weight: 700;">
@@ -377,6 +478,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -430,33 +532,83 @@
 }
 
 
-    function togglePay(el, attId) {
-    if (el.classList.contains('ajax-loading')) return;
-    el.classList.add('ajax-loading');
+    var attendanceModalState = { attId: null, triggerBtn: null };
 
-    fetch(`/toggle-attendance-pay/${attId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-            'Content-Type': 'application/json',
-        },
-    })
-    .then(r => r.json())
-    .then(data => {
-        el.classList.remove('ajax-loading');
-        if (data.status === 'ok') {
-            // обновить UI: статус оплаты, баланс, долг
-            el.classList.toggle('paid', data.is_paid);
-            // обновить числа баланса/долга, если показываются
-        } else {
-            showToast(data.message || 'Ошибка', 'error');
-        }
-    })
-    .catch(() => {
-        el.classList.remove('ajax-loading');
-        showToast('Ошибка соединения', 'error');
-    });
-}
+    function openAttendanceModal(attId, dateStr, subjectName, price, isPaid, triggerBtn) {
+        attendanceModalState.attId = attId;
+        attendanceModalState.triggerBtn = triggerBtn;
+        document.getElementById('attModalLessonInfo').textContent = dateStr + ', ' + subjectName + ', ' + price + ' ₽';
+        document.getElementById('attModalStatus').textContent = 'Текущий статус: ' + (isPaid ? 'Оплачено' : 'Долг');
+        document.getElementById('attendanceModal').classList.add('active');
+    }
+
+    function closeAttendanceModal() {
+        document.getElementById('attendanceModal').classList.remove('active');
+        attendanceModalState.attId = null;
+        attendanceModalState.triggerBtn = null;
+    }
+
+    function submitAttendanceToggle() {
+        var attId = attendanceModalState.attId;
+        var btn = attendanceModalState.triggerBtn;
+        if (!attId || !btn) return;
+        if (btn.classList.contains('ajax-loading')) return;
+        btn.classList.add('ajax-loading');
+        var toggleBtn = document.getElementById('attModalToggleBtn');
+        if (toggleBtn) toggleBtn.disabled = true;
+
+        fetch('/toggle-attendance-pay/' + attId + '/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.classList.remove('ajax-loading');
+            if (toggleBtn) toggleBtn.disabled = false;
+            if (data.status === 'ok') {
+                btn.classList.toggle('paid', data.is_paid);
+                btn.textContent = data.is_paid ? 'Оплачено' : 'Долг';
+                closeAttendanceModal();
+                if (typeof showToast === 'function') showToast('Статус обновлён', 'success');
+            } else {
+                if (typeof showToast === 'function') showToast(data.message || 'Ошибка', 'error');
+            }
+        })
+        .catch(function() {
+            btn.classList.remove('ajax-loading');
+            if (toggleBtn) toggleBtn.disabled = false;
+            if (typeof showToast === 'function') showToast('Ошибка соединения', 'error');
+        });
+    }
+
+    function togglePay(el, attId) {
+        if (el.classList.contains('ajax-loading')) return;
+        el.classList.add('ajax-loading');
+        fetch('/toggle-attendance-pay/' + attId + '/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(r => r.json())
+        .then(data => {
+            el.classList.remove('ajax-loading');
+            if (data.status === 'ok') {
+                el.classList.toggle('paid', data.is_paid);
+                el.textContent = data.is_paid ? 'Оплачено' : 'Долг';
+            } else {
+                if (typeof showToast === 'function') showToast(data.message || 'Ошибка', 'error');
+            }
+        })
+        .catch(() => {
+            el.classList.remove('ajax-loading');
+            if (typeof showToast === 'function') showToast('Ошибка соединения', 'error');
+        });
+    }
 
     window.onclick = function(event) { if (event.target.classList.contains('modal-overlay')) { event.target.classList.remove('active'); } }
     function updateHwStatus(hwId, newStatus, selectElement) {
@@ -533,5 +685,19 @@
         });
     }
 });
+(function() {
+    var form = document.getElementById('student-card-tutor-color-form');
+    if (!form) return;
+    var hidden = document.getElementById('student-card-tutor-color-hex');
+    var picker = document.getElementById('student-card-tutor-color-picker');
+    form.querySelectorAll('.color-swatch').forEach(function(sw) {
+        sw.addEventListener('click', function() {
+            var c = this.getAttribute('data-color') || '';
+            hidden.value = c;
+            if (picker) picker.value = c;
+        });
+    });
+    if (picker) picker.addEventListener('input', function() { hidden.value = this.value; });
+})();
 </script>
 {% endblock %}

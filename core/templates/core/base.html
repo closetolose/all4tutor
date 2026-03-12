@@ -4,7 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}All4Tutors{% endblock %}</title>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'light';
+            if (theme === 'dark' || (theme !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
@@ -15,11 +26,18 @@
     {% if user.is_authenticated %}
     <aside class="sidebar">
         <div class="sidebar-header">
-            <a href="{% url 'index' %}" style="text-decoration: none; color: inherit; display: block;">
+            <a href="{% if user.is_superuser %}{% url 'dashboard_admin_index' %}{% else %}{% url 'index' %}{% endif %}" style="text-decoration: none; color: inherit; display: block;">
                 <h3>All4Tutors</h3>
             </a>
         </div>
 
+        {% if user.is_superuser %}
+        <nav class="nav-list">
+            <a href="{% url 'dashboard_admin_index' %}" class="nav-item {% if 'dashboard/admin' in request.path %}active{% endif %}">
+                <i class="fas fa-shield-alt"></i> Панель администратора
+            </a>
+        </nav>
+        {% else %}
         <nav class="nav-list">
             <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
                 <i class="fas fa-chart-pie"></i> Дашборд
@@ -36,6 +54,12 @@
                    class="nav-item {% if request.resolver_match.url_name == 'my_tutors' %}active{% endif %}">
                     <i class="fas fa-user-graduate"></i> Мои репетиторы
                 </a>
+                <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
+                    <i class="fas fa-chart-line"></i> Аналитика
+                </a>
+                <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
+                    <i class="fas fa-receipt"></i> Оплаты
+                </a>
             {% endif %}
             {% if user.profile.role == 'tutor' %}
                 <a href="{% url 'my_students' %}"
@@ -48,9 +72,17 @@
                 <a href="{% url 'finances' %}" class="nav-item {% if request.resolver_match.url_name == 'finances' %}active{% endif %}">
                     <i class="fas fa-wallet"></i> Финансы
                 </a>
+                <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
+                    <i class="fas fa-chart-line"></i> Аналитика / Результаты
+                </a>
+                <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
+                    <i class="fas fa-receipt"></i> Заявки на пополнение
+                </a>
             {% endif %}
         </nav>
+        {% endif %}
         <div class="sidebar-footer">
+            {% if not user.is_superuser %}
             <a href="{% url 'faq' %}" class="sidebar-faq-link">
                 <i class="far fa-question-circle"></i> Помощь и FAQ
             </a>
@@ -93,6 +125,8 @@
                 <span>{% if request.user.profile.telegram_id %}Бот активен{% else %}Бот не привязан{% endif %}</span>
             </div>
 
+            {% endif %}
+
             <hr class="sidebar-divider">
 
             <div class="user-profile-mini">
@@ -101,7 +135,7 @@
                         <img src="https://ui-avatars.com/api/?name={{ request.user.profile.first_name|default:request.user.username }}&background=6366f1&color=fff" alt="Avatar" class="mini-avatar">
                         <div class="user-text">
                             <span class="user-name">{{ request.user.profile.first_name|default:request.user.username }}</span>
-                            <span class="user-role">{{ request.user.profile.get_role_display }}</span>
+                            <span class="user-role">{% if request.user.is_superuser %}Администратор{% else %}{{ request.user.profile.get_role_display }}{% endif %}</span>
                         </div>
                     </div>
                 </a>
@@ -114,9 +148,40 @@
             </div>
         </div>
     </aside>
+
+    <div class="top-right-controls">
+        {% if not user.is_superuser %}
+        <div class="notifications-bell-wrap">
+            <button type="button" class="notifications-bell-btn" id="notificationsBell" title="Уведомления" aria-label="Уведомления">
+                <i class="fas fa-bell"></i>
+                {% if unread_notifications_count > 0 %}
+                <span class="notifications-badge">{{ unread_notifications_count }}</span>
+                {% endif %}
+            </button>
+            <div class="notifications-dropdown" id="notificationsDropdown">
+                <div class="notifications-dropdown-header">Уведомления</div>
+                <div class="notifications-dropdown-list">
+                    {% for n in recent_notifications %}
+                    <a href="{{ n.link|default:'#' }}" class="notification-item {% if not n.is_read %}unread{% endif %}" data-id="{{ n.id }}" data-link="{{ n.link|default:'' }}">
+                        <span class="notification-message">{{ n.message }}</span>
+                        <span class="notification-time">{{ n.created_at|timesince }} назад</span>
+                    </a>
+                    {% empty %}
+                    <div class="notification-empty">Нет уведомлений</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        <button type="button" class="theme-toggle-btn theme-toggle-btn-auth" id="themeToggle" title="Переключить тему" aria-label="Тема">
+            <i class="fas fa-moon" data-icon-light></i>
+            <i class="fas fa-sun" data-icon-dark style="display: none;"></i>
+        </button>
+    </div>
     {% endif %}
 
     <main class="{% if request.user.is_authenticated %}main-content{% else %}auth-content{% endif %}">
+    <div class="main-content-inner">
     {% if user.is_authenticated and auto_breadcrumbs %}
     <div class="breadcrumb-wrapper">
         <nav class="breadcrumbs">
@@ -137,6 +202,7 @@
     </div>
     {% endif %}
     {% block content %}{% endblock %}
+    </div>
 </main>
 
     <div id="global-tooltip"></div>
@@ -156,132 +222,20 @@
             </div>
         </div>
     </div>
-    <div id="fileExplorerModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
-    <div class="modal-window" style="background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column; position: relative;">
-
-        <div class="close-btn" onclick="closeFileExplorer()" style="cursor: pointer; position: absolute; top: 15px; right: 20px; font-size: 24px;">&times;</div>
-        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 20px;">Библиотека материалов</h3>
-
-        <input type="text" id="explorer-search" placeholder="Поиск файлов (начните вводить)..." style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; width: 100%; font-size: 14px; box-sizing: border-box;">
-
-        <div id="explorer-grid" class="file-explorer-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 15px; padding: 10px; max-height: 50vh; overflow-y: auto;"></div>
-
-        <div id="explorer-loader" style="display: none; text-align: center; padding: 10px; color: #64748b;">
+    <div id="fileExplorerModal" class="modal-overlay">
+    <div class="modal-window">
+        <div class="close-btn" onclick="closeFileExplorer()">&times;</div>
+        <h3>Библиотека материалов</h3>
+        <input type="text" id="explorer-search" placeholder="Поиск файлов (начните вводить)...">
+        <div id="explorer-grid" class="file-explorer-grid"></div>
+        <div id="explorer-loader">
             <i class="fas fa-spinner fa-spin"></i> Загрузка файлов...
         </div>
-
-        <button type="button" onclick="applyExplorerSelection()" class="btn btn-primary" style="padding: 12px; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 15px;">
+        <button type="button" onclick="applyExplorerSelection()" class="btn btn-primary">
             Прикрепить выбранные (<span id="explorer-selected-count">0</span>)
         </button>
     </div>
 </div>
-    <style>
-    .file-icon-item { display: flex; flex-direction: column; align-items: center; padding: 15px 10px; border-radius: 8px; cursor: pointer; transition: 0.1s; border: 2px solid transparent; user-select: none; }
-    .file-icon-item:hover { background: #f1f5f9; }
-    .file-icon-item.selected { background: #e0e7ff; border-color: #6366f1; }
-    .file-icon-item i { font-size: 35px; color: #94a3b8; margin-bottom: 8px; pointer-events: none; }
-    .file-icon-item.selected i { color: #6366f1; }
-    .file-icon-item span { font-size: 12px; text-align: center; word-break: break-word; line-height: 1.2; pointer-events: none; }
-        .next-lesson-card {
-    margin: 20px 15px;
-    padding: 18px;
-    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
-    border-radius: 16px;
-    color: white;
-    box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
-}
-
-.next-lesson-card .label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    opacity: 0.7;
-    font-weight: 800;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.next-lesson-card .name {
-    font-size: 16px;
-    font-weight: 700;
-    margin-bottom: 4px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.next-lesson-card .subject {
-    font-size: 13px;
-    opacity: 0.9;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.next-lesson-card .divider {
-    height: 1px;
-    background: rgba(255, 255, 255, 0.15);
-    margin: 12px 0;
-}
-
-.next-lesson-card .time-info {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    font-weight: 600;
-}
-        .breadcrumb-container {
-    padding: 12px 20px;
-    margin: 15px;
-    background: var(--tg-card-bg);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 2px 8px var(--tg-shadow);
-    list-style: none;
-}
-
-.breadcrumb-item {
-    display: flex;
-    align-items: center;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.breadcrumb-item a {
-    color: var(--tg-active);
-    text-decoration: none;
-    transition: 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.breadcrumb-item a:hover {
-    opacity: 0.8;
-}
-
-.breadcrumb-item .separator {
-    margin: 0 10px;
-    color: var(--tg-hint);
-    font-size: 12px;
-    opacity: 0.5;
-}
-
-/* Последний элемент (текущая страница) делаем серым и некликабельным */
-.breadcrumb-item:last-child {
-    color: var(--tg-hint);
-    pointer-events: none;
-}
-
-.breadcrumb-item i.fa-home {
-    font-size: 16px;
-}
-
-</style>
     {% if user.is_authenticated %}
     <script>
         const currentTz = "{{ user.profile.timezone }}";
@@ -378,6 +332,64 @@
             tooltip.classList.remove('active');
         }, 100);
     });
+
+    // Theme toggle
+    var themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        function updateThemeIcon() {
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            var iconLight = themeToggle.querySelector('[data-icon-light]');
+            var iconDark = themeToggle.querySelector('[data-icon-dark]');
+            if (iconLight) iconLight.style.display = isDark ? 'none' : 'inline-block';
+            if (iconDark) iconDark.style.display = isDark ? 'inline-block' : 'none';
+        }
+        updateThemeIcon();
+        themeToggle.addEventListener('click', function() {
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            var next = isDark ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            updateThemeIcon();
+        });
+    }
+
+    // Notifications bell
+    var notificationsBell = document.getElementById('notificationsBell');
+    var notificationsDropdown = document.getElementById('notificationsDropdown');
+    if (notificationsBell && notificationsDropdown) {
+        notificationsBell.addEventListener('click', function(e) {
+            e.stopPropagation();
+            notificationsDropdown.classList.toggle('active');
+        });
+        document.addEventListener('click', function() {
+            notificationsDropdown.classList.remove('active');
+        });
+        notificationsDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        notificationsDropdown.querySelectorAll('.notification-item[data-id]').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                var id = this.getAttribute('data-id');
+                var link = this.getAttribute('data-link');
+                if (id && link) {
+                    e.preventDefault();
+                    var csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                    fetch('/api/notifications/' + id + '/read/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrf,
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrf)
+                    }).then(function() {
+                        window.location.href = link;
+                    }).catch(function() {
+                        window.location.href = link;
+                    });
+                }
+            });
+        });
+    }
 });
         function copyToClipboard(text, btn) {
     navigator.clipboard.writeText(text).then(() => {
@@ -573,7 +585,69 @@ let explorerCurrentPage = 1;
                 }
             });
         }
+
+        initSortableTables();
     });
+
+    function initSortableTables() {
+        document.querySelectorAll('table.sortable-table').forEach(function(table) {
+            var thead = table.querySelector('thead');
+            var tbody = table.querySelector('tbody');
+            if (!thead || !tbody) return;
+            var ths = thead.querySelectorAll('th');
+            ths.forEach(function(th, colIndex) {
+                th.style.cursor = 'pointer';
+                th.style.userSelect = 'none';
+                if (!th.querySelector('.sort-icon')) {
+                    var icon = document.createElement('span');
+                    icon.className = 'sort-icon';
+                    icon.style.marginLeft = '6px';
+                    icon.style.opacity = '0.4';
+                    icon.innerHTML = '↕';
+                    th.appendChild(icon);
+                }
+                th.addEventListener('click', function() {
+                    var dir = th.classList.contains('sort-asc') ? 'desc' : 'asc';
+                    ths.forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+                    th.classList.add(dir === 'asc' ? 'sort-asc' : 'sort-desc');
+                    th.querySelector('.sort-icon').textContent = dir === 'asc' ? '↑' : '↓';
+                    th.querySelector('.sort-icon').style.opacity = '1';
+                    var rows = Array.from(tbody.querySelectorAll('tr')).filter(function(tr) { return !tr.querySelector('td[colspan]'); });
+                    var type = th.getAttribute('data-sort-type') || 'string';
+                    rows.sort(function(a, b) {
+                        var cellA = a.cells[colIndex];
+                        var cellB = b.cells[colIndex];
+                        if (!cellA || !cellB) return 0;
+                        var valA = cellA.getAttribute('data-sort');
+                        var valB = cellB.getAttribute('data-sort');
+                        if (valA === null) valA = (cellA.textContent || '').trim();
+                        if (valB === null) valB = (cellB.textContent || '').trim();
+                        if (type === 'number') {
+                            var numA = parseFloat(String(valA).replace(/[^0-9.-]/g, '')) || 0;
+                            var numB = parseFloat(String(valB).replace(/[^0-9.-]/g, '')) || 0;
+                            return dir === 'asc' ? numA - numB : numB - numA;
+                        }
+                        if (type === 'date') {
+                            var dateA = parseDateForSort(String(valA));
+                            var dateB = parseDateForSort(String(valB));
+                            return dir === 'asc' ? dateA - dateB : dateB - dateA;
+                        }
+                        var cmp = String(valA).localeCompare(String(valB), 'ru');
+                        return dir === 'asc' ? cmp : -cmp;
+                    });
+                    rows.forEach(function(r) { tbody.appendChild(r); });
+                });
+            });
+        });
+        function parseDateForSort(s) {
+            if (!s) return 0;
+            var m = s.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+            if (m) return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10)).getTime();
+            var iso = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+            if (iso) return new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10)).getTime();
+            return new Date(s).getTime() || 0;
+        }
+    }
     </script>
 
 

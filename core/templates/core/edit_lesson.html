@@ -20,7 +20,7 @@
             <div class="mb-20">
                 <label style="display: block; font-weight: 600; margin-bottom: 8px;"><i class="fas fa-paperclip"></i> Материалы к занятию</label>
                 <button type="button" onclick="openFilePickerModal('edit-lesson-materials-display', 'edit-lesson-materials-select')"
-                        class="btn btn-outline" style="width: 100%; padding: 10px; border: 1px dashed #cbd5e1; border-radius: 8px; color: var(--primary); font-weight: 600;">
+                        class="btn btn-outline" style="width: 100%; padding: 12px; min-height: 44px; border: 1px dashed #cbd5e1; border-radius: 8px; color: var(--primary); font-weight: 600;">
                     <i class="fas fa-plus-circle"></i> Выбрать файлы из библиотеки
                 </button>
                 <div id="edit-lesson-materials-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;">
@@ -35,7 +35,7 @@
                 </select>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <div style="display: flex; gap: 8px; margin-top: 20px;">
                 <button type="submit" class="btn btn-primary">Сохранить</button>
                 <a href="{% url 'index' %}" class="btn" style="background: #e2e8f0; color: #334155;">Отмена</a>
             </div>

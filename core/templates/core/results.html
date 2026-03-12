@@ -1,0 +1,186 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h2 class="page-title"><i class="fas fa-chart-line"></i> Аналитика / Результаты</h2>
+
+<div class="card" style="margin-bottom: 24px;">
+    <form method="GET" class="results-filters-form" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;">
+        <div class="input-group" style="margin-bottom: 0;">
+            <label>Период с</label>
+            <input type="date" name="date_from" value="{{ date_from|default:'' }}" class="date-input" style="margin-bottom: 0;">
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+            <label>по</label>
+            <input type="date" name="date_to" value="{{ date_to|default:'' }}" class="date-input" style="margin-bottom: 0;">
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+            <label>Предмет</label>
+            <select name="subject_id" class="filter-select" style="min-width: 140px; margin-bottom: 0;">
+                <option value="">Все</option>
+                {% for s in subjects_list %}
+                <option value="{{ s.id }}" {% if subject_id_filter == s.id %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if not is_student_view %}
+        <div class="input-group" style="margin-bottom: 0;">
+            <label>Ученик</label>
+            <select name="student_id" class="filter-select" style="min-width: 160px; margin-bottom: 0;">
+                <option value="">Все</option>
+                {% for s in students_list %}
+                <option value="{{ s.id }}" {% if student_id_filter == s.id %}selected{% endif %}>{{ s.last_name }} {{ s.first_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i> Показать</button>
+        <a href="{% url 'results_page' %}" class="btn btn-outline btn-sm">Сбросить</a>
+    </form>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+    <div class="results-main-buttons" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+        <h3 style="margin: 0;">Динамика успеваемости (% от макс. балла)</h3>
+        {% if not is_student_view %}
+        <button type="button" class="btn btn-primary" onclick="openModal('addResultModal')"><i class="fas fa-plus"></i> Добавить результат</button>
+        {% endif %}
+    </div>
+    <div class="chart-container" style="position: relative; height: 280px;">
+        <canvas id="resultsChart"></canvas>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin: 0 0 16px;">Таблица результатов</h3>
+    <div class="table-container">
+    <table class="sortable-table" style="width: 100%;">
+        <thead>
+            <tr style="background: var(--bg-table-header); color: var(--text-muted); font-size: 11px; text-transform: uppercase;">
+                <th style="padding: 12px;">{% if is_student_view %}Репетитор{% else %}Ученик{% endif %}</th>
+                <th style="padding: 12px;">Предмет</th>
+                <th style="padding: 12px;" data-sort-type="number">Балл</th>
+                <th style="padding: 12px;" data-sort-type="number">Макс.</th>
+                <th style="padding: 12px;" data-sort-type="number">%</th>
+                <th style="padding: 12px;" data-sort-type="date">Дата</th>
+                <th style="padding: 12px;">Комментарий</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results %}
+            <tr style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 12px;">{% if is_student_view %}{{ r.tutor.first_name }} {{ r.tutor.last_name }}{% else %}{{ r.student.first_name }} {{ r.student.last_name }}{% endif %}</td>
+                <td style="padding: 12px;">{{ r.subject.name }}</td>
+                <td style="padding: 12px; font-weight: 700;" data-sort="{{ r.score }}">{{ r.score }}</td>
+                <td style="padding: 12px;" data-sort="{{ r.max_score }}">{{ r.max_score }}</td>
+                <td style="padding: 12px; font-weight: 600; color: var(--primary);" data-sort="{{ r.percent|default:0 }}">{% if r.percent is not None %}{{ r.percent }}%{% else %}—{% endif %}</td>
+                <td style="padding: 12px;" data-sort="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d.m.Y" }}</td>
+                <td style="padding: 12px; color: var(--text-muted); font-size: 13px;">{{ r.comment|default:""|truncatechars:40 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">Нет результатов. Добавьте первый результат или измените фильтры.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+{% if not is_student_view %}
+<div id="addResultModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 440px;" onclick="event.stopPropagation();">
+        <div class="close-btn" onclick="closeModal('addResultModal')">&times;</div>
+        <h3 style="margin: 0 0 24px;">Добавить результат</h3>
+        <form method="post" action="{% url 'results_page' %}">
+            {% csrf_token %}
+            <div style="display: grid; gap: 16px;">
+                <div>
+                    <label class="form-label">Ученик</label>
+                    <select name="student_id" class="filter-select" required style="width: 100%;">
+                        <option value="">— Выберите ученика —</option>
+                        {% for s in students_list %}
+                        <option value="{{ s.id }}">{{ s.last_name }} {{ s.first_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Предмет</label>
+                    <select name="subject_id" class="filter-select" required style="width: 100%;">
+                        <option value="">— Выберите предмет —</option>
+                        {% for s in subjects_list %}
+                        <option value="{{ s.id }}">{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label class="form-label">Полученный балл</label>
+                        <input type="number" name="score" step="0.01" min="0" class="filter-select" required style="width: 100%;">
+                    </div>
+                    <div>
+                        <label class="form-label">Макс. балл</label>
+                        <input type="number" name="max_score" step="0.01" min="0.01" class="filter-select" required style="width: 100%;">
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">Дата</label>
+                    <input type="date" name="result_date" class="filter-select" required style="width: 100%;" id="result-date-input" max="">
+                </div>
+                <div>
+                    <label class="form-label">Комментарий (необязательно)</label>
+                    <textarea name="comment" class="filter-select" rows="2" style="width: 100%;"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function() {
+    var d = document.getElementById('result-date-input');
+    if (d) { d.setAttribute('max', new Date().toISOString().split('T')[0]); }
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var textColor = isDark ? '#e2e8f0' : '#64748b';
+    var gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
+
+    var ctx = document.getElementById('resultsChart');
+    if (!ctx) return;
+    new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: {{ chart_labels|safe }},
+            datasets: [{
+                label: 'Средний %',
+                data: {{ chart_values|safe }},
+                borderColor: 'var(--primary)',
+                backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: {
+                    ticks: { color: textColor },
+                    grid: { color: gridColor }
+                },
+                y: {
+                    min: 0,
+                    max: 100,
+                    ticks: { color: textColor },
+                    grid: { color: gridColor }
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

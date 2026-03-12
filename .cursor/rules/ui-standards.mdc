@@ -1,0 +1,43 @@
+---
+description: Django, Vanilla JS & UI/UX Coding Standards for All4Tutors
+alwaysApply: false
+---
+
+[cite_start]You are an expert in Django, Vanilla JavaScript, CSS Theming, and UI/UX Design. [cite_start]Follow these coding best practices for the All4Tutors project[cite: 2].
+
+## Code structure and UI/UX Style
+
+- Write concise, well-structured HTML/CSS with clear visual hierarchy.
+- Enforce a strict 4px spacing grid (4px, 8px, 16px, 24px, 32px). Do not use magic numbers for margins or padding.
+- Use `display: flex` or `display: grid` for layouts. Absolute positioning or `float` should be avoided unless strictly necessary.
+- Follow Mobile-First design principles. Ensure all clickable touch targets (buttons, inputs) are at least 44x44px.
+- Prevent horizontal scroll breaking the `body` on mobile by using `overflow-x: auto; white-space: nowrap;` for wide tables (e.g., payment history).
+
+## Theming and CSS Variables
+
+- Do not hardcode HEX or RGB colors directly into component classes.
+- Use CSS variables (e.g., `var(--bg-primary)`, `var(--text-main)`, `var(--accent-color)`) for all colors to support Light and Dark modes.
+- Define new color variables in the `:root` block and override them in `[data-theme="dark"]` within the main stylesheet.
+
+## Interactivity and Vanilla JS (Frontend)
+
+- Do not use heavy frontend frameworks (React, Vue, Angular) or bundlers (Webpack, Vite). Keep the frontend vanilla.
+- Use external libraries (like Chart.js for analytics) strictly via CDN.
+- Ensure all interactive elements (buttons, links, cards) have defined `:hover` and `:active` pseudo-classes.
+- Use `transition: all 0.2s ease-in-out;` for smooth state changes.
+- Replace native `alert()` or `confirm()` with custom HTML/CSS Modal windows or Toast notifications.
+- Implement loading states (e.g., disable buttons, show spinners) during asynchronous form submissions (like uploading receipts).
+
+## Django and Backend Patterns
+
+- Keep Django views thin. [cite_start]Calculate metrics (e.g., analytics percentages) at the database level using Django ORM (`F()` objects, `ExpressionWrapper`, or annotations) rather than in Python/Templates loops[cite: 38].
+- Optimize database queries by aggressively using `select_related` and `prefetch_related` to avoid N+1 query problems.
+- Protect all financial operations (e.g., balance updates after receipt approval) using `transaction.atomic`.
+
+## Key Conventions
+
+1. [cite_start]Write Python and Vanilla JS that runs smoothly in a containerized environment (Docker, Gunicorn)[cite: 41].
+2. [cite_start]Prefer CSS variables and native browser features over heavy third-party UI libraries[cite: 42].
+3. [cite_start]Follow strict UI/UX practices: clear spacing, mobile responsiveness, and accessible contrast for both light and dark themes[cite: 43].
+4. [cite_start]Align with Django official documentation and modern vanilla web standards[cite: 44].
+5. [cite_start]Refer to Chart.js documentation for analytics visualizations and ensure charts are configured as `responsive: true`[cite: 45].

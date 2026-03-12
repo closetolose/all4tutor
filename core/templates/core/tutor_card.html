@@ -7,13 +7,13 @@
 <style>
     .scrollable-container {
         max-height: 400px; overflow-y: auto; border: 1px solid var(--border);
-        border-radius: 12px; background: white;
+        border-radius: var(--radius-lg); background: var(--bg-white);
     }
     .scrollable-container table { width: 100%; border-collapse: collapse; }
     .scrollable-container thead {
-        position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 1px 0 var(--border);
+        position: sticky; top: 0; background: var(--bg-table-header); z-index: 10; box-shadow: 0 1px 0 var(--border);
     }
-    .info-stat-card { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
+    .info-stat-card { padding: 16px; border-radius: var(--radius-lg); text-align: center; margin-bottom: 16px; }
     .balance-box { background: #f0fdf4; color: #166534; border: 1px solid #dcfce7; }
     .debt-box { background: #fff1f2; color: #991b1b; border: 1px solid #ffe4e6; }
     .box-label { font-size: 11px; font-weight: 700; opacity: 0.8; text-transform: uppercase; display: block; margin-bottom: 5px; }
@@ -24,7 +24,7 @@
     }
 
     /* Анимация статусов */
-    .badge-hw { padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; display: inline-block; position: relative; }
+    .badge-hw { padding: 5px 12px; border-radius: var(--radius-pill); font-size: 11px; font-weight: 700; text-transform: uppercase; display: inline-block; position: relative; }
     .status-pending { background: #fef3c7; color: #92400e; }
     .status-submitted { background: #e0f2fe; color: #075985; padding-left: 18px !important; }
     .status-submitted::before {
@@ -33,18 +33,10 @@
     }
     @keyframes pulse { 0% { opacity: 1; transform: translateY(-50%) scale(1); } 100% { opacity: 0; transform: translateY(-50%) scale(2.5); } }
 
-    /* Модальные окна */
-    .modal-overlay {
-        display: none; position: fixed; z-index: 2000; left: 0; top: 0;
-        width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;
-    }
-    .modal-overlay.active { display: flex; }
-    .modal-window { background: white; padding: 25px; border-radius: 16px; width: 90%; position: relative; }
-    .close-btn { position: absolute; right: 20px; top: 15px; font-size: 24px; cursor: pointer; color: #94a3b8; }
 </style>
 
-<div style="display: flex; gap: 25px; align-items: flex-start;">
-    <div style="width: 320px; flex-shrink: 0;">
+<div class="two-col-layout">
+    <div class="two-col-sidebar">
         <div class="card" style="text-align: center; border-top: 5px solid var(--primary);">
             <div class="user-avatar-large">
                 {{ tutor.first_name|slice:":1" }}{{ tutor.last_name|slice:":1" }}
@@ -69,20 +61,67 @@
                     <i class="fas fa-history"></i> История платежей
                 </button>
             </div>
+
+            {% if connection %}
+            {% if has_pending_unlink %}
+            <p style="margin-top: 15px; font-size: 13px; color: var(--warning-text);"><i class="fas fa-clock"></i> Заявка на открепление отправлена</p>
+            {% else %}
+            <div style="margin-top: 15px;">
+                <button type="button" onclick="document.getElementById('unlinkModalTutorCard').classList.add('active');" class="btn btn-outline" style="width: 100%; color: var(--danger); border-color: var(--danger);">
+                    <i class="fas fa-user-minus"></i> Открепиться от репетитора
+                </button>
+            </div>
+            <div id="unlinkModalTutorCard" class="modal-overlay">
+                <div class="modal-window" onclick="event.stopPropagation();">
+                    <span class="close-btn" onclick="document.getElementById('unlinkModalTutorCard').classList.remove('active');">&times;</span>
+                    <h3 class="modal-title">Открепиться от репетитора?</h3>
+                    <p style="color: var(--text-secondary); font-size: 14px; margin: 12px 0 20px;">Будет отправлена заявка администратору платформы. Решение примет администратор.</p>
+                    <form action="{% url 'request_unlink' connection.id %}" method="post" style="display: flex; gap: 10px;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary" style="background: var(--danger); border-color: var(--danger);">Отправить заявку</button>
+                        <button type="button" class="btn btn-outline" onclick="document.getElementById('unlinkModalTutorCard').classList.remove('active');">Отмена</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+
+            {% if connection %}
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;">Цветовая метка</div>
+                <form action="{% url 'update_tutor_color' connection.id %}" method="post" id="tutor-color-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="color_hex" id="tutor-color-hex" value="{{ connection.color_hex|default:'' }}">
+                    <div class="entity-color-palette" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
+                        <span class="color-swatch" data-color="#6366f1" style="width:28px;height:28px;border-radius:8px;background:#6366f1;cursor:pointer;border:2px solid transparent;"></span>
+                        <span class="color-swatch" data-color="#22c55e" style="width:28px;height:28px;border-radius:8px;background:#22c55e;cursor:pointer;border:2px solid transparent;"></span>
+                        <span class="color-swatch" data-color="#f59e0b" style="width:28px;height:28px;border-radius:8px;background:#f59e0b;cursor:pointer;border:2px solid transparent;"></span>
+                        <span class="color-swatch" data-color="#ef4444" style="width:28px;height:28px;border-radius:8px;background:#ef4444;cursor:pointer;border:2px solid transparent;"></span>
+                        <input type="color" id="tutor-color-picker" value="{{ connection.color_hex|default:'#6366f1' }}" style="width: 36px; height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; flex-shrink: 0;">
+                        <span style="font-size: 12px; color: var(--text-muted);">свой цвет</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">Сохранить</button>
+                        <button type="button" class="btn btn-outline" onclick="document.getElementById('tutor-color-hex').value=''; document.getElementById('tutor-color-form').submit();">Убрать цвет</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
         </div>
     </div>
 
-    <div style="flex: 1; display: flex; flex-direction: column; gap: 25px;">
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 24px;">
 
         <div class="card" style="padding: 0; overflow: hidden;">
             <div style="padding: 20px; border-bottom: 1px solid var(--border);">
                 <h3 style="margin: 0;">Домашние задания</h3>
             </div>
             <div class="scrollable-container">
-                <table style="width: 100%;">
+                <div class="table-container">
+                <table class="sortable-table" style="width: 100%;">
     <thead>
         <tr style="text-align: left; font-size: 12px; color: #64748b;">
-            <th style="padding: 15px;">ПРЕДМЕТ</th>
+            <th style="padding: 16px;">ПРЕДМЕТ</th>
             <th>ЗАДАНИЕ И ФАЙЛЫ</th>
             <th>ДЕДЛАЙН</th>
             <th>СТАТУС</th>
@@ -92,9 +131,7 @@
     <tbody>
         {% for hw in homeworks %}
         <tr style="border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s;"
-            onclick="window.location.href='{% url 'homework_detail' hw.id %}'"
-            onmouseover="this.style.background='#f8fafc'"
-            onmouseout="this.style.background='transparent'">
+            onclick="window.location.href='{% url 'homework_detail' hw.id %}'">
 
             <td style="padding: 15px;"><strong>{{ hw.subject.name }}</strong></td>
 
@@ -157,6 +194,7 @@
         {% endfor %}
     </tbody>
 </table>
+                </div>
             </div>
         </div>
 
@@ -165,10 +203,11 @@
                 <h3 style="margin: 0;">Журнал занятий</h3>
             </div>
             <div class="scrollable-container">
-                <table style="width: 100%;">
+                <div class="table-container">
+                <table class="sortable-table" style="width: 100%;">
                     <thead>
                         <tr style="text-align: left; font-size: 12px; color: #64748b;">
-                            <th style="padding: 15px;">ДАТА</th>
+                            <th style="padding: 16px;">ДАТА</th>
                             <th>ПРЕДМЕТ</th>
                             <th>ОПЛАТА</th>
                         </tr>
@@ -179,7 +218,7 @@
                             <td style="padding: 15px;">{{ att.lesson.start_time|date:"d.m.Y" }}</td>
                             <td style="font-weight: 600;">{{ att.lesson.subject.name }}</td>
                             <td>
-                                <span class="pay-dot {% if att.is_paid %}paid{% else %}debt{% endif %}" style="padding: 5px 12px; border-radius: 20px; font-size: 11px;">
+                                <span class="pay-dot pay-dot-label {% if att.is_paid %}paid{% else %}debt{% endif %}">
                                     {% if att.is_paid %}Оплачено{% else %}Долг{% endif %}
                                 </span>
                             </td>
@@ -187,6 +226,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
@@ -197,6 +237,7 @@
         <div class="close-btn" onclick="closeModal('historyModal')">&times;</div>
         <h2 style="margin-top:0;"><i class="fas fa-history"></i> История транзакций</h2>
         <div class="scrollable-container" style="max-height: 350px;">
+            <div class="table-container">
             <table style="width: 100%;">
                 <tbody>
                     {% for tx in transactions %}
@@ -212,6 +253,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -230,7 +272,7 @@
                 <label class="form-label"><i class="fas fa-reply"></i> Ваши ответы</label>
 
                 <button type="button" onclick="openFilePickerModal('submit-hw-display-{{ hw.id }}', 'submit-hw-select-{{ hw.id }}')"
-                        style="display: block; width: 100%; padding: 12px; background: #f8fafc; border: 1px dashed #6366f1; border-radius: 8px; color: #6366f1; cursor: pointer; text-align: center; font-size: 13px; font-weight: 600; transition: 0.2s;">
+                        class="file-picker-trigger">
                     <i class="fas fa-folder-open"></i> Выбрать файлы из Моих материалов
                 </button>
 
@@ -238,7 +280,7 @@
                 <select id="submit-hw-select-{{ hw.id }}" name="response_files" multiple hidden></select>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 14px;">Отправить на проверку</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%; min-height: 44px; padding: 12px; font-size: 16px;">Отправить на проверку</button>
         </form>
     </div>
 </div>
@@ -252,10 +294,24 @@
         const select = document.getElementById('submit-hw-select-' + hwId);
         if (!select || select.options.length === 0) {
             showToast('Пожалуйста, выберите хотя бы один файл!', 'error');
-            return false; // Блокируем отправку
+            return false;
         }
         return true;
     }
+    (function() {
+        var form = document.getElementById('tutor-color-form');
+        if (!form) return;
+        var hidden = document.getElementById('tutor-color-hex');
+        var picker = document.getElementById('tutor-color-picker');
+        form.querySelectorAll('.color-swatch').forEach(function(sw) {
+            sw.addEventListener('click', function() {
+                var c = this.getAttribute('data-color');
+                hidden.value = c;
+                if (picker) picker.value = c;
+            });
+        });
+        if (picker) picker.addEventListener('input', function() { hidden.value = this.value; });
+    })();
 </script>
 
 {% endblock %}

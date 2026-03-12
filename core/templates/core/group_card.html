@@ -5,20 +5,26 @@
     .user-avatar-large {
         width: 70px; height: 70px; background: #e0e7ff; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        margin: 0 auto 15px; font-size: 28px; color: #4338ca; font-weight: 600;
+        margin: 0 auto 16px; font-size: 28px; color: #4338ca; font-weight: 600;
     }
-    .info-stat-card { padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; }
+    .info-stat-card { padding: 16px; border-radius: var(--radius-lg); text-align: center; margin-bottom: 16px; background: var(--info-bg); color: var(--info-text); border: 1px solid var(--border); }
+    .group-card-layout { display: flex; gap: var(--space-6); align-items: flex-start; }
+    .group-card-side { width: 320px; flex-shrink: 0; position: sticky; top: 24px; }
+    @media (max-width: 768px) {
+        .group-card-layout { flex-direction: column; }
+        .group-card-side { width: 100%; max-width: 100%; }
+    }
 </style>
 
-<div style="display: flex; gap: 25px; align-items: flex-start;">
-    <div style="width: 320px; flex-shrink: 0;">
+<div class="group-card-layout">
+    <div class="group-card-side">
         <div class="card" style="text-align: center; border-top: 5px solid #4338ca;">
             <div class="user-avatar-large">{{ group.name|slice:":2"|upper }}</div>
             <h2 style="margin: 0;">{{ group.name }}</h2>
             <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Предмет: {{ group.subject.name }}</p>
 
             <div class="info-stat-card">
-                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 10px;">Состав группы ({{ members.count }})</span>
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 8px;">Состав группы ({{ members.count }})</span>
                 <div style="text-align: left;">
                     {% for student in members %}
                         <a href="{% url 'student_card' student.id %}" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; text-decoration: none; color: var(--text-main); font-size: 13px;">
@@ -29,20 +35,42 @@
                 </div>
             </div>
 
-            <button onclick="openModal('groupHomeworkModal')" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+            {% if is_tutor_owner %}
+            <button onclick="openModal('groupHomeworkModal')" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
                 <i class="fas fa-plus-circle"></i> Задать ДЗ группе
             </button>
+            {% endif %}
+
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;">Цвет группы</div>
+                <form action="{% url 'update_group_color' group.id %}" method="post" id="group-color-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="color_hex" id="group-color-hex" value="{{ group_color_hex|default:'' }}">
+                    <div class="entity-color-palette" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
+                        <span class="color-swatch" data-color="#6366f1" style="width:28px;height:28px;border-radius:8px;background:#6366f1;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#22c55e" style="width:28px;height:28px;border-radius:8px;background:#22c55e;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#f59e0b" style="width:28px;height:28px;border-radius:8px;background:#f59e0b;cursor:pointer;"></span>
+                        <span class="color-swatch" data-color="#ef4444" style="width:28px;height:28px;border-radius:8px;background:#ef4444;cursor:pointer;"></span>
+                        <input type="color" id="group-color-picker" value="{{ group_color_hex|default:'#6366f1' }}" style="width: 36px; height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; flex-shrink: 0;">
+                        <span style="font-size: 12px; color: var(--text-muted);">свой цвет</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">Сохранить</button>
+                        <button type="button" class="btn btn-outline" onclick="document.getElementById('group-color-hex').value=''; document.getElementById('group-color-form').submit();">Убрать цвет</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
-    <div style="flex: 1;">
+    <div class="group-card-main" style="flex: 1; min-width: 0;">
         <div class="card" style="padding: 0; overflow: hidden;">
-            <div style="padding: 20px; border-bottom: 1px solid var(--border);"><h3 style="margin: 0;">Журнал группы</h3></div>
+            <div style="padding: 20px 16px; border-bottom: 1px solid var(--border);"><h3 style="margin: 0;">Журнал группы</h3></div>
             <div class="table-container">
-                <table style="width: 100%;">
+                <table class="sortable-table" style="width: 100%;">
                     <thead>
                         <tr style="text-align: left; font-size: 12px; color: #64748b; background: #f8fafc;">
-                            <th style="padding: 15px;">ДАТА</th>
+                            <th style="padding: 16px;">ДАТА</th>
                             <th>СТОИМОСТЬ</th>
                             <th>ПОСЕЩАЕМОСТЬ</th>
                         </tr>
@@ -51,7 +79,7 @@
                         {% regroup attendances by lesson as lesson_list %}
                         {% for item in lesson_list %}
                         <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td style="padding: 15px;">{{ item.grouper.start_time|date:"d.m.Y H:i" }}</td>
+                            <td style="padding: 16px;">{{ item.grouper.start_time|date:"d.m.Y H:i" }}</td>
                             <td>{{ item.grouper.price }} ₽</td>
                             <td>
                                 <div style="display: flex; gap: 5px;">
@@ -78,11 +106,11 @@
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="assign_group_homework" value="1">
-            <div class="mb-15">
+            <div class="mb-20">
                 <label class="form-label">Описание задания</label>
-                <textarea name="description" class="filter-select" style="height: 100px; padding: 10px;" required placeholder="Опишите задание..."></textarea>
+                <textarea name="description" class="filter-select" style="height: 100px; padding: 12px; font-size: 16px;" required placeholder="Опишите задание..."></textarea>
             </div>
-            <div class="mb-15">
+            <div class="mb-20">
                 <label class="form-label">Срок сдачи</label>
                 <input type="datetime-local" name="deadline" class="filter-select">
             </div>
@@ -103,4 +131,20 @@
         </form>
     </div>
 </div>
+<script>
+(function() {
+    var form = document.getElementById('group-color-form');
+    if (!form) return;
+    var hidden = document.getElementById('group-color-hex');
+    var picker = document.getElementById('group-color-picker');
+    form.querySelectorAll('.color-swatch').forEach(function(sw) {
+        sw.addEventListener('click', function() {
+            var c = this.getAttribute('data-color');
+            hidden.value = c;
+            if (picker) picker.value = c;
+        });
+    });
+    if (picker) picker.addEventListener('input', function() { hidden.value = this.value; });
+})();
+</script>
 {% endblock %}
