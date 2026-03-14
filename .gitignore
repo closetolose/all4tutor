@@ -32,3 +32,7 @@ env/
 Thumbs.db
 .idea/
 .vscode/
+
+# --- Нейросеть / AI — не коммитить ---
+core/services/
+.cursor/

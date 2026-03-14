@@ -314,6 +314,10 @@
             <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
                 <i class="fas fa-folder"></i> Мои Файлы
             </a>
+            <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+                <i class="fas fa-comments"></i> Сообщения
+                {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
+            </a>
             {% if user.profile.role == 'tutor' %}
                 <a href="{% url 'my_students' %}" class="nav-item {% if request.resolver_match.url_name == 'my_students' %}active{% endif %}">
                     <i class="fas fa-user-graduate"></i> Мои ученики
@@ -323,6 +327,9 @@
                 </a>
                 <a href="{% url 'finances' %}" class="nav-item {% if request.resolver_match.url_name == 'finances' %}active{% endif %}">
                     <i class="fas fa-wallet"></i> Финансы
+                </a>
+                <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
+                    <i class="fas fa-receipt"></i> Заявки на пополнение
                 </a>
                 <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
                     <i class="fas fa-chart-line"></i> Аналитика / Результаты
@@ -336,6 +343,9 @@
                 </a>
                 <a href="{% url 'my_tutors' %}" class="nav-item {% if request.resolver_match.url_name == 'my_tutors' %}active{% endif %}">
                     <i class="fas fa-chalkboard-teacher"></i> Мои репетиторы
+                </a>
+                <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
+                    <i class="fas fa-receipt"></i> Оплаты
                 </a>
                 <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
                     <i class="fas fa-chart-line"></i> Аналитика

@@ -1,0 +1,194 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Чат с {{ counterpart.first_name }} | All4Tutors{% endblock %}
+
+{% block content %}
+<style>
+    .chat-container {
+        max-width: 700px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 180px);
+        min-height: 400px;
+    }
+    .chat-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        background: var(--card-bg);
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: var(--bg);
+    }
+    .chat-msg {
+        max-width: 75%;
+        padding: 12px 16px;
+        border-radius: 16px;
+        font-size: 15px;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+    .chat-msg.mine {
+        align-self: flex-end;
+        background: var(--primary);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    .chat-msg.theirs {
+        align-self: flex-start;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-bottom-left-radius: 4px;
+    }
+    .chat-msg-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+    }
+    .chat-msg-time {
+        font-size: 11px;
+        opacity: 0.8;
+    }
+    .chat-msg-status {
+        font-size: 11px;
+        opacity: 0.9;
+    }
+    .chat-form-wrap {
+        padding: 16px 20px;
+        border-top: 1px solid var(--border);
+        background: var(--card-bg);
+        border-radius: 0 0 12px 12px;
+    }
+    .chat-form {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+    }
+    .chat-form textarea {
+        flex: 1;
+        min-height: 48px;
+        max-height: 120px;
+        resize: vertical;
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        font-size: 15px;
+        font-family: inherit;
+    }
+    .chat-form textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+    .chat-msg-img-link { display: block; margin-bottom: 8px; }
+    .chat-msg-img { max-width: 100%; max-height: 280px; border-radius: 8px; display: block; }
+    .chat-msg-file-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 8px;
+        margin-bottom: 8px;
+        color: inherit;
+        text-decoration: none;
+    }
+    .chat-msg.theirs .chat-msg-file-link { background: rgba(0,0,0,0.06); }
+    .chat-msg-text { margin-top: 4px; }
+</style>
+
+<div class="chat-container">
+    <div style="margin-bottom: 12px;">
+        <a href="{% url 'chat_list' %}" style="color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 600;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-muted)'">
+            <i class="fas fa-arrow-left" style="margin-right: 6px;"></i> К списку диалогов
+        </a>
+    </div>
+
+    <div class="card" style="flex: 1; display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+        <div class="chat-header">
+            <i class="fas fa-{% if is_tutor %}user-graduate{% else %}chalkboard-teacher{% endif %}" style="font-size: 24px; color: var(--primary);"></i>
+            <div>
+                <h2 style="margin: 0; font-size: 18px;">{{ counterpart.first_name }} {{ counterpart.last_name }}</h2>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-muted);">
+                    {% if is_tutor %}Ученик{% else %}Репетитор{% endif %}
+                </p>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            {% for msg in chat_messages %}
+                <div class="chat-msg {% if msg.sender_id == request.user.profile.id %}mine{% else %}theirs{% endif %}">
+                    {% if msg.file %}
+                        {% if msg.is_image %}
+                            <a href="{% url 'download_chat_file' msg.id %}" target="_blank" rel="noopener" class="chat-msg-img-link">
+                                <img src="{% url 'download_chat_file' msg.id %}" alt="{{ msg.file_name }}" class="chat-msg-img">
+                            </a>
+                        {% else %}
+                            <a href="{% url 'download_chat_file' msg.id %}" class="chat-msg-file-link" target="_blank" rel="noopener">
+                                <i class="fas fa-file-alt"></i> {{ msg.file_name|default:"Файл" }}
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                    {% if msg.text %}<div class="chat-msg-text">{{ msg.text|linebreaksbr }}</div>{% endif %}
+                    <div class="chat-msg-meta">
+                        <span class="chat-msg-time">{{ msg.created_at|date:"d.m H:i" }}</span>
+                        {% if msg.sender_id == request.user.profile.id %}
+                            <span class="chat-msg-status">{% if msg.is_read %}<i class="fas fa-check-double" title="Прочитано"></i>{% else %}<i class="fas fa-check" title="Доставлено"></i>{% endif %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% empty %}
+                <p style="text-align: center; color: var(--text-muted); margin: auto;">Напишите первое сообщение</p>
+            {% endfor %}
+        </div>
+
+        <div class="chat-form-wrap">
+            <form method="post" class="chat-form" id="chatForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="file" name="file" id="chatFileInput" accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.rtf,.odt,.ods" style="display: none;">
+                <button type="button" class="btn btn-outline" style="min-height: 48px; padding: 12px 14px;" onclick="document.getElementById('chatFileInput').click();" title="Прикрепить файл">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+                <textarea name="text" placeholder="Введите сообщение..." rows="1" id="chatTextInput"></textarea>
+                <button type="submit" class="btn btn-primary" style="min-height: 48px; padding: 12px 20px;">
+                    <i class="fas fa-paper-plane"></i> Отправить
+                </button>
+            </form>
+            <div id="chatFilePreview" style="font-size: 12px; color: var(--text-muted); margin-top: 6px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var messagesEl = document.getElementById('chatMessages');
+    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+    var fileInput = document.getElementById('chatFileInput');
+    var preview = document.getElementById('chatFilePreview');
+    if (fileInput && preview) {
+        fileInput.addEventListener('change', function() {
+            preview.textContent = this.files.length ? 'Файл: ' + this.files[0].name : '';
+        });
+    }
+    document.getElementById('chatForm').addEventListener('submit', function(e) {
+        var text = (document.getElementById('chatTextInput').value || '').trim();
+        var file = document.getElementById('chatFileInput').files.length;
+        if (!text && !file) {
+            e.preventDefault();
+            alert('Введите текст или прикрепите файл.');
+        }
+    });
+})();
+</script>
+{% endblock %}

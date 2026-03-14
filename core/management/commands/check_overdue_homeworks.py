@@ -3,7 +3,8 @@ from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import Homework, Notification
+from core.models import Homework
+from core.utils import notify_user
 
 
 class Command(BaseCommand):
@@ -35,11 +36,11 @@ class Command(BaseCommand):
                     link = reverse('homework_detail', args=[hw.id])
                     message = f'Домашнее задание по {hw.subject.name} просрочено. Сдайте работу как можно скорее.'
 
-                    Notification.objects.create(
-                        user=hw.student.user,
-                        message=message,
+                    notify_user(
+                        hw.student.user,
+                        message,
                         link=link,
-                        type='warning',
+                        notification_type='warning',
                     )
                     count += 1
                     self.stdout.write(

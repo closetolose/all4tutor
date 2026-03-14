@@ -6,7 +6,7 @@ from django.db import transaction
 from .models import (
     Users, Subjects, StudyGroups, Lessons, StudentBalance, Transaction,
     TutorSubjects, ConnectionRequest, UnlinkRequest, UserGroupColor, FileTag, FilesLibrary,
-    PaymentReceipt, TestResult, Notification,
+    PaymentReceipt, TestResult, Notification, ChatMessage, BotChatMessage,
 )
 
 
@@ -55,11 +55,15 @@ class ConnectionRequestAdmin(admin.ModelAdmin):
 
 @admin.register(UnlinkRequest)
 class UnlinkRequestAdmin(admin.ModelAdmin):
-    list_display = ('student', 'tutor', 'status', 'created_at', 'reviewed_at', 'reviewed_by')
+    list_display = ('student', 'tutor', 'status', 'reason_short', 'created_at', 'reviewed_at', 'reviewed_by')
     list_filter = ('status',)
     search_fields = ('student__first_name', 'student__last_name', 'tutor__first_name', 'tutor__last_name')
     actions = ['approve_unlink', 'reject_unlink']
     list_per_page = 25
+
+    @admin.display(description='Причина')
+    def reason_short(self, obj):
+        return (obj.reason[:50] + '…') if obj.reason and len(obj.reason) > 50 else (obj.reason or '—')
 
     @admin.action(description='Одобрить заявки на открепление')
     def approve_unlink(self, request, queryset):
@@ -126,6 +130,29 @@ class NotificationAdmin(admin.ModelAdmin):
     list_display = ('user', 'message', 'type', 'is_read', 'created_at')
     list_filter = ('type', 'is_read')
     search_fields = ('user__username', 'message')
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = ('connection', 'sender', 'text_preview', 'file_name', 'is_read', 'created_at')
+    list_filter = ('connection', 'is_read')
+    search_fields = ('text', 'sender__first_name', 'sender__last_name')
+    readonly_fields = ('connection', 'sender', 'text', 'created_at')
+
+    def text_preview(self, obj):
+        return (obj.text[:50] + '...') if len(obj.text) > 50 else obj.text
+    text_preview.short_description = 'Текст'
+
+
+@admin.register(BotChatMessage)
+class BotChatMessageAdmin(admin.ModelAdmin):
+    list_display = ('user', 'role', 'content_preview', 'created_at')
+    list_filter = ('role',)
+    search_fields = ('content', 'user__username')
+
+    def content_preview(self, obj):
+        return (obj.content[:50] + '...') if len(obj.content) > 50 else obj.content
+    content_preview.short_description = 'Текст'
 
 
 admin.site.register(Subjects)

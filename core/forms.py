@@ -88,19 +88,20 @@ class ProfileUpdateForm(forms.ModelForm):
             'telegram_id': 'Telegram ID',
         }
         widgets = {
-            'last_name': forms.TextInput(attrs={'placeholder': 'Введите фамилию'}),
-            'first_name': forms.TextInput(attrs={'placeholder': 'Введите имя'}),
-            'patronymic': forms.TextInput(attrs={'placeholder': 'Введите отчество (если есть)'}),
-            'address': forms.TextInput(attrs={'placeholder': 'Напр: Москва, ул. Ленина 1'}),
-            'contact': forms.TextInput(attrs={'placeholder': '+7 (xxx) xxx-xx-xx'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Введите фамилию'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Введите имя'}),
+            'patronymic': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Введите отчество (если есть)'}),
+            'address': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Напр: Москва, ул. Ленина 1'}),
+            'contact': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '+7 (xxx) xxx-xx-xx'}),
             'telegram_id': forms.TextInput(attrs={
+                'class': 'form-input',
                 'placeholder': 'Напр: 123456789',
                 'title': 'Ваш цифровой ID в Telegram',
             }),
-            'school_class': forms.TextInput(attrs={'class': 'm-input', 'placeholder': 'Например: 9-Б'}),
-            'parent_name': forms.TextInput(attrs={'class': 'm-input', 'placeholder': 'Иван Иванович'}),
-            'parent_phone': forms.TextInput(attrs={'class': 'm-input', 'placeholder': '+7 ...'}),
-            'timezone': forms.Select(attrs={'class': 'form-control', 'id': 'tz-selector'}),
+            'school_class': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Например: 9-Б'}),
+            'parent_name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Иван Иванович'}),
+            'parent_phone': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '+7 ...'}),
+            'timezone': forms.Select(attrs={'class': 'form-select', 'id': 'tz-selector'}),
         }
 
 
@@ -116,7 +117,7 @@ class AddLessonForm(forms.ModelForm):
     duration = forms.IntegerField(
         initial=60,
         label="Длительность (мин)",
-        widget=forms.NumberInput(attrs={'class': 'custom-input'})
+        widget=forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '45 мин'})
     )
     materials = forms.ModelMultipleChoiceField(
         queryset=FilesLibrary.objects.none(),
@@ -144,13 +145,13 @@ class AddLessonForm(forms.ModelForm):
         min_value=1,
         max_value=50,
         label="Количество недель",
-        widget=forms.NumberInput(attrs={'class': 'custom-input'})
+        widget=forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '4 нед.'})
     )
 
     repeat_until = forms.DateField(
         required=False,
         label="Повторять до даты",
-        widget=forms.DateInput(attrs={'type': 'date', 'class': 'custom-input'})
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-input'})
     )
 
     WEEKDAYS = [
@@ -177,26 +178,26 @@ class AddLessonForm(forms.ModelForm):
             'price', 'materials',
         ]
         widgets = {
-            'student': forms.Select(attrs={'class': 'custom-input'}),
-            'group': forms.Select(attrs={'class': 'custom-input'}),
-            'subject': forms.Select(attrs={'class': 'custom-input'}),
+            'student': forms.Select(attrs={'class': 'form-select'}),
+            'group': forms.Select(attrs={'class': 'form-select'}),
+            'subject': forms.Select(attrs={'class': 'form-select'}),
             'format': forms.Select(
                 choices=[('online', 'Онлайн'), ('offline', 'Очно')],
-                attrs={'class': 'custom-input'},
+                attrs={'class': 'form-select'},
             ),
             'location': forms.TextInput(attrs={
-                'class': 'custom-input',
+                'class': 'form-input',
                 'placeholder': 'Ссылка на Zoom или Адрес',
             }),
             'notes': forms.Textarea(attrs={
-                'rows': 2, 'class': 'custom-input',
+                'rows': 2, 'class': 'form-textarea',
                 'placeholder': 'Личные заметки...',
             }),
             'homework': forms.Textarea(attrs={
-                'rows': 2, 'class': 'custom-input',
+                'rows': 2, 'class': 'form-textarea',
                 'placeholder': 'ДЗ к этому уроку...',
             }),
-            'price': forms.NumberInput(attrs={'class': 'custom-input', 'id': 'id_price'}),
+            'price': forms.NumberInput(attrs={'class': 'form-input', 'id': 'id_price', 'placeholder': '0 ₽'}),
         }
         labels = {
             'student': 'Ученик',
@@ -274,9 +275,9 @@ class StudyGroupForm(forms.ModelForm):
         model = StudyGroups
         fields = ['name', 'subject', 'students']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'custom-input', 'placeholder': 'Название (например, 9Б)'}),
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Название (например, 9Б)'}),
             'students': forms.CheckboxSelectMultiple(),
-            'subject': forms.Select(attrs={'class': 'custom-input'}),
+            'subject': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
             'name': 'Название',

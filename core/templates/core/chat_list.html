@@ -1,0 +1,111 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Сообщения | All4Tutors{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px;">
+    <div class="mb-20">
+        <h2 style="margin: 0;"><i class="fas fa-comments"></i> Сообщения</h2>
+        <p style="color: var(--text-muted);">
+            {% if is_tutor %}Чат с учениками{% else %}Чат с репетиторами{% endif %}
+        </p>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+        <a href="{% url 'bot_chat' %}" class="card list-item" style="text-decoration: none; color: inherit; display: block; padding: 16px 20px; border-radius: 12px; border: 1px solid var(--border); border-left: 4px solid var(--primary); transition: background 0.2s, box-shadow 0.2s;" onmouseover="this.style.background='var(--card-hover, #f8fafc)'" onmouseout="this.style.background=''">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+                <div style="flex: 1; min-width: 0;">
+                    <h3 style="font-size: 17px; margin: 0 0 10px 0; color: var(--text); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-robot" style="color: var(--primary);"></i>
+                        AI-помощник (GigaChat)
+                    </h3>
+                    <p style="margin: 0; font-size: 14px; color: var(--text-muted);">Нейросеть поможет с вопросами об учёбе и платформе</p>
+                </div>
+                <i class="fas fa-chevron-right" style="color: var(--text-muted); font-size: 14px; flex-shrink: 0;"></i>
+            </div>
+        </a>
+
+    {% if connections %}
+            {% for conn in connections %}
+                {% if is_tutor %}
+                    {% with counterpart=conn.student %}
+                    <a href="{% url 'chat_thread' conn.id %}" class="card list-item {% if conn.unread_count %}chat-item-unread{% endif %}" style="text-decoration: none; color: inherit; display: block; padding: 16px 20px; border-radius: 12px; border: 1px solid var(--border); transition: background 0.2s, box-shadow 0.2s;" onmouseover="this.style.background='var(--card-hover, #f8fafc)'" onmouseout="this.style.background=''">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+                            <div style="flex: 1; min-width: 0;">
+                                <h3 style="font-size: 17px; margin: 0 0 10px 0; color: var(--text); display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-user-graduate" style="color: var(--primary);"></i>
+                                    {{ counterpart.first_name }} {{ counterpart.last_name }}
+                                    {% if conn.unread_count %}<span class="chat-list-unread-badge">{{ conn.unread_count }}</span>{% endif %}
+                                </h3>
+                                {% if conn.last_message %}
+                                    <p style="margin: 0; font-size: 14px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        {{ conn.last_message.text|truncatewords:15 }}
+                                    </p>
+                                    <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-muted);">
+                                        {{ conn.last_message.created_at|date:"d.m H:i" }}
+                                    </p>
+                                {% else %}
+                                    <p style="margin: 0; font-size: 14px; color: var(--text-muted);">Нет сообщений</p>
+                                {% endif %}
+                            </div>
+                            <i class="fas fa-chevron-right" style="color: var(--text-muted); font-size: 14px; flex-shrink: 0;"></i>
+                        </div>
+                    </a>
+                    {% endwith %}
+                {% else %}
+                    {% with counterpart=conn.tutor %}
+                    <a href="{% url 'chat_thread' conn.id %}" class="card list-item {% if conn.unread_count %}chat-item-unread{% endif %}" style="text-decoration: none; color: inherit; display: block; padding: 16px 20px; border-radius: 12px; border: 1px solid var(--border); transition: background 0.2s, box-shadow 0.2s;" onmouseover="this.style.background='var(--card-hover, #f8fafc)'" onmouseout="this.style.background=''">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+                            <div style="flex: 1; min-width: 0;">
+                                <h3 style="font-size: 17px; margin: 0 0 10px 0; color: var(--text); display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-chalkboard-teacher" style="color: var(--primary);"></i>
+                                    {{ counterpart.first_name }} {{ counterpart.last_name }}
+                                    {% if conn.unread_count %}<span class="chat-list-unread-badge">{{ conn.unread_count }}</span>{% endif %}
+                                </h3>
+                                {% if conn.last_message %}
+                                    <p style="margin: 0; font-size: 14px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        {{ conn.last_message.text|truncatewords:15 }}
+                                    </p>
+                                    <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-muted);">
+                                        {{ conn.last_message.created_at|date:"d.m H:i" }}
+                                    </p>
+                                {% else %}
+                                    <p style="margin: 0; font-size: 14px; color: var(--text-muted);">Нет сообщений</p>
+                                {% endif %}
+                            </div>
+                            <i class="fas fa-chevron-right" style="color: var(--text-muted); font-size: 14px; flex-shrink: 0;"></i>
+                        </div>
+                    </a>
+                    {% endwith %}
+                {% endif %}
+            {% endfor %}
+    {% endif %}
+    </div>
+
+    {% if not connections %}
+        <div class="card text-center" style="padding: 64px;">
+            <i class="fas fa-comments" style="font-size: 48px; color: #cbd5e1; margin-bottom: 24px; display: block;"></i>
+            <h3 style="margin: 0;">Нет диалогов</h3>
+            <p style="color: var(--text-muted);">
+                {% if is_tutor %}
+                    Добавьте учеников, чтобы начать общение.
+                {% else %}
+                    Подключитесь к репетитору, чтобы начать общение.
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.chat-item-unread { border-left: 3px solid var(--primary); }
+.chat-list-unread-badge {
+    background: var(--primary);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+</style>
+{% endblock %}

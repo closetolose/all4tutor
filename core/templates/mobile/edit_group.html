@@ -35,6 +35,10 @@
     .eg-student-item:last-child { margin-bottom: 0; }
     .eg-student-item input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--tg-active); flex-shrink: 0; margin: 0; }
     .eg-student-item label { color: var(--tg-text); font-size: 14px; margin: 0; cursor: pointer; flex: 1; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 10px 10px 0; }
+    .eg-section-title {
+        font-size: 12px; font-weight: 800; color: var(--tg-hint);
+        text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;
+    }
     .eg-actions { display: flex; flex-direction: column; gap: 10px; }
     .eg-submit {
         background: var(--tg-active); color: white; border: none;
@@ -47,6 +51,19 @@
         width: 100%; text-align: center; text-decoration: none; display: block;
     }
     .eg-cancel:active { opacity: 0.8; }
+    .eg-color-section {
+        margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--tg-separator);
+    }
+    .eg-color-picker-row {
+        display: flex; gap: 8px; align-items: center; margin-bottom: 12px;
+    }
+    .eg-color-picker-input {
+        width: 44px; height: 44px; min-width: 44px;
+        border: 1px solid var(--tg-separator); border-radius: 8px; cursor: pointer; padding: 2px;
+    }
+    .eg-color-hint { font-size: 12px; color: var(--tg-hint); }
+    .eg-color-actions { display: flex; gap: 8px; }
+    .eg-color-actions > * { flex: 1; }
 </style>
 
 <div class="eg-page">
@@ -55,6 +72,8 @@
     <div class="eg-card">
         <form method="post" id="edit-group-main-m">
             {% csrf_token %}
+
+            <div class="eg-section-title">Основное</div>
 
             <div class="eg-field">
                 <label class="eg-label">Название</label>
@@ -85,28 +104,28 @@
             </div>
         </form>
 
-        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--tg-separator);">
-            <label class="eg-label">Цвет группы</label>
-            <form action="{% url 'update_group_color' group.id %}" method="post" id="edit-group-color-form-m" style="margin-top: 10px;">
+        <div class="eg-color-section">
+            <div class="eg-section-title">Цвет группы</div>
+            <form action="{% url 'update_group_color' group.id %}" method="post" id="edit-group-color-form-m">
                 {% csrf_token %}
                 <input type="hidden" name="color_hex" id="edit-group-color-hex-m" value="{{ group_color_hex|default:'' }}">
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
-                    <span class="color-swatch" data-color="#6366f1" style="width:44px;height:44px;border-radius:8px;background:#6366f1;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#22c55e" style="width:44px;height:44px;border-radius:8px;background:#22c55e;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#f59e0b" style="width:44px;height:44px;border-radius:8px;background:#f59e0b;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#ef4444" style="width:44px;height:44px;border-radius:8px;background:#ef4444;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#ec4899" style="width:44px;height:44px;border-radius:8px;background:#ec4899;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#8b5cf6" style="width:44px;height:44px;border-radius:8px;background:#8b5cf6;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#06b6d4" style="width:44px;height:44px;border-radius:8px;background:#06b6d4;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#84cc16" style="width:44px;height:44px;border-radius:8px;background:#84cc16;cursor:pointer;"></span>
+                <div class="entity-color-palette m-mb">
+                    <span class="color-swatch" data-color="#6366f1" style="border-radius:8px;background:#6366f1;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#22c55e" style="border-radius:8px;background:#22c55e;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#f59e0b" style="border-radius:8px;background:#f59e0b;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#ef4444" style="border-radius:8px;background:#ef4444;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#ec4899" style="border-radius:8px;background:#ec4899;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#8b5cf6" style="border-radius:8px;background:#8b5cf6;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#06b6d4" style="border-radius:8px;background:#06b6d4;cursor:pointer;"></span>
+                    <span class="color-swatch" data-color="#84cc16" style="border-radius:8px;background:#84cc16;cursor:pointer;"></span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
-                    <input type="color" id="edit-group-color-picker-m" value="{{ group_color_hex|default:'#6366f1' }}" style="width: 40px; height: 36px; border: 1px solid var(--tg-separator); border-radius: 8px; cursor: pointer;">
-                    <span style="font-size: 12px; color: var(--tg-hint);">Свой цвет</span>
+                <div class="eg-color-picker-row">
+                    <input type="color" id="edit-group-color-picker-m" value="{{ group_color_hex|default:'#6366f1' }}" class="eg-color-picker-input">
+                    <span class="eg-color-hint">Свой цвет</span>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <button type="submit" class="eg-submit" style="flex: 1;">Сохранить цвет</button>
-                    <button type="button" onclick="document.getElementById('edit-group-color-hex-m').value=''; document.getElementById('edit-group-color-form-m').submit();" class="eg-cancel" style="flex: 1; margin: 0;">Убрать цвет</button>
+                <div class="eg-color-actions">
+                    <button type="submit" class="eg-submit">Сохранить цвет</button>
+                    <button type="button" onclick="document.getElementById('edit-group-color-hex-m').value=''; document.getElementById('edit-group-color-form-m').submit();" class="eg-cancel">Убрать цвет</button>
                 </div>
             </form>
         </div>

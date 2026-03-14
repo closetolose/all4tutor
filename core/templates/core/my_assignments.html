@@ -136,16 +136,22 @@
             <h3 style="margin-top: 0; margin-bottom: 10px;">Сдать работу</h3>
             <p style="font-size: 13px; color: #64748b; margin-bottom: 24px; line-height: 1.4;">{{ hw.description|truncatechars:80 }}</p>
 
-            <form action="{% url 'submit_homework' hw.id %}" method="post" onsubmit="return checkHwSubmit('{{ hw.id }}')">
+            <form action="{% url 'submit_homework' hw.id %}" method="post" enctype="multipart/form-data" onsubmit="return checkHwSubmit('{{ hw.id }}')">
                 {% csrf_token %}
 
                 <div class="form-group" style="margin-bottom: 24px;">
                     <label class="form-label"><i class="fas fa-reply"></i> Ваши ответы</label>
 
-                    <button type="button" onclick="openFilePickerModal('submit-hw-display-{{ hw.id }}', 'submit-hw-select-{{ hw.id }}')"
-                            style="display: block; width: 100%; min-height: 44px; padding: 12px 16px; background: #f8fafc; border: 1px dashed #6366f1; border-radius: 8px; color: #6366f1; cursor: pointer; text-align: center; font-size: 16px; font-weight: 600; transition: 0.2s;">
-                        <i class="fas fa-folder-open"></i> Выбрать файлы из Моих материалов
-                    </button>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <input type="file" name="response_files" multiple
+                               style="padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px;"
+                               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
+                        <span style="font-size: 12px; color: var(--text-muted);">или</span>
+                        <button type="button" onclick="openFilePickerModal('submit-hw-display-{{ hw.id }}', 'submit-hw-select-{{ hw.id }}')"
+                                class="file-picker-trigger" style="width: 100%;">
+                            <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                        </button>
+                    </div>
 
                     <div id="submit-hw-display-{{ hw.id }}" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
                     <select id="submit-hw-select-{{ hw.id }}" name="response_files" multiple hidden></select>
@@ -164,10 +170,14 @@
     window.onclick = function(e) { if (e.target.classList.contains('modal-overlay')) { e.target.classList.remove('active'); } }
 
     function checkHwSubmit(hwId) {
+        const form = document.querySelector('#submitModal' + hwId + ' form');
+        const fileInput = form && form.querySelector('input[type="file"]');
         const select = document.getElementById('submit-hw-select-' + hwId);
-        if (!select || select.options.length === 0) {
-            showToast('Пожалуйста, выберите хотя бы один файл!', 'error');
-            return false; // Блокируем отправку
+        const hasFiles = fileInput && fileInput.files && fileInput.files.length > 0;
+        const hasLibrary = select && select.options && select.options.length > 0;
+        if (!hasFiles && !hasLibrary) {
+            showToast('Выберите файлы с устройства или из библиотеки', 'error');
+            return false;
         }
         return true;
     }

@@ -8,6 +8,28 @@ from django.utils.encoding import force_bytes
 from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_encode
 
+from .models import Notification
+
+
+def notify_user(user, message, link=None, notification_type='info', send_telegram=False):
+    """
+    Создать in-app уведомление для пользователя.
+    user — экземпляр User (AUTH_USER_MODEL).
+    link — строка или None (сохраняется как '' в БД).
+    notification_type — 'info' или 'warning' (Notification.TYPE_CHOICES).
+    send_telegram — при True отправить дубликат в Telegram, если у user есть profile.telegram_id.
+    """
+    Notification.objects.create(
+        user=user,
+        message=message[:255],
+        link=link or '',
+        type=notification_type,
+    )
+    if send_telegram:
+        profile = getattr(user, 'profile', None)
+        if profile and getattr(profile, 'telegram_id', None):
+            send_telegram_notification(profile, message)
+
 
 def send_telegram_notification(user_profile, message):
     if not user_profile.telegram_id:

@@ -5,7 +5,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from .validators import validate_file_size, validate_receipt_file
+from .validators import validate_file_size, validate_chat_file, validate_receipt_file
 import uuid
 
 
@@ -242,6 +242,7 @@ class UnlinkRequest(models.Model):
     student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='unlink_requests_sent')
     tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='unlink_requests_received')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    reason = models.TextField(blank=True, verbose_name='Причина открепления')
     created_at = models.DateTimeField(default=timezone.now)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(
@@ -381,3 +382,55 @@ class TestResult(models.Model):
         return None
 
 
+class ChatMessage(models.Model):
+    """Сообщение в чате между репетитором и учеником."""
+    connection = models.ForeignKey(
+        ConnectionRequest,
+        on_delete=models.CASCADE,
+        related_name='chat_messages'
+    )
+    sender = models.ForeignKey(
+        Users,
+        on_delete=models.CASCADE,
+        related_name='sent_chat_messages'
+    )
+    text = models.TextField(blank=True)
+    file = models.FileField(
+        upload_to='chat_files/%Y/%m/',
+        blank=True,
+        null=True,
+        validators=[validate_chat_file],
+    )
+    file_name = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'chat_messages'
+        ordering = ['created_at']
+
+    def is_image(self):
+        if not self.file:
+            return False
+        ext = (self.file_name or self.file.name or '').lower().split('.')[-1]
+        return ext in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp')
+
+
+class BotChatMessage(models.Model):
+    """Сообщение в чате пользователя с AI-ботом (GigaChat)."""
+    ROLE_CHOICES = [
+        ('user', 'Пользователь'),
+        ('assistant', 'Ассистент'),
+    ]
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='bot_chat_messages'
+    )
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    content = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'bot_chat_messages'
+        ordering = ['created_at']

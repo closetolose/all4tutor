@@ -16,7 +16,6 @@
     <input type="hidden" name="tag" value="{{ tid }}">
     {% endfor %}
     <div class="fl-search-wrap">
-        <i class="fas fa-search fl-search-icon"></i>
         <input type="text" name="q" value="{{ query|default:'' }}" placeholder="Поиск по названию..." class="fl-search-input" autocomplete="off">
     </div>
     {% if query %}
@@ -86,7 +85,7 @@
     <div class="fl-empty-state" id="fl-empty-state">
         <div class="fl-empty-icon"><i class="fas fa-cloud-upload-alt"></i></div>
         <p>Библиотека пуста</p>
-        <span>Загрузите свои методички, книги или тесты</span>
+        <span style="display: block; text-align: center;">Загрузите свои методички, книги или тесты для удобного доступа</span>
     </div>
     {% endfor %}
 </div>
@@ -361,18 +360,10 @@
         position: relative;
         flex: 1;
     }
-    .fl-search-icon {
-        position: absolute;
-        left: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--tg-hint);
-        pointer-events: none;
-    }
     .fl-search-input {
         width: 100%;
         min-height: 44px;
-        padding: 0 14px 0 40px;
+        padding: 0 14px;
         border-radius: 10px;
         border: 1px solid var(--tg-separator);
         background: var(--tg-sidebar);

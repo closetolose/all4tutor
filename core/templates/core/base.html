@@ -36,6 +36,10 @@
             <a href="{% url 'dashboard_admin_index' %}" class="nav-item {% if 'dashboard/admin' in request.path %}active{% endif %}">
                 <i class="fas fa-shield-alt"></i> Панель администратора
             </a>
+            <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+                <i class="fas fa-comments"></i> Сообщения
+                {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
+            </a>
         </nav>
         {% else %}
         <nav class="nav-list">
@@ -45,6 +49,10 @@
 
             <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
                 <i class="fas fa-folder-open"></i> Мои Файлы
+            </a>
+            <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+                <i class="fas fa-comments"></i> Сообщения
+                {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
             </a>
             {% if user.profile.role == 'student' %}
                 <a href="{% url 'confirmations' %}" class="nav-item {% if 'confirmations' in request.path %}active{% endif %}">

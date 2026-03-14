@@ -1,6 +1,6 @@
 from django.utils import timezone
 
-from .models import Homework, Lessons, Notification, StudyGroups, Users
+from .models import ChatMessage, ConnectionRequest, Homework, Lessons, Notification, StudyGroups, Users
 from django.urls import resolve, reverse, NoReverseMatch
 from django.db.models import Q
 
@@ -27,6 +27,28 @@ def notifications_processor(request):
         'unread_notifications_count': unread_count,
         'recent_notifications': recent,
     }
+
+
+def unread_chat_processor(request):
+    """Количество непрочитанных сообщений в чате (для бейджа в сайдбаре)."""
+    if not request.user.is_authenticated:
+        return {'unread_chat_count': 0}
+    try:
+        profile = request.user.profile
+    except Exception:
+        return {'unread_chat_count': 0}
+    # Сообщения, где текущий пользователь — получатель (не отправитель) и is_read=False
+    if profile.role == 'tutor':
+        count = ChatMessage.objects.filter(
+            connection__tutor=profile,
+            is_read=False,
+        ).exclude(sender=profile).count()
+    else:
+        count = ChatMessage.objects.filter(
+            connection__student=profile,
+            is_read=False,
+        ).exclude(sender=profile).count()
+    return {'unread_chat_count': count}
 
 
 def next_lesson_processor(request):
@@ -81,6 +103,9 @@ BREADCRUMB_CHAIN = {
     'archived_students': ('Архив учеников', 'my_students'),
     'accept_request': ('Подтверждения', 'confirmations'),
     'reject_request': ('Подтверждения', 'confirmations'),
+    'chat_list': ('Сообщения', 'index'),
+    'chat_thread': (None, 'chat_list'),
+    'bot_chat': ('AI-помощник', 'chat_list'),
 }
 
 
@@ -150,6 +175,14 @@ def breadcrumbs(request):
                 first_label = f"ДЗ: {hw.subject.name}"
             except Exception:
                 first_label = "Задание"
+        elif first_name == 'chat_thread' and kwargs.get('connection_id'):
+            try:
+                conn = ConnectionRequest.objects.select_related('tutor', 'student').get(id=kwargs['connection_id'])
+                profile_id = getattr(request.user.profile, 'id', None)
+                counterpart = conn.student if conn.tutor_id == profile_id else conn.tutor
+                first_label = f"Чат с {counterpart.first_name} {counterpart.last_name}"
+            except Exception:
+                first_label = "Чат"
         else:
             first_label = first_name.replace('_', ' ').capitalize()
         chain[0] = (first_label, first_url, first_name)

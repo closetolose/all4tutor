@@ -27,7 +27,16 @@
     }
     .pr-btn-approve { background: var(--tg-green); color: white; }
     .pr-btn-reject { background: rgba(239,68,68,0.15); color: var(--tg-red); }
+    .pr-btn-scan {
+        background: rgba(99, 102, 241, 0.12); color: var(--tg-active);
+        border: none; padding: 8px 12px; border-radius: 10px;
+        font-size: 13px; font-weight: 700; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 6px;
+    }
     .pr-empty { text-align: center; padding: 40px 20px; color: var(--tg-hint); }
+    #receiptViewModal .receipt-view-img { max-width: 100%; height: auto; max-height: 70vh; display: block; margin: 0 auto; }
+    #receiptViewModal .receipt-view-pdf { padding: 20px; text-align: center; }
+    #receiptViewModal .receipt-view-pdf a { color: var(--tg-active); font-weight: 700; }
 </style>
 
 <div class="pr-page">
@@ -52,7 +61,9 @@
         </div>
         <div class="pr-card-row">
             <span class="pr-card-label">Скан</span>
-            <a href="{{ r.file.url }}" target="_blank" rel="noopener" style="color: var(--tg-active);"><i class="fas fa-external-link-alt"></i></a>
+            <button type="button" class="pr-btn-scan" data-file-url="{{ r.file.url }}" data-file-name="{{ r.file.name|default:'' }}" onclick="openReceiptView(this)" title="Просмотр чека">
+                <i class="fas fa-image"></i> Просмотр
+            </button>
         </div>
         <div class="pr-actions">
             <form action="{% url 'approve_receipt' r.id %}" method="post" style="flex: 1;">
@@ -72,4 +83,45 @@
     </div>
     {% endif %}
 </div>
+
+<div id="receiptViewModal" class="tg-modal" style="display: none;" onclick="if(event.target===this) closeReceiptView()">
+    <div class="tg-modal-content" onclick="event.stopPropagation()" style="max-height: 90vh;">
+        <div class="tg-modal-header">
+            <h3>Чек</h3>
+            <button type="button" class="close-modal" onclick="closeReceiptView()">&times;</button>
+        </div>
+        <div class="tg-modal-scroll" style="text-align: center; padding: 16px;">
+            <img id="receiptViewImg" class="receipt-view-img" src="" alt="Чек" style="display: none;">
+            <div id="receiptViewPdf" class="receipt-view-pdf" style="display: none;">
+                <p style="margin-bottom: 12px;">Файл в формате PDF</p>
+                <a id="receiptViewPdfLink" href="#" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i> Открыть PDF</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openReceiptView(btn) {
+    var url = btn.getAttribute('data-file-url');
+    var name = (btn.getAttribute('data-file-name') || '').toLowerCase();
+    var isPdf = name.indexOf('.pdf') !== -1;
+    var img = document.getElementById('receiptViewImg');
+    var pdfBlock = document.getElementById('receiptViewPdf');
+    var pdfLink = document.getElementById('receiptViewPdfLink');
+    if (isPdf) {
+        img.style.display = 'none';
+        pdfBlock.style.display = 'block';
+        pdfLink.href = url;
+    } else {
+        img.style.display = 'block';
+        img.src = url;
+        pdfBlock.style.display = 'none';
+    }
+    document.getElementById('receiptViewModal').style.display = 'flex';
+}
+function closeReceiptView() {
+    document.getElementById('receiptViewModal').style.display = 'none';
+    document.getElementById('receiptViewImg').src = '';
+}
+</script>
 {% endblock %}

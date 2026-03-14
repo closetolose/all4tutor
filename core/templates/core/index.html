@@ -3,6 +3,25 @@
 {% block title %}Панель управления | All4Tutors{% endblock %}
 
 {% block content %}
+    {% if request.GET.saved %}
+    <div class="form-toast" id="savedToast" onclick="this.remove()">
+        <i class="fas fa-check-circle"></i> Сохранено
+    </div>
+    <script>
+    (function() {
+        var t = document.getElementById('savedToast');
+        if (t) setTimeout(function() {
+            t.classList.add('hiding');
+            setTimeout(function() { t.remove(); }, 300);
+        }, 4000);
+        if (window.history.replaceState) {
+            var url = new URL(window.location);
+            url.searchParams.delete('saved');
+            window.history.replaceState({}, '', url);
+        }
+    })();
+    </script>
+    {% endif %}
     <style>
         .weekdays-selector { display: flex; gap: 5px; flex-wrap: wrap; }
         .weekday-btn input { display: none !important; }

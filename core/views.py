@@ -14,10 +14,11 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User as AuthUser
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Count, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.template import TemplateDoesNotExist
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.template.loader import get_template
@@ -32,12 +33,12 @@ from django.core.exceptions import ValidationError
 
 from .forms import AddLessonForm, AddSubjectForm, ProfileUpdateForm, RegistrationForm, StudyGroupForm
 from .models import (
-    ConnectionRequest, FileTag, FilesLibrary, Homework, HomeworkResponse,
+    BotChatMessage, ChatMessage, ConnectionRequest, FileTag, FilesLibrary, Homework, HomeworkResponse,
     LessonAttendance, Lessons, Notification, PaymentReceipt, StudentTariff,
     StudyGroups, Subjects, Transaction, TutorStudentNote, TutorSubjects,
     UnlinkRequest, UserGroupColor, Users, StudentBalance, TestResult,
 )
-from .utils import send_telegram_notification, send_verification_email
+from .utils import notify_user, send_telegram_notification, send_verification_email
 # from ratelimit.decorators import ratelimit  # установите django-ratelimit и пересоберите Docker-образ
 from django.db.models import ProtectedError
 from django.core.paginator import Paginator
@@ -389,7 +390,8 @@ def edit_profile(request):
         form = ProfileUpdateForm(request.POST, instance=profile)
         if form.is_valid():
             form.save()
-            return redirect('index')
+            from django.urls import reverse
+            return redirect(reverse('index') + '?saved=1')
     else:
         form = ProfileUpdateForm(instance=profile)
 
@@ -434,6 +436,13 @@ def accept_request(request, request_id):
     )
     conn_request.status = 'confirmed'
     conn_request.save()
+    student_name = f"{conn_request.student.first_name} {conn_request.student.last_name}".strip() or conn_request.student.user.username
+    notify_user(
+        conn_request.tutor.user,
+        f"Ученик {student_name} принял вашу заявку",
+        link=reverse('student_card', args=[conn_request.student.id]),
+        notification_type='info',
+    )
     return redirect('confirmations')
 
 
@@ -447,7 +456,15 @@ def reject_request(request, request_id):
         id=request_id,
         student__user=request.user
     )
+    student_name = f"{conn_request.student.first_name} {conn_request.student.last_name}".strip() or conn_request.student.user.username
+    tutor_user = conn_request.tutor.user
     conn_request.delete()
+    notify_user(
+        tutor_user,
+        f"Ученик {student_name} отклонил заявку",
+        link=reverse('my_students'),
+        notification_type='warning',
+    )
     return redirect('confirmations')
 
 
@@ -669,7 +686,7 @@ def edit_lesson(request, lesson_id):
                 updated_lesson.save()
                 form.save_m2m()
                 messages.success(request, "Занятие обновлено!")
-                return redirect('index')
+                return redirect(reverse('index') + '?saved=1')
     else:
         form = AddLessonForm(instance=lesson, tutor=request.user.profile)
 
@@ -714,7 +731,8 @@ def edit_group(request, group_id):
         if form.is_valid():
             form.save()
             messages.success(request, f"Группа '{group.name}' обновлена!")
-            return redirect('my_students')
+            from django.urls import reverse
+            return redirect(reverse('my_students') + '?saved=1')
     else:
         form = StudyGroupForm(instance=group, tutor=profile)
 
@@ -757,7 +775,7 @@ def add_group(request):
             new_group.save()
             form.save_m2m()
             messages.success(request, f"Группа '{new_group.name}' успешно создана!")
-            return redirect('my_students')
+            return redirect(reverse('my_students') + '?saved=1')
     else:
         form = StudyGroupForm(tutor=request.user.profile)
 
@@ -1141,6 +1159,13 @@ def add_homework(request, student_id):
             subject=subject_obj,
             description=description,
             deadline=deadline_raw or None
+        )
+
+        notify_user(
+            student.user,
+            f"Новое ДЗ по {subject_obj.name}",
+            link=reverse('homework_detail', args=[hw.id]),
+            notification_type='info',
         )
 
         deadline_obj = parse_datetime(deadline_raw) if deadline_raw else None
@@ -1717,6 +1742,14 @@ def submit_homework(request, hw_id):
                 )
                 send_telegram_notification(tutor, msg)
 
+            student_name = f"{user_profile.first_name} {user_profile.last_name}".strip() or user_profile.user.username
+            notify_user(
+                tutor.user,
+                f"{student_name} сдал(а) ДЗ по {homework.subject.name} на проверку",
+                link=reverse('homework_detail', args=[homework.id]),
+                notification_type='info',
+            )
+
             if added_new:
                 messages.success(request, "Задание успешно отправлено!")
             else:
@@ -1868,6 +1901,12 @@ def group_card(request, group_id):
             )
             if file_ids:
                 hw.files.set(file_ids)
+            notify_user(
+                student.user,
+                f"Новое ДЗ по {group.subject.name}",
+                link=reverse('homework_detail', args=[hw.id]),
+                notification_type='info',
+            )
 
         messages.success(request, "Задание отправлено всей группе")
         return redirect('group_card', group_id=group.id)
@@ -2254,6 +2293,181 @@ def homework_detail(request, hw_id):
     return render(request, 'core/homework_detail.html', context)
 
 
+# --- Chat (репетитор ↔ ученик) ---
+
+
+@login_required
+def bot_chat(request):
+    """Чат с AI-ботом (GigaChat)."""
+    if request.method == 'POST':
+        text = (request.POST.get('text') or '').strip()
+        if text:
+            # Сохраняем сообщение пользователя
+            BotChatMessage.objects.create(
+                user=request.user,
+                role='user',
+                content=text[:8000],
+            )
+            # Собираем историю для контекста (последние 20 пар)
+            # QuerySet не поддерживает [-21:], поэтому сначала list, потом срез
+            all_history = list(
+                BotChatMessage.objects.filter(user=request.user)
+                .order_by('created_at')
+                .values_list('role', 'content')
+            )
+            history = all_history[-21:]
+            api_messages = [{"role": r, "content": c} for r, c in history]
+            # Запрос к GigaChat
+            from core.services.gigachat import get_giga_response
+            reply = get_giga_response(api_messages)
+            # Сохраняем ответ бота
+            BotChatMessage.objects.create(
+                user=request.user,
+                role='assistant',
+                content=reply[:16000],
+            )
+            return redirect('bot_chat')
+
+    bot_messages = BotChatMessage.objects.filter(user=request.user).order_by('created_at')
+    context = {
+        'bot_messages': bot_messages,
+    }
+    return smart_render(request, 'core/bot_chat.html', context)
+
+
+@login_required
+def chat_list(request):
+    """Список диалогов: для репетитора — с учениками, для ученика — с репетиторами."""
+    profile = request.user.profile
+    if profile.role == 'tutor':
+        connections = list(ConnectionRequest.objects.filter(
+            tutor=profile, status__in=['confirmed', 'archived']
+        ).select_related('student').order_by('-created_at'))
+    else:
+        connections = list(ConnectionRequest.objects.filter(
+            student=profile, status__in=['confirmed', 'archived']
+        ).select_related('tutor').order_by('-created_at'))
+
+    conn_ids = [c.id for c in connections]
+    last_msgs = {}
+    for msg in ChatMessage.objects.filter(connection_id__in=conn_ids).order_by('connection_id', '-created_at'):
+        if msg.connection_id not in last_msgs:
+            last_msgs[msg.connection_id] = msg
+
+    # Непрочитанные: сообщения от counterpart, которые я ещё не прочитал
+    unread_counts = {}
+    for row in ChatMessage.objects.filter(
+        connection_id__in=conn_ids, is_read=False
+    ).exclude(sender=profile).values('connection_id').annotate(cnt=Count('id')):
+        unread_counts[row['connection_id']] = row['cnt']
+
+    # Прикрепляем last_message и unread_count к каждому connection
+    for conn in connections:
+        conn.last_message = last_msgs.get(conn.id)
+        conn.unread_count = unread_counts.get(conn.id, 0)
+
+    context = {
+        'connections': connections,
+        'is_tutor': profile.role == 'tutor',
+    }
+    return smart_render(request, 'core/chat_list.html', context)
+
+
+@login_required
+def chat_thread(request, connection_id):
+    """Чат с конкретным пользователем (по connection_id)."""
+    profile = request.user.profile
+    connection = get_object_or_404(
+        ConnectionRequest.objects.select_related('tutor', 'student'),
+        id=connection_id,
+        status__in=['confirmed', 'archived']
+    )
+    # Проверка: текущий пользователь — участник диалога
+    if profile.role == 'tutor':
+        if connection.tutor_id != profile.id:
+            messages.error(request, "Нет доступа к этому диалогу.")
+            return redirect('chat_list')
+        counterpart = connection.student
+    else:
+        if connection.student_id != profile.id:
+            messages.error(request, "Нет доступа к этому диалогу.")
+            return redirect('chat_list')
+        counterpart = connection.tutor
+
+    if request.method == 'POST':
+        text = (request.POST.get('text') or '').strip()
+        uploaded_file = request.FILES.get('file')
+        if text or uploaded_file:
+            try:
+                msg = ChatMessage(
+                    connection=connection,
+                    sender=profile,
+                    text=text[:5000] if text else '',
+                )
+                if uploaded_file:
+                    from core.validators import validate_chat_file
+                    validate_chat_file(uploaded_file)
+                    msg.file = uploaded_file
+                    msg.file_name = uploaded_file.name[:255]
+                msg.save()
+            except ValidationError as e:
+                messages.error(request, str(e))
+            else:
+                return redirect('chat_thread', connection_id=connection.id)
+        else:
+            messages.error(request, "Введите текст или прикрепите файл.")
+
+    # Пометить входящие сообщения как прочитанные при открытии чата
+    ChatMessage.objects.filter(
+        connection=connection,
+        sender=counterpart,
+        is_read=False,
+    ).update(is_read=True)
+
+    chat_messages = ChatMessage.objects.filter(connection=connection).select_related('sender').order_by('created_at')
+
+    context = {
+        'connection': connection,
+        'counterpart': counterpart,
+        'chat_messages': chat_messages,
+        'is_tutor': profile.role == 'tutor',
+    }
+    return smart_render(request, 'core/chat_thread.html', context)
+
+
+@login_required
+def download_chat_file(request, message_id):
+    """Скачать/просмотреть файл из чата (только участники диалога)."""
+    msg = get_object_or_404(
+        ChatMessage.objects.select_related('connection'),
+        id=message_id,
+        file__isnull=False,
+    )
+    conn = msg.connection
+    profile = request.user.profile
+    if conn.tutor_id != profile.id and conn.student_id != profile.id:
+        messages.error(request, "Нет доступа к этому файлу.")
+        return redirect('chat_list')
+    if not msg.file or not os.path.exists(msg.file.path):
+        messages.error(request, "Файл не найден.")
+        return redirect('chat_thread', connection_id=conn.id)
+    filename = msg.file_name or os.path.basename(msg.file.name)
+    ext = filename.lower().split('.')[-1] if filename else ''
+    content_types = {
+        'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+        'gif': 'image/gif', 'webp': 'image/webp', 'bmp': 'image/bmp',
+    }
+    content_type = content_types.get(ext, 'application/octet-stream')
+    as_attachment = ext not in content_types
+    response = FileResponse(
+        open(msg.file.path, 'rb'),
+        as_attachment=as_attachment,
+        filename=filename,
+        content_type=content_type,
+    )
+    return response
+
+
 @login_required
 def api_get_user_files(request):
     user_profile = request.user.profile
@@ -2413,7 +2627,7 @@ def submit_receipt(request):
         messages.error(request, 'Сумма не должна превышать 999 999,99 ₽.')
         return redirect('payment_receipts')
     try:
-        PaymentReceipt.objects.create(
+        receipt = PaymentReceipt.objects.create(
             student=user_profile,
             tutor=tutor,
             amount=amount,
@@ -2421,6 +2635,13 @@ def submit_receipt(request):
             file=uploaded,
             comment=(request.POST.get('comment') or '').strip() or None,
             status='pending',
+        )
+        student_name = f"{user_profile.first_name} {user_profile.last_name}".strip() or user_profile.user.username
+        notify_user(
+            tutor.user,
+            f"{student_name} отправил чек на {amount} ₽ на проверку",
+            link=reverse('payment_receipts'),
+            notification_type='info',
         )
         messages.success(request, 'Чек отправлен на проверку репетитору.')
     except ValidationError as e:
@@ -2452,6 +2673,12 @@ def approve_receipt(request, receipt_id):
                 description='Пополнение по чеку от %s' % receipt.receipt_date.strftime('%d.%m.%Y'),
                 date=timezone.now(),
             )
+        notify_user(
+            receipt.student.user,
+            f"Чек подтверждён. Баланс пополнен на {receipt.amount} ₽",
+            link=reverse('payment_receipts'),
+            notification_type='info',
+        )
         student_name = '%s %s' % (receipt.student.first_name, receipt.student.last_name)
         messages.success(request, 'Чек подтверждён. Баланс ученика %s пополнен на %s ₽.' % (student_name, receipt.amount))
     except Exception:
@@ -2467,6 +2694,12 @@ def reject_receipt(request, receipt_id):
     receipt.status = 'rejected'
     receipt.reviewed_at = timezone.now()
     receipt.save()
+    notify_user(
+        receipt.student.user,
+        "Чек отклонён",
+        link=reverse('payment_receipts'),
+        notification_type='warning',
+    )
     messages.success(request, 'Чек отклонён.')
     return redirect('payment_receipts')
 
@@ -2488,7 +2721,8 @@ def request_unlink(request, connection_id):
     if UnlinkRequest.objects.filter(student=user_profile, tutor=connection.tutor, status='pending').exists():
         messages.info(request, 'Заявка на открепление уже отправлена и ожидает рассмотрения администратором.')
         return redirect('my_tutors')
-    UnlinkRequest.objects.create(student=user_profile, tutor=connection.tutor, status='pending')
+    reason = (request.POST.get('reason') or '').strip()[:2000]
+    UnlinkRequest.objects.create(student=user_profile, tutor=connection.tutor, status='pending', reason=reason)
     messages.success(request, 'Заявка на открепление отправлена. Решение примет администратор платформы.')
     return redirect('my_tutors')
 

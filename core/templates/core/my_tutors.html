@@ -89,11 +89,17 @@
             <div class="modal-window" style="background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 400px; position: relative;" onclick="event.stopPropagation();">
                 <div style="position: absolute; right: 15px; top: 15px; cursor: pointer; font-size: 24px; color: #94a3b8;" onclick="document.getElementById('unlinkModal{{ conn.id }}').classList.remove('active');">&times;</div>
                 <h3 style="margin-top: 0;">Открепиться от репетитора?</h3>
-                <p style="color: var(--text-secondary); font-size: 14px; margin: 12px 0 20px;">Будет отправлена заявка администратору платформы. Самостоятельно удалить связь нельзя — решение примет администратор.</p>
-                <form action="{% url 'request_unlink' conn.id %}" method="post" style="display: flex; gap: 10px;">
+                <p style="color: var(--text-secondary); font-size: 14px; margin: 12px 0 16px;">Будет отправлена заявка администратору платформы. Самостоятельно удалить связь нельзя — решение примет администратор.</p>
+                <form action="{% url 'request_unlink' conn.id %}" method="post">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-primary" style="background: var(--danger); border-color: var(--danger);">Отправить заявку</button>
-                    <button type="button" class="btn btn-outline" onclick="document.getElementById('unlinkModal{{ conn.id }}').classList.remove('active');">Отмена</button>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label class="form-label" for="unlink-reason-{{ conn.id }}">Причина открепления (необязательно)</label>
+                        <textarea name="reason" id="unlink-reason-{{ conn.id }}" rows="3" placeholder="Например: сменил репетитора, закончил обучение..." class="filter-select" style="width: 100%; resize: vertical; max-height: 150px;"></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn btn-primary" style="background: var(--danger); border-color: var(--danger);">Отправить заявку</button>
+                        <button type="button" class="btn btn-outline" onclick="document.getElementById('unlinkModal{{ conn.id }}').classList.remove('active');">Отмена</button>
+                    </div>
                 </form>
             </div>
         </div>

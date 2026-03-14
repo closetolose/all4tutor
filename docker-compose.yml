@@ -16,6 +16,7 @@ services:
 
   web:
     build: .
+    env_file: .env
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
@@ -30,6 +31,7 @@ services:
       - DB_HOST=db
       - DB_PORT=3306
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - GIGACHAT_CREDENTIALS=${GIGACHAT_CREDENTIALS}
       - EMAIL_HOST=${EMAIL_HOST}
       - EMAIL_PORT=${EMAIL_PORT}
       - EMAIL_HOST_USER=${EMAIL_HOST_USER}

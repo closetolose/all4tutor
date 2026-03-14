@@ -64,12 +64,18 @@
             <button type="button" class="close-modal" onclick="closeModal('submitHWModal')">&times;</button>
         </div>
         <div class="tg-modal-scroll">
-            <p class="m-modal-hint">Прикрепите файлы с вашим решением</p>
-            <form id="submitHWForm" method="post" enctype="multipart/form-data">
+            <p class="m-modal-hint">Загрузите файлы с устройства или выберите из библиотеки</p>
+            <form id="submitHWForm" method="post" enctype="multipart/form-data" onsubmit="return checkSubmitHWForm()">
                 {% csrf_token %}
                 <div class="tg-modal-field">
                     <label class="tg-modal-field-label">Файлы</label>
-                    <input type="file" name="response_files" multiple required class="tg-modal-field-input m-file-input-padded">
+                    <input type="file" name="response_files" multiple class="tg-modal-field-input m-file-input-padded" id="submitHwFileInput" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
+                    <span style="font-size: 12px; color: var(--tg-hint); margin: 8px 0; display: block;">или</span>
+                    <button type="button" onclick="openMobileFilePicker('submit-hw-library-display', 'submit-hw-library-select')" class="btn-secondary" style="width: 100%; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                    </button>
+                    <div id="submit-hw-library-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
+                    <select id="submit-hw-library-select" name="response_files" multiple hidden></select>
                 </div>
                 <div class="m-modal-actions">
                     <button type="button" onclick="closeModal('submitHWModal')" class="btn-secondary">Отмена</button>
@@ -85,12 +91,28 @@
         var modal = document.getElementById('submitHWModal');
         var form = document.getElementById('submitHWForm');
         form.action = '/homework/submit/' + hwId + '/';
+        form.reset();
+        document.getElementById('submit-hw-library-display').innerHTML = '';
+        var sel = document.getElementById('submit-hw-library-select');
+        if (sel) sel.innerHTML = '';
         modal.style.display = 'flex';
     }
 
     function closeModal(id) {
         var modal = document.getElementById(id);
         if (modal) modal.style.display = 'none';
+    }
+
+    function checkSubmitHWForm() {
+        var fileInput = document.getElementById('submitHwFileInput');
+        var select = document.getElementById('submit-hw-library-select');
+        var hasFiles = fileInput && fileInput.files && fileInput.files.length > 0;
+        var hasLibrary = select && select.options && select.options.length > 0;
+        if (!hasFiles && !hasLibrary) {
+            alert('Выберите файлы с устройства или из библиотеки');
+            return false;
+        }
+        return true;
     }
 </script>
 {% endblock %}

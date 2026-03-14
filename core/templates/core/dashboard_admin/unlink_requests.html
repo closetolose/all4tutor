@@ -12,6 +12,7 @@
                 <th>ID</th>
                 <th>Ученик (кто подал)</th>
                 <th>Репетитор (от кого)</th>
+                <th>Причина</th>
                 <th>Дата заявки</th>
                 <th>Статус</th>
                 <th>Действия</th>
@@ -23,6 +24,7 @@
                 <td>{{ req.id }}</td>
                 <td>{{ req.student.last_name }} {{ req.student.first_name }}</td>
                 <td>{{ req.tutor.last_name }} {{ req.tutor.first_name }}</td>
+                <td style="max-width: 200px;" title="{{ req.reason|default:'' }}">{% if req.reason %}{{ req.reason|truncatewords:15 }}{% else %}—{% endif %}</td>
                 <td>{{ req.created_at|date:"d.m.Y H:i" }}</td>
                 <td>
                     <span class="dashboard-admin-status status-{{ req.status }}">
@@ -39,7 +41,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="6">Заявок нет.</td></tr>
+            <tr><td colspan="7">Заявок нет.</td></tr>
             {% endfor %}
         </tbody>
     </table>

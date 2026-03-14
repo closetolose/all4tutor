@@ -8,74 +8,81 @@
     <div class="card">
         <div class="text-center mb-20">
             <h2 style="margin: 0;">Ваш профиль</h2>
-            <p style="color: var(--text-muted);">Обновите контактную информацию</p>
+            <p class="text-muted" style="margin-top: 4px;">Обновите контактную информацию</p>
         </div>
 
         <form method="post">
             {% csrf_token %}
-            
-            <div class="mb-20">
-                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Имя</label>
-                {{ form.first_name }}
+
+            <div class="form-section">
+                <div class="form-section-title">Основное</div>
+
+                <div class="form-group">
+                    <label class="form-label">Имя</label>
+                    {{ form.first_name }}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Фамилия</label>
+                    {{ form.last_name }}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Отчество</label>
+                    {{ form.patronymic }}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Контакты (Email/Телефон)</label>
+                    {{ form.contact }}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fab fa-telegram"></i> Telegram ID
+                    </label>
+                    {{ form.telegram_id }}
+
+                    {% if form.telegram_id.errors %}
+                        <div class="field-error">
+                            {{ form.telegram_id.errors }}
+                        </div>
+                    {% endif %}
+
+                    <small class="form-hint">
+                        Узнать свой ID можно у бота
+                        <a href="https://t.me/All4tutors_bot" target="_blank">@All4tutors</a>
+                    </small>
+                </div>
             </div>
 
-            <div class="mb-20">
-                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Фамилия</label>
-                {{ form.last_name }}
-            </div>
-
-            <div class="mb-20">
-                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Отчество</label>
-                {{ form.patronymic }}
-            </div>
-
-            <div class="mb-20">
-                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Контакты (Email/Телефон)</label>
-                {{ form.contact }}
-            </div>
-            <div class="mb-20">
-                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">
-                    <i class="fab fa-telegram"></i> Telegram ID
-                </label>
-                {{ form.telegram_id }}
-
-                {% if form.telegram_id.errors %}
-                    <div style="color: var(--danger-text); font-size: 12px; margin-top: -15px; margin-bottom: 15px;">
-                        {{ form.telegram_id.errors }}
-                    </div>
-                {% endif %}
-
-                <small class="text-muted hint-text">
-                    Узнать свой ID можно у бота
-                    <a href="https://t.me/All4tutors_bot" target="_blank">@All4tutors</a>
-                </small>
-            </div>
             {% if request.user.profile.role == 'student' %}
-                <div style="margin-top: 32px; padding-top: 24px; border-top: 1px dashed #e2e8f0;">
-                    <h3 style="font-size: 16px; font-weight: 800; color: #6366f1; margin-bottom: 24px;">Информация для репетитора</h3>
+                <div class="form-section" style="padding-top: 24px; border-top: 1px dashed var(--border);">
+                    <div class="form-section-title" style="color: var(--primary);">Информация для репетитора</div>
 
-                    <div class="mb-20">
-                        <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Ваш класс</label>
+                    <div class="form-group">
+                        <label class="form-label">Ваш класс</label>
                         {{ form.school_class }}
                     </div>
 
-                    <div class="mb-20">
-                        <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">ФИО родителя</label>
+                    <div class="form-group">
+                        <label class="form-label">ФИО родителя</label>
                         {{ form.parent_name }}
                     </div>
 
-                    <div class="mb-20">
-                        <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Телефон родителя</label>
+                    <div class="form-group">
+                        <label class="form-label">Телефон родителя</label>
                         {{ form.parent_phone }}
                     </div>
                 </div>
             {% endif %}
+
             <button type="submit" class="btn btn-primary btn-full">
                 <i class="fas fa-save"></i> Сохранить изменения
             </button>
 
-            <div class="mb-20" style="padding-top: 16px; border-top: 1px solid #f1f5f9;">
-                <label style="font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">
+            <div class="form-group" style="padding-top: 16px; border-top: 1px solid var(--border-light); margin-top: 20px;">
+                <label class="form-label">
                     <i class="fas fa-globe-americas"></i> Ваш часовой пояс
                 </label>
 
@@ -88,31 +95,40 @@
                     </button>
                 </div>
 
-                <small class="text-muted" style="display: block; margin-top: 8px;">
+                <small class="form-hint" style="margin-top: 8px; display: block;">
                     Время занятий будет отображаться с учетом этого пояса.
                 </small>
             </div>
         </form>
     </div>
-    <div class="settings-section" style="margin-top: 32px; padding: 24px; border: 1px solid var(--border); border-radius: 12px;">
-    <h3><i class="fas fa-shield-alt"></i> Безопасность</h3>
-    <p class="text-muted" style="font-size: 14px; margin-bottom: 16px;">
-        Если вы вошли в аккаунт на чужом устройстве и забыли выйти, нажмите кнопку ниже.
-        Это завершит все сессии, кроме текущей.
-    </p>
 
-    <form action="{% url 'logout_all_devices' %}" method="POST"
-          onsubmit="return confirm('Завершить все остальные сеансы?');">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-primary" style="background: var(--danger); border-color: var(--danger); min-height: 44px;">
-            <i class="fas fa-sign-out-alt"></i> Выйти со всех остальных устройств
-        </button>
-    </form>
-</div>
+    <div class="settings-section" style="margin-top: 32px; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-md);">
+        <h3><i class="fas fa-shield-alt"></i> Безопасность</h3>
+        <p class="text-muted" style="margin-bottom: 16px;">
+            Если вы вошли в аккаунт на чужом устройстве и забыли выйти, нажмите кнопку ниже.
+            Это завершит все сессии, кроме текущей.
+        </p>
+
+        <form action="{% url 'logout_all_devices' %}" method="POST"
+              onsubmit="return confirm('Завершить все остальные сеансы?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-sign-out-alt"></i> Выйти со всех остальных устройств
+            </button>
+        </form>
+    </div>
 
 </div>
 
 <script>
+    document.querySelectorAll('.field-error').forEach(function(el) {
+        var group = el.closest('.form-group');
+        if (group) {
+            var input = group.querySelector('input, select, textarea');
+            if (input) input.classList.add('is-invalid');
+        }
+    });
+
     function detectTimezone() {
         const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const selector = document.getElementById('tz-selector');
@@ -121,8 +137,8 @@
             for (let i = 0; i < selector.options.length; i++) {
                 if (selector.options[i].value === detectedTz) {
                     selector.selectedIndex = i;
-                    selector.style.borderColor = '#10b981';
-                    setTimeout(() => selector.style.borderColor = '#f1f5f9', 2000);
+                    selector.style.borderColor = 'var(--success)';
+                    setTimeout(() => selector.style.borderColor = '', 2000);
                     return;
                 }
             }

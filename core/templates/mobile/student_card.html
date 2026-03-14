@@ -27,11 +27,12 @@
             <div class="b-value">{{ total_debt }} ₽</div>
         </div>
     </div>
+    <p style="font-size: 12px; color: var(--tg-hint); margin: 8px 0 12px; padding: 0;">Пополнение баланса — по заявкам ученика с чеками в разделе «Заявки на пополнение».</p>
 
     <div class="s-actions-list">
-        <button class="s-action-btn" onclick="openModal('balance-modal')">
-            <i class="fas fa-plus"></i> Пополнить баланс
-        </button>
+        <a href="{% url 'payment_receipts' %}" class="s-action-btn" style="text-decoration: none; color: inherit; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <i class="fas fa-receipt"></i> Заявки на пополнение
+        </a>
         <button class="s-action-btn" onclick="openModal('tx-modal')">
             <i class="fas fa-history"></i> История транзакций
         </button>
@@ -245,34 +246,6 @@
         <div class="att-actions">
             <button type="button" class="tg-modal-btn" onclick="submitAttToggleMobile()">Переключить статус</button>
             <button type="button" class="att-close-btn" onclick="closeAttModalMobile()">Закрыть</button>
-        </div>
-    </div>
-</div>
-
-<div id="balance-modal" class="tg-modal">
-    <div class="tg-modal-content">
-        <div class="tg-modal-header">
-            <h3>Пополнить баланс</h3>
-            <button onclick="closeModal('balance-modal')" class="close-modal">&times;</button>
-        </div>
-        <div class="tg-modal-scroll">
-            <form method="POST">
-                {% csrf_token %}
-                <input type="hidden" name="update_balance" value="1">
-                <div class="tg-modal-field">
-                    <label class="tg-modal-field-label">Сумма (₽)</label>
-                    <input type="number" name="amount" class="tg-modal-field-input" required>
-                </div>
-                <div class="tg-modal-field">
-                    <label class="tg-modal-field-label">Дата пополнения</label>
-                    <input type="datetime-local" name="date" class="tg-modal-field-input">
-                </div>
-                <div class="tg-modal-field">
-                    <label class="tg-modal-field-label">Комментарий</label>
-                    <input type="text" name="description" class="tg-modal-field-input" placeholder="Напр: Оплата за февраль">
-                </div>
-                <button type="submit" class="tg-modal-btn">Зачислить</button>
-            </form>
         </div>
     </div>
 </div>

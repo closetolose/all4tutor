@@ -1,0 +1,112 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'index' %}" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<div class="page-section">
+    <div class="page-title">
+        <i class="fas fa-comments"></i> Сообщения
+    </div>
+    <p style="color: var(--tg-hint); font-size: 14px; margin-top: 4px;">
+        {% if is_tutor %}Чат с учениками{% else %}Чат с репетиторами{% endif %}
+    </p>
+</div>
+
+<div class="chat-list-m">
+    <a href="{% url 'bot_chat' %}" class="chat-list-item" style="border-left: 4px solid var(--tg-active);">
+        <div class="chat-list-avatar" style="background: var(--tg-active);"><i class="fas fa-robot" style="font-size: 18px;"></i></div>
+        <div class="chat-list-body">
+            <span class="chat-list-name">AI-помощник (GigaChat)</span>
+            <span class="chat-list-preview" style="color: var(--tg-hint);">Нейросеть поможет с вопросами об учёбе</span>
+        </div>
+        <i class="fas fa-chevron-right chat-list-arrow"></i>
+    </a>
+{% if connections %}
+    {% for conn in connections %}
+        {% if is_tutor %}
+            {% with counterpart=conn.student %}
+            <a href="{% url 'chat_thread' conn.id %}" class="chat-list-item {% if conn.unread_count %}chat-item-unread{% endif %}">
+                <div class="chat-list-avatar">{{ counterpart.first_name|first }}</div>
+                <div class="chat-list-body">
+                    <span class="chat-list-name">{{ counterpart.first_name }} {{ counterpart.last_name }}{% if conn.unread_count %} <span class="chat-list-unread-badge">{{ conn.unread_count }}</span>{% endif %}</span>
+                    {% if conn.last_message %}
+                        <span class="chat-list-preview">{{ conn.last_message.text|truncatewords:10 }}</span>
+                        <span class="chat-list-time">{{ conn.last_message.created_at|date:"d.m H:i" }}</span>
+                    {% else %}
+                        <span class="chat-list-preview" style="color: var(--tg-hint);">Нет сообщений</span>
+                    {% endif %}
+                </div>
+                <i class="fas fa-chevron-right chat-list-arrow"></i>
+            </a>
+            {% endwith %}
+        {% else %}
+            {% with counterpart=conn.tutor %}
+            <a href="{% url 'chat_thread' conn.id %}" class="chat-list-item {% if conn.unread_count %}chat-item-unread{% endif %}">
+                <div class="chat-list-avatar">{{ counterpart.first_name|first }}</div>
+                <div class="chat-list-body">
+                    <span class="chat-list-name">{{ counterpart.first_name }} {{ counterpart.last_name }}{% if conn.unread_count %} <span class="chat-list-unread-badge">{{ conn.unread_count }}</span>{% endif %}</span>
+                    {% if conn.last_message %}
+                        <span class="chat-list-preview">{{ conn.last_message.text|truncatewords:10 }}</span>
+                        <span class="chat-list-time">{{ conn.last_message.created_at|date:"d.m H:i" }}</span>
+                    {% else %}
+                        <span class="chat-list-preview" style="color: var(--tg-hint);">Нет сообщений</span>
+                    {% endif %}
+                </div>
+                <i class="fas fa-chevron-right chat-list-arrow"></i>
+            </a>
+            {% endwith %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+</div>
+{% if not connections %}
+<div class="card text-center" style="padding: 48px 24px;">
+    <i class="fas fa-comments" style="font-size: 48px; color: var(--tg-hint); margin-bottom: 16px; display: block;"></i>
+    <h3 style="margin: 0; font-size: 18px;">Нет диалогов</h3>
+    <p style="color: var(--tg-hint); font-size: 14px; margin-top: 8px;">
+        {% if is_tutor %}Добавьте учеников, чтобы начать общение.{% else %}Подключитесь к репетитору, чтобы начать общение.{% endif %}
+    </p>
+</div>
+{% endif %}
+
+<style>
+.chat-list-m { padding: 0 16px; }
+.chat-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: inherit;
+}
+.chat-list-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+.chat-list-body { flex: 1; min-width: 0; }
+.chat-list-name { font-weight: 600; font-size: 16px; display: block; }
+.chat-list-preview { font-size: 14px; color: var(--tg-hint); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+.chat-list-time { font-size: 12px; color: var(--tg-hint); }
+.chat-list-arrow { color: var(--tg-hint); font-size: 14px; }
+.chat-item-unread { border-left: 3px solid var(--tg-active); }
+.chat-list-unread-badge {
+    background: var(--tg-active);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+}
+</style>
+{% endblock %}

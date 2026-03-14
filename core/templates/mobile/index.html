@@ -118,6 +118,170 @@
         min-width: 44px; min-height: 44px; width: 44px; height: 44px; border-radius: 10px; margin-left: 8px;
         display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
     }
+
+    /* === Add Lesson Modal (form styles from add_lesson.html) === */
+    #addLessonModal .add-lesson-modal-content {
+        display: flex; flex-direction: column; max-height: 92vh;
+        min-width: 0; width: 100%; max-width: 100%;
+    }
+    #addLessonModal .add-lesson-modal-scroll {
+        padding: 20px; overflow-y: auto; overflow-x: hidden; flex-grow: 1;
+        min-width: 0; word-wrap: break-word;
+    }
+    /* Адаптивность: подписи и короткие фразы не переносим на новую строку */
+    #addLessonModal .section-label,
+    #addLessonModal .row-left span,
+    #addLessonModal .sublabel,
+    #addLessonModal .segment-option {
+        white-space: nowrap;
+    }
+    #addLessonModal .row-left { flex-shrink: 0; min-width: 0; }
+    #addLessonModal .add-lesson-form-in-modal { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    #addLessonModal .add-lesson-segmented-control.segmented-control {
+        display: flex; margin: 0 0 20px; padding: 4px;
+        background: var(--tg-card-bg); border-radius: 14px; border: 1px solid var(--tg-separator);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    #addLessonModal .segment-option {
+        flex: 1; text-align: center; padding: 12px 14px; min-height: 44px; font-size: 14px; font-weight: 600;
+        color: var(--tg-hint); border-radius: 11px; transition: 0.2s;
+        display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.2;
+        -webkit-tap-highlight-color: transparent; cursor: pointer;
+    }
+    #addLessonModal .segment-option i { font-size: 14px; opacity: 0.8; }
+    #addLessonModal .segment-option.active {
+        background: var(--tg-active); color: white; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+    }
+    #addLessonModal .segment-option.active i { opacity: 1; }
+    #addLessonModal .add-lesson-form-section.form-section {
+        display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;
+    }
+    #addLessonModal .section-label {
+        font-size: 12px; font-weight: 800; color: var(--tg-hint); text-transform: uppercase;
+        letter-spacing: 0.5px; padding-left: 8px;
+    }
+    #addLessonModal .add-lesson-card.card {
+        background: var(--tg-card-bg); border-radius: 16px; overflow: hidden;
+        border: 1px solid var(--tg-separator); box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    #addLessonModal .add-lesson-row.row {
+        display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;
+        min-height: 48px; box-sizing: border-box;
+    }
+    #addLessonModal .row-left {
+        display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600;
+        color: var(--tg-text); min-height: 40px;
+    }
+    #addLessonModal .icon-muted {
+        color: var(--tg-hint); width: 22px; min-width: 22px; text-align: center; font-size: 15px;
+    }
+    #addLessonModal .row-right {
+        display: flex; align-items: center; gap: 8px; min-height: 40px;
+    }
+    #addLessonModal .field-wrap {
+        flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end;
+    }
+    #addLessonModal .field-wrap input,
+    #addLessonModal .field-wrap select {
+        background: transparent; border: none; color: var(--tg-active); font-size: 16px; font-weight: 600;
+        text-align: right; width: 100%; min-width: 0; min-height: 40px; padding: 0 2px 0 8px;
+        outline: none; -webkit-appearance: none; appearance: none; font-family: inherit; box-sizing: border-box;
+    }
+    #addLessonModal .field-wrap input::placeholder,
+    #addLessonModal .field-wrap textarea::placeholder { color: var(--tg-hint); opacity: 1; }
+    #addLessonModal .field-wrap select option {
+        background: var(--tg-sidebar, var(--tg-card-bg)); color: var(--tg-text);
+    }
+    #addLessonModal .field-wrap textarea {
+        background: transparent; border: none; color: var(--tg-text); font-size: 16px; text-align: right;
+        width: 100%; min-width: 0; outline: none; resize: none; font-family: inherit; min-height: 40px;
+        padding: 8px 2px 8px 8px; line-height: 1.4; box-sizing: border-box;
+    }
+    #addLessonModal .input-native { color: var(--tg-active) !important; font-weight: 600; }
+    #addLessonModal .icon-arrow {
+        color: var(--tg-hint); font-size: 14px; flex-shrink: 0;
+        min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center;
+    }
+    #addLessonModal .divider {
+        height: 1px; background: var(--tg-separator); margin-left: 50px;
+    }
+    #addLessonModal .row-notes { align-items: flex-start; }
+    #addLessonModal .row-notes .row-left { padding-top: 4px; }
+    #addLessonModal .field-wrap-textarea { align-items: flex-start; }
+    #addLessonModal .tg-switch {
+        position: relative; display: inline-block; width: 52px; height: 30px; flex-shrink: 0;
+    }
+    #addLessonModal .tg-switch input { opacity: 0; width: 0; height: 0; }
+    #addLessonModal .slider {
+        position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--tg-separator); transition: 0.3s; border-radius: 30px;
+    }
+    #addLessonModal .slider:before {
+        position: absolute; content: ""; height: 24px; width: 24px; left: 3px; bottom: 3px;
+        background: white; transition: 0.3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    #addLessonModal input:checked + .slider { background: var(--tg-green); }
+    #addLessonModal input:checked + .slider:before { transform: translateX(22px); }
+    #addLessonModal .recurring-options {
+        display: none; background: var(--tg-bg); margin: 0 16px 12px; padding: 16px;
+        border-radius: 12px; border: 1px dashed var(--tg-separator);
+    }
+    #addLessonModal .weekdays-block {
+        padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--tg-separator);
+    }
+    #addLessonModal .sublabel {
+        display: block; font-size: 11px; color: var(--tg-hint); margin-bottom: 10px;
+        font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    /* Сетка дней недели: ровно 4 колонки, затем 3 — без переноса и неровных промежутков */
+    #addLessonModal .days-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+    }
+    #addLessonModal .day-checkbox {
+        display: flex; align-items: center; justify-content: center;
+        min-width: 0; min-height: 40px;
+        -webkit-tap-highlight-color: transparent; cursor: pointer;
+    }
+    #addLessonModal .day-checkbox input { display: none; }
+    #addLessonModal .day-bubble {
+        display: flex; align-items: center; justify-content: center;
+        width: 40px; height: 40px;
+        background: var(--tg-card-bg); color: var(--tg-text); border-radius: 12px; font-size: 12px;
+        font-weight: 700; border: 1px solid var(--tg-separator); transition: 0.2s;
+        white-space: nowrap;
+    }
+    #addLessonModal .day-checkbox input:checked + .day-bubble {
+        background: var(--tg-active); border-color: var(--tg-active); color: white;
+    }
+    #addLessonModal .recurring-divider {
+        text-align: center; padding: 10px 0; color: var(--tg-hint); font-size: 12px; font-weight: 700;
+    }
+    #addLessonModal .recurring-divider span { background: var(--tg-bg); padding: 0 10px; }
+    #addLessonModal .recurring-options .divider { margin-left: 0; }
+    #addLessonModal .btn-dashed {
+        width: 100%; min-height: 48px; padding: 14px 16px;
+        background: rgba(99, 102, 241, 0.06); border: 2px dashed var(--tg-active); border-radius: 12px;
+        color: var(--tg-active); font-size: 14px; font-weight: 600;
+        display: flex; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent; cursor: pointer;
+    }
+    #addLessonModal .btn-dashed:active { background: rgba(99, 102, 241, 0.12); }
+    #addLessonModal .materials-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    #addLessonModal .add-lesson-form-footer { padding-top: 8px; }
+    #addLessonModal .btn-primary.add-lesson-submit-btn {
+        width: 100%; min-height: 52px; padding: 16px 18px;
+        background: linear-gradient(135deg, var(--tg-active) 0%, #4f46e5 100%); color: white;
+        border: none; border-radius: 16px; font-size: 16px; font-weight: 800;
+        display: flex; align-items: center; justify-content: center; gap: 10px; line-height: 1.2;
+        box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4); transition: transform 0.15s, box-shadow 0.15s;
+        box-sizing: border-box; -webkit-tap-highlight-color: transparent; cursor: pointer;
+    }
+    #addLessonModal .btn-primary.add-lesson-submit-btn i { font-size: 18px; }
+    #addLessonModal .btn-primary.add-lesson-submit-btn:active {
+        transform: scale(0.98); box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
 </style>
 
 <div class="dashboard-mobile">
@@ -257,7 +421,7 @@
 </div>
 
 {% if role == 'tutor' %}
-    <a href="{% url 'add_lesson' %}" class="fab-btn"><i class="fas fa-plus"></i></a>
+    <a href="javascript:void(0)" class="fab-btn" onclick="openModal('addLessonModal'); return false;" role="button" aria-label="Добавить занятие"><i class="fas fa-plus"></i></a>
 {% endif %}
 
 <form id="bulk-action-form" method="POST" action="{% url 'bulk_action' %}" style="display: none;">
@@ -329,6 +493,227 @@
     </div>
 </div>
 
+{% if role == 'tutor' %}
+<div id="addLessonModal" class="tg-modal" style="display: none;" onclick="if(event.target===this)closeModal('addLessonModal')">
+    <div class="tg-modal-content add-lesson-modal-content" onclick="event.stopPropagation()">
+        <div class="tg-modal-header">
+            <h3><i class="fas fa-calendar-plus" style="color: var(--tg-active); margin-right: 8px;"></i>Новое занятие</h3>
+            <button type="button" onclick="closeModal('addLessonModal')" class="close-modal">&times;</button>
+        </div>
+        <form method="post" action="{% url 'add_lesson' %}" id="lessonForm" class="add-lesson-form add-lesson-form-in-modal">
+            {% csrf_token %}
+
+            <div class="tg-modal-scroll add-lesson-modal-scroll">
+                <div class="add-lesson-segmented-control segmented-control">
+                    <div class="segment-option active" onclick="setLessonType('individual', this)">
+                        <i class="fas fa-user"></i> Индивидуально
+                    </div>
+                    <div class="segment-option" onclick="setLessonType('group', this)">
+                        <i class="fas fa-users"></i> Группа
+                    </div>
+                    <input type="hidden" name="lesson_type" id="lesson_type_input" value="individual">
+                </div>
+
+                <div class="add-lesson-form-section form-section">
+                    <div class="section-label">Кто и что</div>
+                    <div class="card add-lesson-card">
+                        <div class="row add-lesson-row" id="field-student">
+                            <div class="row-left">
+                                <i class="fas fa-user icon-muted"></i>
+                                <span>Ученик</span>
+                            </div>
+                            <div class="row-right">
+                                <div class="field-wrap">
+                                    {{ add_lesson_form.student }}
+                                </div>
+                                <i class="fas fa-chevron-right icon-arrow"></i>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="row add-lesson-row" id="field-group" style="display: none;">
+                            <div class="row-left">
+                                <i class="fas fa-users icon-muted"></i>
+                                <span>Группа</span>
+                            </div>
+                            <div class="row-right">
+                                <div class="field-wrap">
+                                    {{ add_lesson_form.group }}
+                                </div>
+                                <i class="fas fa-chevron-right icon-arrow"></i>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="row add-lesson-row">
+                            <div class="row-left">
+                                <i class="fas fa-book icon-muted"></i>
+                                <span>Предмет</span>
+                            </div>
+                            <div class="row-right">
+                                <div class="field-wrap">
+                                    {{ add_lesson_form.subject }}
+                                </div>
+                                <i class="fas fa-chevron-right icon-arrow"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="add-lesson-form-section form-section">
+                    <div class="section-label">Время и стоимость</div>
+                    <div class="card add-lesson-card">
+                        <div class="row add-lesson-row">
+                            <div class="row-left">
+                                <i class="fas fa-calendar-alt icon-muted"></i>
+                                <span>Начало</span>
+                            </div>
+                            <div class="row-right">
+                                <div class="field-wrap">
+                                    <input type="datetime-local" name="start_time" class="input-native"
+                                           value="{{ add_lesson_form.start_time.value|date:'Y-m-d\TH:i' }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="row add-lesson-row">
+                            <div class="row-left">
+                                <i class="fas fa-ruble-sign icon-muted"></i>
+                                <span>Цена</span>
+                            </div>
+                            <div class="row-right">
+                                <div class="field-wrap">
+                                    {{ add_lesson_form.price }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="row add-lesson-row">
+                            <div class="row-left">
+                                <i class="fas fa-hourglass-half icon-muted"></i>
+                                <span>Длительность</span>
+                            </div>
+                            <div class="row-right">
+                                <div class="field-wrap">
+                                    {{ add_lesson_form.duration }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="add-lesson-form-section form-section">
+                    <div class="section-label">Формат и место</div>
+                    <div class="card add-lesson-card">
+                        <div class="row add-lesson-row">
+                            <div class="row-left">
+                                <i class="fas fa-video icon-muted"></i>
+                                <span>Формат</span>
+                            </div>
+                            <div class="row-right">
+                                <div class="field-wrap">
+                                    {{ add_lesson_form.format }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="row add-lesson-row">
+                            <div class="row-left">
+                                <i class="fas fa-link icon-muted"></i>
+                                <span>Место / Ссылка</span>
+                            </div>
+                            <div class="row-right">
+                                <div class="field-wrap">
+                                    {{ add_lesson_form.location }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="row add-lesson-row row-notes">
+                            <div class="row-left">
+                                <i class="fas fa-sticky-note icon-muted"></i>
+                                <span>Заметки</span>
+                            </div>
+                            <div class="row-right">
+                                <div class="field-wrap field-wrap-textarea">
+                                    {{ add_lesson_form.notes }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="add-lesson-form-section form-section">
+                    <div class="section-label">Повторение</div>
+                    <div class="card add-lesson-card">
+                        <div class="row add-lesson-row">
+                            <div class="row-left">
+                                <span>Повторять занятие</span>
+                            </div>
+                            <div class="row-right">
+                                <label class="tg-switch">
+                                    {{ add_lesson_form.is_recurring }}
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="recurring-options" class="recurring-options">
+                            <div class="weekdays-block">
+                                <span class="sublabel">Дни недели</span>
+                                <div class="days-grid">
+                                    {% for checkbox in add_lesson_form.weekdays %}
+                                    <label class="day-checkbox">
+                                        {{ checkbox.tag }}
+                                        <span class="day-bubble">{{ checkbox.choice_label }}</span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="divider"></div>
+                            <div class="row add-lesson-row">
+                                <div class="row-left">
+                                    <span>Кол-во недель</span>
+                                </div>
+                                <div class="row-right">
+                                    <div class="field-wrap">
+                                        {{ add_lesson_form.repeat_count }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="recurring-divider"><span>или</span></div>
+                            <div class="row add-lesson-row">
+                                <div class="row-left">
+                                    <span>До даты</span>
+                                </div>
+                                <div class="row-right">
+                                    <div class="field-wrap">
+                                        <input type="date" name="repeat_until" class="input-native"
+                                               value="{{ add_lesson_form.repeat_until.value|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="add-lesson-form-section form-section">
+                    <div class="section-label">Материалы</div>
+                    <button type="button" class="btn-dashed mobile-fp-trigger-addlesson" onclick="openMobileFilePicker('add-lesson-materials-display', 'add-lesson-materials-select')">
+                        Прикрепить файлы из библиотеки
+                    </button>
+                    <div id="add-lesson-materials-display" class="materials-chips"></div>
+                    <select id="add-lesson-materials-select" name="materials" multiple hidden></select>
+                </div>
+
+                <div class="add-lesson-form-footer form-footer">
+                    <button type="submit" class="btn-primary add-lesson-submit-btn">
+                        <i class="fas fa-check-circle"></i> Создать занятие
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <div id="lessonDetailModalMobile" class="tg-modal" style="display: none;" onclick="if(event.target===this)closeModal('lessonDetailModalMobile')">
     <div class="tg-modal-content" onclick="event.stopPropagation()">
         <div class="tg-modal-header">
@@ -360,5 +745,41 @@
         </div>
     </div>
 </div>
+
+{% if role == 'tutor' %}
+<script>
+(function() {
+    function setLessonType(type, element) {
+        var modal = document.getElementById('addLessonModal');
+        if (!modal) return;
+        modal.querySelectorAll('.segment-option').forEach(function(el) { el.classList.remove('active'); });
+        element.classList.add('active');
+        var input = document.getElementById('lesson_type_input');
+        if (input) input.value = type;
+        var studentRow = document.getElementById('field-student');
+        var groupRow = document.getElementById('field-group');
+        if (studentRow && groupRow) {
+            if (type === 'individual') {
+                studentRow.style.display = 'flex';
+                groupRow.style.display = 'none';
+            } else {
+                studentRow.style.display = 'none';
+                groupRow.style.display = 'flex';
+            }
+        }
+    }
+    window.setLessonType = setLessonType;
+
+    var recurringSwitch = document.querySelector('#addLessonModal .tg-switch input');
+    var recurringBox = document.getElementById('recurring-options');
+    if (recurringSwitch && recurringBox) {
+        recurringSwitch.addEventListener('change', function() {
+            recurringBox.style.display = this.checked ? 'block' : 'none';
+        });
+        if (recurringSwitch.checked) recurringBox.style.display = 'block';
+    }
+})();
+</script>
+{% endif %}
 
 {% endblock %}

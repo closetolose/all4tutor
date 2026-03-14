@@ -117,4 +117,9 @@ urlpatterns = [
 
     path('faq/', views.faq, name='faq'),
     path('update-timezone/', views.update_timezone, name='update_timezone'),
+
+    path('chat/', views.chat_list, name='chat_list'),
+    path('chat/bot/', views.bot_chat, name='bot_chat'),
+    path('chat/<int:connection_id>/', views.chat_thread, name='chat_thread'),
+    path('chat/message/<int:message_id>/file/', views.download_chat_file, name='download_chat_file'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

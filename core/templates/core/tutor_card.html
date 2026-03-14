@@ -71,18 +71,6 @@
                     <i class="fas fa-user-minus"></i> Открепиться от репетитора
                 </button>
             </div>
-            <div id="unlinkModalTutorCard" class="modal-overlay">
-                <div class="modal-window" onclick="event.stopPropagation();">
-                    <span class="close-btn" onclick="document.getElementById('unlinkModalTutorCard').classList.remove('active');">&times;</span>
-                    <h3 class="modal-title">Открепиться от репетитора?</h3>
-                    <p style="color: var(--text-secondary); font-size: 14px; margin: 12px 0 20px;">Будет отправлена заявка администратору платформы. Решение примет администратор.</p>
-                    <form action="{% url 'request_unlink' connection.id %}" method="post" style="display: flex; gap: 10px;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-primary" style="background: var(--danger); border-color: var(--danger);">Отправить заявку</button>
-                        <button type="button" class="btn btn-outline" onclick="document.getElementById('unlinkModalTutorCard').classList.remove('active');">Отмена</button>
-                    </form>
-                </div>
-            </div>
             {% endif %}
             {% endif %}
 
@@ -232,6 +220,27 @@
     </div>
 </div>
 
+{% if connection and not has_pending_unlink %}
+<div id="unlinkModalTutorCard" class="modal-overlay" style="z-index: 10000;">
+    <div class="modal-window" onclick="event.stopPropagation();">
+        <span class="close-btn" onclick="document.getElementById('unlinkModalTutorCard').classList.remove('active');">&times;</span>
+        <h3 class="modal-title">Открепиться от репетитора?</h3>
+        <p style="color: var(--text-secondary); font-size: 14px; margin: 12px 0 16px;">Будет отправлена заявка администратору платформы. Решение примет администратор.</p>
+        <form action="{% url 'request_unlink' connection.id %}" method="post">
+            {% csrf_token %}
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label" for="unlink-reason-tc">Причина открепления (необязательно)</label>
+                <textarea name="reason" id="unlink-reason-tc" rows="3" placeholder="Например: сменил репетитора, закончил обучение..." class="filter-select" style="width: 100%; resize: vertical; max-height: 150px;"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" class="btn btn-primary" style="background: var(--danger); border-color: var(--danger);">Отправить заявку</button>
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('unlinkModalTutorCard').classList.remove('active');">Отмена</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <div id="historyModal" class="modal-overlay">
     <div class="modal-window" style="max-width: 600px;">
         <div class="close-btn" onclick="closeModal('historyModal')">&times;</div>
@@ -265,16 +274,22 @@
         <h3 style="margin-top: 0; margin-bottom: 10px;">Сдать работу</h3>
         <p style="font-size: 13px; color: #64748b; margin-bottom: 20px; line-height: 1.4;">{{ hw.description|truncatechars:80 }}</p>
 
-        <form action="{% url 'submit_homework' hw.id %}" method="post" onsubmit="return checkHwSubmit('{{ hw.id }}')">
+        <form action="{% url 'submit_homework' hw.id %}" method="post" enctype="multipart/form-data" onsubmit="return checkHwSubmit('{{ hw.id }}')">
             {% csrf_token %}
 
             <div class="form-group" style="margin-bottom: 25px;">
                 <label class="form-label"><i class="fas fa-reply"></i> Ваши ответы</label>
 
-                <button type="button" onclick="openFilePickerModal('submit-hw-display-{{ hw.id }}', 'submit-hw-select-{{ hw.id }}')"
-                        class="file-picker-trigger">
-                    <i class="fas fa-folder-open"></i> Выбрать файлы из Моих материалов
-                </button>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="file" name="response_files" multiple
+                           style="padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px;"
+                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
+                    <span style="font-size: 12px; color: var(--text-muted);">или</span>
+                    <button type="button" onclick="openFilePickerModal('submit-hw-display-{{ hw.id }}', 'submit-hw-select-{{ hw.id }}')"
+                            class="file-picker-trigger" style="width: 100%;">
+                        <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                    </button>
+                </div>
 
                 <div id="submit-hw-display-{{ hw.id }}" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
                 <select id="submit-hw-select-{{ hw.id }}" name="response_files" multiple hidden></select>
@@ -291,9 +306,13 @@
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
     window.onclick = function(e) { if (e.target.classList.contains('modal-overlay')) { e.target.classList.remove('active'); } }
     function checkHwSubmit(hwId) {
+        const form = document.querySelector('#submitModal' + hwId + ' form');
+        const fileInput = form && form.querySelector('input[type="file"]');
         const select = document.getElementById('submit-hw-select-' + hwId);
-        if (!select || select.options.length === 0) {
-            showToast('Пожалуйста, выберите хотя бы один файл!', 'error');
+        const hasFiles = fileInput && fileInput.files && fileInput.files.length > 0;
+        const hasLibrary = select && select.options && select.options.length > 0;
+        if (!hasFiles && !hasLibrary) {
+            showToast('Выберите файлы с устройства или из библиотеки', 'error');
             return false;
         }
         return true;
