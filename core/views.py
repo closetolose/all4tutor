@@ -1949,10 +1949,10 @@ def load_more_lessons(request):
             Q(student=user_profile) | Q(group__students=user_profile)
         ).distinct().prefetch_related('attendances__student', 'subject').order_by('start_time')
 
-    # Применяем фильтры (те же, что в index)
+    # Применяем фильтры (те же, что в index). Порядок — как в index (по возрастанию даты)
     lessons_qs = lessons_qs.prefetch_related(
         'attendances__student', 'subject', 'materials', 'group__students'
-    ).order_by('-start_time')
+    ).order_by('start_time')
 
     target = request.GET.get('target')
     if target and role == 'tutor':
@@ -2026,11 +2026,16 @@ def load_more_lessons(request):
     for lesson in lessons:
         setattr(lesson, 'display_color', lesson_colors.get(lesson.id))
 
-    # Рендерим строки
-    html = render_to_string('core/lessons_rows.html', {
+    # Рендерим строки: для мобильного — карточки, для десктопа — строки таблицы
+    rows_template = (
+        'mobile/lessons_rows.html' if getattr(request, 'is_mobile', False)
+        else 'core/lessons_rows.html'
+    )
+    html = render_to_string(rows_template, {
         'lessons': lessons,
         'lesson_colors': lesson_colors,
-        'role': role
+        'role': role,
+        'now': timezone.now(),
     }, request=request)
 
     has_more = lessons_qs.count() > end

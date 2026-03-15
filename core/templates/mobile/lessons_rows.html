@@ -1,0 +1,62 @@
+{% for lesson in lessons %}
+{% ifchanged lesson.start_time.date %}
+<div class="date-separator">
+    {% if lesson.start_time.date == now.date %}Сегодня, {% endif %}
+    {{ lesson.start_time|date:"d E" }}
+</div>
+{% endifchanged %}
+
+<div class="lesson-card {% if lesson.display_color %}entity-color-indicator{% endif %}" data-id="{{ lesson.id }}"
+     data-subject="{{ lesson.subject.name|escapejs }}"
+     data-date="{{ lesson.start_time|date:'d.m.Y' }}"
+     data-time="{{ lesson.start_time|date:'H:i' }}"
+     data-datetime="{{ lesson.start_time|date:'d.m.Y' }} {{ lesson.start_time|date:'H:i' }}"
+     data-duration="{{ lesson.duration|default:60 }}"
+     data-format="{{ lesson.format|default:''|escapejs }}"
+     data-location="{{ lesson.location|default:''|escapejs }}"
+     data-participants="{% if role == 'student' %}{{ lesson.tutor.first_name }} {{ lesson.tutor.last_name }}{% elif lesson.group %}{{ lesson.group.name }} ({{ lesson.group.students.count }} уч.){% else %}{{ lesson.student.first_name }} {{ lesson.student.last_name }}{% endif %}"
+     data-notes="{{ lesson.notes|default:''|escapejs }}"
+     data-download-url="{% url 'download_materials' lesson.id %}"
+     data-materials-names="{% for m in lesson.materials.all %}{{ m.file_name|escapejs }}{% if not forloop.last %}|||{% endif %}{% endfor %}"
+     {% if role == 'tutor' and lesson.att_total_count %}data-attendances="{{ lesson.attendances_json }}"{% endif %}
+     {% if lesson.display_color %}style="--custom-entity-color: {{ lesson.display_color }};" {% endif %}
+     ontouchstart="handleTouchStart(event, this)"
+     ontouchend="handleTouchEnd(this)"
+     onclick="handleCardClick(event, this)">
+
+    <div class="selection-indicator"><i class="fas fa-check-circle"></i></div>
+
+    <div class="card-time">
+        <span class="time-main">{{ lesson.start_time|date:"H:i" }}</span>
+        <span class="time-dur">{{ lesson.duration }}м</span>
+    </div>
+
+    <div class="card-info">
+        <div class="card-row-top">
+            <span class="student-name">
+                {% if lesson.group %}{{ lesson.group.name }} (Группа){% else %}{{ lesson.student.first_name }} {{ lesson.student.last_name }}{% endif %}
+            </span>
+            {% if lesson.is_paid %}
+                <i class="fas fa-check-circle" style="color:var(--tg-green); font-size:16px;"></i>
+            {% else %}
+                <span class="price-tag">{{ lesson.price|floatformat:0 }} ₽</span>
+            {% endif %}
+        </div>
+        <div class="card-row-bot">
+            <span class="subject-name">
+                <i class="fas fa-book" style="font-size:10px;"></i>
+                <span class="subject-text">{{ lesson.subject.name }}</span>
+            </span>
+
+            {% if role == 'tutor' and lesson.att_total_count %}
+            <button type="button" class="mobile-attendance-btn" onclick="event.stopPropagation(); openAttendanceListSheet(this.closest('.lesson-card'));"
+                    title="Отметить посещаемость">
+                <i class="fas fa-user-check"></i> <span class="att-summary">{{ lesson.att_present_count }}/{{ lesson.att_total_count }}</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card-arrow"><i class="fas fa-chevron-right"></i></div>
+</div>
+{% endfor %}

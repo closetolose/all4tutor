@@ -34,5 +34,11 @@ Thumbs.db
 .vscode/
 
 # --- Нейросеть / AI — не коммитить ---
-core/services/
+# core/services/  ← убрано: нужен на сервере для бота (секреты в .env)
 .cursor/
+
+.cursor/
+.awesome-cursor-skills/
+.color-indicator/
+.docs/
+.tasks/

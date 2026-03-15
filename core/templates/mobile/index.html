@@ -47,6 +47,7 @@
         box-shadow: var(--tg-shadow);
         transition: transform 0.15s, background-color 0.2s, border-color 0.2s;
         position: relative; overflow: hidden;
+        word-break: normal; overflow-wrap: normal;
     }
 
     /* Состояние выделения */
@@ -69,11 +70,26 @@
     .time-dur { font-size: 11px; color: var(--tg-hint); font-weight: 600; margin-top: 4px; }
 
     .card-info { flex-grow: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-    .card-row-top { display: flex; justify-content: space-between; align-items: center; }
-    .student-name { font-size: 15px; font-weight: 700; color: var(--tg-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
-    .price-tag { font-size: 14px; font-weight: 700; color: var(--tg-active); background: rgba(99, 102, 241, 0.1); padding: 2px 8px; border-radius: 6px; }
-    .subject-name { font-size: 12px; color: var(--tg-hint); font-weight: 500; display: flex; align-items: center; gap: 6px; }
-    .card-arrow { color: var(--tg-separator); font-size: 14px; }
+    .card-row-top { display: flex; justify-content: space-between; align-items: center; min-width: 0; gap: 8px; }
+    .card-row-bot { display: flex; justify-content: space-between; align-items: center; min-width: 0; gap: 8px; }
+    .student-name { font-size: 15px; font-weight: 700; color: var(--tg-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+    .price-tag { font-size: 14px; font-weight: 700; color: var(--tg-active); background: rgba(99, 102, 241, 0.1); padding: 2px 8px; border-radius: 6px; flex-shrink: 0; }
+    .subject-name { font-size: 12px; color: var(--tg-hint); font-weight: 500; display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; overflow: hidden; }
+    .subject-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .card-arrow { color: var(--tg-separator); font-size: 14px; flex-shrink: 0; }
+
+    @media (max-width: 375px) {
+        .lesson-card { padding: 12px; gap: 10px; margin: 0 12px 8px; }
+        .card-time { min-width: 44px; padding-right: 10px; }
+        .student-name { max-width: 140px; }
+    }
+    @media (max-width: 360px) {
+        .lesson-card { padding: 10px; gap: 8px; margin: 0 10px 6px; }
+        .card-time { min-width: 40px; padding-right: 8px; }
+        .time-main { font-size: 15px; }
+        .card-row-top, .card-row-bot { flex-wrap: wrap; }
+        .student-name { max-width: 100%; }
+    }
 
     /* Lesson detail modal rows */
     .lesson-detail-row { margin-bottom: 16px; }
@@ -102,6 +118,7 @@
         padding: 8px 12px; border-radius: 10px; font-size: 12px; font-weight: 700;
         background: rgba(99, 102, 241, 0.12); color: var(--tg-active);
         border: 1px solid var(--tg-separator); cursor: pointer;
+        flex-shrink: 0;
     }
     .mobile-attendance-btn:active { background: rgba(99, 102, 241, 0.2); }
 
@@ -395,9 +412,10 @@
                             <span class="price-tag">{{ lesson.price|floatformat:0 }} ₽</span>
                         {% endif %}
                     </div>
-                    <div class="card-row-bot" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="card-row-bot">
                         <span class="subject-name">
-                            <i class="fas fa-book" style="font-size:10px;"></i> {{ lesson.subject.name }}
+                            <i class="fas fa-book" style="font-size:10px;"></i>
+                            <span class="subject-text">{{ lesson.subject.name }}</span>
                         </span>
 
                         {% if role == 'tutor' and lesson.att_total_count %}

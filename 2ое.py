@@ -28,7 +28,7 @@ for x in range(7305679,10**10):
     if len(d_set1)==4 and str(sum(d_set1))==str(sum(d_set1))[::-1]:
         print(x,sum(d_set1),d_set1)
 
-f = (not((not x) or y) and (not w)) or (not(z and not(y and w)))
+
 
 
 
