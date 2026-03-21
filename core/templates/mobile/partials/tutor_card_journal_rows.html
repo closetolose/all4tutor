@@ -1,0 +1,13 @@
+{% for att in page_obj %}
+<div class="lesson-item m-tutor-journal-row">
+    <div class="lesson-info">
+        {{ att.lesson.subject.name }}
+        <div class="lesson-date">{{ att.lesson.start_time|date:"d.m.Y" }}</div>
+    </div>
+    <div class="pay-status {% if att.is_paid %}paid{% else %}debt{% endif %}">
+        {% if att.is_paid %}Оплачено{% else %}Долг{% endif %}
+    </div>
+</div>
+{% empty %}
+<div style="text-align: center; padding: 20px; color: var(--tg-hint);">Занятий не найдено</div>
+{% endfor %}

@@ -113,40 +113,20 @@
         {% endif %}
     </div>
 
-    <div class="section-title">Домашние задания</div>
-    {% for hw in homeworks %}
-    <div class="hw-card">
-        <div class="hw-header">
-            <div class="hw-desc">{{ hw.description }}</div>
-            <span class="hw-status status-{{ hw.status }}">{{ hw.get_status_display }}</span>
-        </div>
-        <div class="hw-footer">
-            <div class="hw-deadline">
-                <i class="far fa-clock"></i> {{ hw.deadline|date:"d.m H:i"|default:"Без срока" }}
-            </div>
-            {% if hw.status != 'completed' %}
-            <button onclick="openModal('submitModal{{ hw.id }}')" class="btn-submit">Сдать</button>
-            {% endif %}
+    <div class="m-section-card" style="margin-top: 8px;">
+        <div class="section-title">Занятия и задания</div>
+        <p style="font-size: 13px; color: var(--tg-hint); margin: 0 0 12px;">Отдельные экраны со списками и подгрузкой при прокрутке.</p>
+        <div class="m-two-link-grid">
+            <a href="{% url 'tutor_card_journal' tutor.id %}" class="m-big-link-btn">
+                <i class="fas fa-calendar-check"></i>
+                <span>Журнал занятий</span>
+            </a>
+            <a href="{% url 'tutor_card_homework' tutor.id %}" class="m-big-link-btn">
+                <i class="fas fa-book"></i>
+                <span>Домашние задания</span>
+            </a>
         </div>
     </div>
-    {% empty %}
-    <div style="text-align: center; padding: 20px; color: var(--tg-hint);">Заданий пока нет</div>
-    {% endfor %}
-
-    <div class="section-title">Последние занятия</div>
-    {% for att in attendances|slice:":10" %}
-    <div class="lesson-item">
-        <div class="lesson-info">
-            {{ att.lesson.subject.name }}
-            <div class="lesson-date">{{ att.lesson.start_time|date:"d.m.Y" }}</div>
-        </div>
-        <div class="pay-status {% if att.is_paid %}paid{% else %}debt{% endif %}">
-            {% if att.is_paid %}Оплачено{% else %}Долг{% endif %}
-        </div>
-    </div>
-    {% empty %}
-    <div style="text-align: center; padding: 20px; color: var(--tg-hint);">Занятий не найдено</div>
-    {% endfor %}
 </div>
 
 <div id="historyModal" class="tg-modal" onclick="if(event.target===this) closeModal('historyModal')">
@@ -173,52 +153,10 @@
     </div>
 </div>
 
-{% for hw in homeworks %}
-<div id="submitModal{{ hw.id }}" class="tg-modal" onclick="if(event.target===this) closeModal('submitModal{{ hw.id }}')">
-    <div class="tg-modal-content" onclick="event.stopPropagation()">
-        <div class="tg-modal-header">
-            <h3>Сдать работу</h3>
-            <button type="button" class="close-modal" onclick="closeModal('submitModal{{ hw.id }}')">&times;</button>
-        </div>
-        <div class="tg-modal-scroll">
-            <p style="color: var(--tg-hint); font-size: 14px; margin: 0 0 16px;">{{ hw.description|truncatechars:60 }}</p>
-            <form action="{% url 'submit_homework' hw.id %}" method="post" enctype="multipart/form-data" onsubmit="return checkSubmitHwMobile('{{ hw.id }}')">
-                {% csrf_token %}
-                <div class="tg-modal-field">
-                    <label class="tg-modal-field-label">Файлы с решением</label>
-                    <input type="file" name="response_files" multiple class="tg-modal-field-input" style="padding: 12px;" id="submitHwFileInput{{ hw.id }}" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
-                    <span style="font-size: 12px; color: var(--tg-hint); margin: 8px 0; display: block;">или</span>
-                    <button type="button" onclick="openMobileFilePicker('submit-hw-display-m-{{ hw.id }}', 'submit-hw-select-m-{{ hw.id }}')" class="btn-secondary" style="width: 100%; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <i class="fas fa-folder-open"></i> Выбрать из библиотеки
-                    </button>
-                    <div id="submit-hw-display-m-{{ hw.id }}" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
-                    <select id="submit-hw-select-m-{{ hw.id }}" name="response_files" multiple hidden></select>
-                </div>
-                <div style="display: flex; gap: 12px; margin-top: 8px;">
-                    <button type="button" onclick="closeModal('submitModal{{ hw.id }}')" class="btn-secondary" style="flex: 1;">Отмена</button>
-                    <button type="submit" class="tg-modal-btn" style="flex: 2;">Отправить</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endfor %}
-
 <script>
     function openModal(id) { document.getElementById(id).style.display = 'flex'; document.body.style.overflow = 'hidden'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; document.body.style.overflow = 'auto'; }
     window.onclick = function(e) { if (e.target.classList.contains('tg-modal')) { e.target.style.display = 'none'; document.body.style.overflow = 'auto'; } }
-    function checkSubmitHwMobile(hwId) {
-        var fileInput = document.getElementById('submitHwFileInput' + hwId);
-        var select = document.getElementById('submit-hw-select-m-' + hwId);
-        var hasFiles = fileInput && fileInput.files && fileInput.files.length > 0;
-        var hasLibrary = select && select.options && select.options.length > 0;
-        if (!hasFiles && !hasLibrary) {
-            alert('Выберите файлы с устройства или из библиотеки');
-            return false;
-        }
-        return true;
-    }
     (function() {
         var form = document.getElementById('tutor-color-form-m');
         if (!form) return;

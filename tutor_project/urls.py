@@ -26,12 +26,16 @@ urlpatterns = [
     path('lesson/delete/<int:lesson_id>/', views.delete_lesson, name='delete_lesson'),
 
     path('group/edit/<int:group_id>/', views.edit_group, name='edit_group'),
+    path('group/archive/<int:group_id>/', views.archive_group, name='archive_group'),
+    path('group/unarchive/<int:group_id>/', views.unarchive_group, name='unarchive_group'),
     path('group/delete/<int:group_id>/', views.delete_group, name='delete_group'),
 
     path('student/remove/<int:connection_id>/', views.remove_student, name='remove_student'),
     path('add-group/', views.add_group, name='add_group'),
     path('lessons/bulk/', views.bulk_action_lessons, name='bulk_action'),
     path('toggle-pay/<int:attendance_id>/', views.toggle_attendance_pay, name='toggle_pay'),
+    path('student/<int:student_id>/journal/', views.student_journal, name='student_journal'),
+    path('student/<int:student_id>/homework/', views.student_homework_list, name='student_homework_list'),
     path('student/<int:student_id>/', views.student_card, name='student_card'),
     path('toggle-presence/<int:attendance_id>/', views.toggle_presence, name='toggle_presence'),
     path('my-files/', views.files_library, name='files_library'),
@@ -60,6 +64,8 @@ urlpatterns = [
     path('transaction/delete/<int:transaction_id>/', views.delete_transaction, name='delete_transaction'),
     path('load-more-lessons/', views.load_more_lessons, name='load_more_lessons'),
     path('logout-all/', views.logout_all_devices, name='logout_all_devices'),
+    path('tutor-card/<int:tutor_id>/journal/', views.tutor_card_journal, name='tutor_card_journal'),
+    path('tutor-card/<int:tutor_id>/homework/', views.tutor_card_homework, name='tutor_card_homework'),
     path('tutor-card/<int:tutor_id>/', views.tutor_card, name='tutor_card'),
     path('connection/<int:connection_id>/update-tutor-color/', views.update_tutor_color, name='update_tutor_color'),
     path('connection/<int:connection_id>/update-connection-tutor-color/', views.update_connection_tutor_color, name='update_connection_tutor_color'),
@@ -71,6 +77,7 @@ urlpatterns = [
     path('homework/<int:hw_id>/', views.homework_detail, name='homework_detail'),
     path('api/user-files/', views.api_get_user_files, name='api_get_user_files'),
     path('api/notifications/<int:notification_id>/read/', views.api_notification_mark_read, name='api_notification_mark_read'),
+    path('api/notifications/clear/', views.api_notifications_clear_all, name='api_notifications_clear_all'),
     path('load-more-files/', views.load_more_files, name='load_more_files'),
     path('payment-receipts/', views.payment_receipts, name='payment_receipts'),
     path('payment-receipts/submit/', views.submit_receipt, name='submit_receipt'),
@@ -86,8 +93,8 @@ urlpatterns = [
     path('dashboard/admin/users/<int:user_id>/toggle-active/', views.dashboard_admin_toggle_active, name='dashboard_admin_toggle_active'),
     path('dashboard/admin/users/<int:user_id>/delete/', views.dashboard_admin_delete_user, name='dashboard_admin_delete_user'),
     path('dashboard/admin/unlink-requests/', views.dashboard_admin_unlink_requests, name='dashboard_admin_unlink_requests'),
-    path('dashboard/admin/unlink-requests/<int:pk>/approve/', views.dashboard_admin_unlink_approve, name='dashboard_admin_unlink_approve'),
-    path('dashboard/admin/unlink-requests/<int:pk>/reject/', views.dashboard_admin_unlink_reject, name='dashboard_admin_unlink_reject'),
+    path('dashboard/admin/unlink-requests/<int:connection_id>/approve/', views.dashboard_admin_unlink_approve, name='dashboard_admin_unlink_approve'),
+    path('dashboard/admin/unlink-requests/<int:connection_id>/reject/', views.dashboard_admin_unlink_reject, name='dashboard_admin_unlink_reject'),
 
     path('password-reset/',
          auth_views.PasswordResetView.as_view(
@@ -119,7 +126,6 @@ urlpatterns = [
     path('update-timezone/', views.update_timezone, name='update_timezone'),
 
     path('chat/', views.chat_list, name='chat_list'),
-    path('chat/bot/', views.bot_chat, name='bot_chat'),
     path('chat/<int:connection_id>/', views.chat_thread, name='chat_thread'),
     path('chat/message/<int:message_id>/file/', views.download_chat_file, name='download_chat_file'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

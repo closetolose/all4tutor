@@ -1,0 +1,63 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'tutor_card' tutor.id %}" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .m-tutor-journal-page .lesson-item { background: var(--tg-sidebar); border: 1px solid var(--tg-separator); border-radius: 14px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .m-tutor-journal-page .lesson-info { font-weight: 700; color: var(--tg-text); }
+    .m-tutor-journal-page .lesson-date { font-size: 12px; color: var(--tg-hint); font-weight: 400; }
+    .m-tutor-journal-page .pay-status { font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .m-tutor-journal-page .paid { color: #10b981; }
+    .m-tutor-journal-page .debt { color: #ef4444; }
+</style>
+<div class="m-tutor-journal-page">
+    <h2 class="section-title">Журнал занятий</h2>
+    <p class="mobile-subtle-note">{{ tutor.first_name }} {{ tutor.last_name }} — все отмеченные занятия. Подгрузка при прокрутке.</p>
+
+    <div id="tutor-journal-list">
+        {% include 'mobile/partials/tutor_card_journal_rows.html' %}
+    </div>
+    <div id="tutor-journal-sentinel" class="m-lazy-sentinel" aria-hidden="true"
+         data-base-url="{% url 'tutor_card_journal' tutor.id %}"
+         data-next="{% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}0{% endif %}"
+         data-last="{{ page_obj.paginator.num_pages }}"></div>
+    <p id="tutor-journal-lazy-status" class="mobile-subtle-note" style="text-align:center;margin:12px 0;"></p>
+</div>
+
+<script>
+    (function lazyTutorJournal() {
+        var el = document.getElementById('tutor-journal-sentinel');
+        var list = document.getElementById('tutor-journal-list');
+        var status = document.getElementById('tutor-journal-lazy-status');
+        if (!el || !list) return;
+        var baseUrl = el.getAttribute('data-base-url');
+        var next = parseInt(el.getAttribute('data-next') || '0', 10);
+        var last = parseInt(el.getAttribute('data-last') || '1', 10);
+        if (!next || next > last) return;
+        var loading = false;
+        function load() {
+            if (loading || next > last) return;
+            loading = true;
+            if (status) status.textContent = 'Загрузка…';
+            fetch(baseUrl + '?page=' + next + '&partial=1')
+                .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
+                .then(function(html) {
+                    list.insertAdjacentHTML('beforeend', html);
+                    next += 1;
+                    el.setAttribute('data-next', String(next));
+                    loading = false;
+                    if (status) status.textContent = next > last ? 'Все занятия загружены' : '';
+                    if (next > last) obs.disconnect();
+                })
+                .catch(function() { loading = false; if (status) status.textContent = 'Ошибка подгрузки.'; });
+        }
+        var obs = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) { if (entry.isIntersecting) load(); });
+        }, { rootMargin: '200px' });
+        obs.observe(el);
+    })();
+</script>
+{% endblock %}

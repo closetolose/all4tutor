@@ -1,0 +1,191 @@
+/* App-shell redesign scaffolding.
+   IMPORTANT: only use existing color palette variables from `static/css/style.css`. */
+
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  z-index: 99999;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-weight: 800;
+}
+
+.skip-link:focus {
+  left: 16px;
+  top: 16px;
+}
+
+/* Desktop app-shell */
+.app-desktop-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Override style.css fixed sidebar layout in the redesign shell */
+.app-desktop-shell .sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+/* Remove the old margin-left offset that was tied to the fixed sidebar */
+.app-desktop-shell .main-content {
+  margin-left: 0 !important;
+  flex: 1;
+  min-width: 0;
+}
+
+.app-desktop-shell .auth-content {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .app-desktop-shell {
+    display: block;
+  }
+}
+
+/* Shared section helpers (no new colors, only palette vars) */
+.section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.hero-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.hero-subtitle {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Compact card header pattern */
+.card-compact {
+  padding: 0 !important;
+  overflow: hidden;
+  margin-bottom: var(--space-7);
+}
+
+.card-header {
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.card-header-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.page-header--xl {
+  margin-bottom: var(--space-7) !important;
+}
+
+/* Mobile: hero + margins */
+.mobile-page-hero {
+  padding: 15px 15px 0;
+}
+
+.mobile-hero-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.mobile-hero-subtitle {
+  color: var(--tg-hint);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.mobile-widget-margin {
+  margin: 0 15px 16px;
+}
+
+.mobile-section-tight {
+  margin: 0 15px 10px;
+}
+
+.mobile-export-btn {
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--tg-separator);
+  background: var(--tg-sidebar);
+  color: var(--tg-text);
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.mobile-export-btn i {
+  color: var(--tg-green);
+}
+
+/* Results page helpers */
+.results-main-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* Student card (desktop) */
+.student-sidebar-card {
+  text-align: center;
+  border-top: 5px solid var(--primary);
+}
+
+.student-balance-val {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--success);
+}
+
+.student-debt-val {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.student-debt-val--debt {
+  color: var(--danger);
+}
+
+.student-debt-val--credit {
+  color: var(--success);
+}
+
+/* Mobile: subtle note */
+.mobile-subtle-note {
+  font-size: 12px;
+  color: var(--tg-hint);
+  margin: 8px 0 12px;
+  padding: 0;
+}
+

@@ -21,7 +21,18 @@
         <div class="card" style="text-align: center; border-top: 5px solid #4338ca;">
             <div class="user-avatar-large">{{ group.name|slice:":2"|upper }}</div>
             <h2 style="margin: 0;">{{ group.name }}</h2>
-            <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Предмет: {{ group.subject.name }}</p>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 12px;">Предмет: {{ group.subject.name }}</p>
+
+            {% if group.is_archived and is_tutor_owner %}
+            <div style="text-align: left; padding: 12px 14px; border-radius: var(--radius-md); background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); margin-bottom: 16px; font-size: 13px;">
+                <strong style="display: block; margin-bottom: 6px;"><i class="fas fa-archive"></i> Группа в архиве</strong>
+                <span style="color: var(--text-muted);">Не в списке групп и недоступна для новых уроков. История занятий сохранена.</span>
+                <form method="post" action="{% url 'unarchive_group' group.id %}" style="margin-top: 10px;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary btn-sm" style="width: 100%;">Вернуть из архива</button>
+                </form>
+            </div>
+            {% endif %}
 
             <div class="info-stat-card">
                 <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 8px;">Состав группы ({{ members.count }})</span>
@@ -35,8 +46,8 @@
                 </div>
             </div>
 
-            {% if is_tutor_owner %}
-            <button onclick="openModal('groupHomeworkModal')" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+            {% if is_tutor_owner and not group.is_archived %}
+            <button type="button" onclick="openModal('groupHomeworkModal')" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
                 <i class="fas fa-plus-circle"></i> Задать ДЗ группе
             </button>
             {% endif %}
@@ -103,7 +114,7 @@
     <div class="modal-window" style="max-width: 500px;">
         <div class="close-btn" onclick="closeModal('groupHomeworkModal')">&times;</div>
         <h2 class="modal-title">ДЗ для всей группы</h2>
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="assign_group_homework" value="1">
             <div class="mb-20">
@@ -115,7 +126,14 @@
                 <input type="datetime-local" name="deadline" class="filter-select">
             </div>
             <div class="mb-20">
-                <label class="form-label">Прикрепить файлы из библиотеки</label>
+                <label class="form-label">Файлы с устройства</label>
+                <input type="file" name="device_files" multiple
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.txt,.rtf,.odt,.ods,.xls,.xlsx"
+                       class="filter-select"
+                       style="padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box;">
+            </div>
+            <div class="mb-20">
+                <label class="form-label">Или выберите из библиотеки</label>
                 <div style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #f8fafc;">
                     {% for f in tutor_files %}
                     <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; cursor: pointer;">

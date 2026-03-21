@@ -15,4 +15,3 @@ urllib3==2.6.3
 whitenoise==6.6.0
 django-environ
 django-ratelimit==4.1.0
-gigachat>=0.1.0

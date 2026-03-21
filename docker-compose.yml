@@ -7,10 +7,8 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     environment:
-      - MYSQL_DATABASE=tutor_db
-      - MYSQL_USER=tutor_user
-      - MYSQL_PASSWORD=tutor_password
-      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
     ports:
       - "3306:3306" # Этот порт оставляем только здесь!
 
@@ -25,13 +23,12 @@ services:
       - "8000:8000"
     command: gunicorn tutor_project.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
     environment: &env_vars # Создаем шаблон переменных
-      - DB_NAME=tutor_db
-      - DB_USER=tutor_user
-      - DB_PASSWORD=tutor_password
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=db
       - DB_PORT=3306
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - GIGACHAT_CREDENTIALS=${GIGACHAT_CREDENTIALS}
       - EMAIL_HOST=${EMAIL_HOST}
       - EMAIL_PORT=${EMAIL_PORT}
       - EMAIL_HOST_USER=${EMAIL_HOST_USER}

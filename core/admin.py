@@ -4,14 +4,14 @@ from django.utils import timezone
 from django.db import transaction
 
 from .models import (
-    Users, Subjects, StudyGroups, Lessons, StudentBalance, Transaction,
-    TutorSubjects, ConnectionRequest, UnlinkRequest, UserGroupColor, FileTag, FilesLibrary,
-    PaymentReceipt, TestResult, Notification, ChatMessage, BotChatMessage,
+    Profile, Subjects, StudyGroups, Lessons, Transaction,
+    ConnectionRequest, UserGroupColor, FileTag, FilesLibrary,
+    PaymentReceipt, TestResult, Notification, ChatMessage,
 )
 
 
-@admin.register(Users)
-class UsersAdmin(admin.ModelAdmin):
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
     list_display = ('last_name', 'first_name', 'role', 'contact', '_is_active')
     list_filter = ('role',)
     search_fields = ('last_name', 'first_name', 'contact')
@@ -45,54 +45,12 @@ class UsersAdmin(admin.ModelAdmin):
 @admin.register(Lessons)
 class LessonsAdmin(admin.ModelAdmin):
     list_display = ('tutor', 'subject', 'start_time', 'format', 'is_paid')
-    list_filter = ('format', 'is_paid', 'subject')
+    list_filter = ('format', 'subject')
 
 @admin.register(ConnectionRequest)
 class ConnectionRequestAdmin(admin.ModelAdmin):
     list_display = ('tutor', 'student', 'status', 'color_hex', 'tutor_color_hex', 'created_at')
     list_filter = ('status',)
-
-
-@admin.register(UnlinkRequest)
-class UnlinkRequestAdmin(admin.ModelAdmin):
-    list_display = ('student', 'tutor', 'status', 'reason_short', 'created_at', 'reviewed_at', 'reviewed_by')
-    list_filter = ('status',)
-    search_fields = ('student__first_name', 'student__last_name', 'tutor__first_name', 'tutor__last_name')
-    actions = ['approve_unlink', 'reject_unlink']
-    list_per_page = 25
-
-    @admin.display(description='Причина')
-    def reason_short(self, obj):
-        return (obj.reason[:50] + '…') if obj.reason and len(obj.reason) > 50 else (obj.reason or '—')
-
-    @admin.action(description='Одобрить заявки на открепление')
-    def approve_unlink(self, request, queryset):
-        pending = list(queryset.filter(status='pending'))
-        archived = 0
-        with transaction.atomic():
-            for req in pending:
-                req.status = 'approved'
-                req.reviewed_at = timezone.now()
-                req.reviewed_by = request.user
-                req.save()
-                conn = ConnectionRequest.objects.filter(
-                    student=req.student, tutor=req.tutor, status='confirmed'
-                ).first()
-                if conn:
-                    conn.status = 'archived'
-                    conn.save()
-                    archived += 1
-        self.message_user(request, 'Одобрено заявок: %d; связей переведено в архив: %d.' % (len(pending), archived))
-
-    @admin.action(description='Отклонить заявки на открепление')
-    def reject_unlink(self, request, queryset):
-        pending = list(queryset.filter(status='pending'))
-        for req in pending:
-            req.status = 'rejected'
-            req.reviewed_at = timezone.now()
-            req.reviewed_by = request.user
-            req.save()
-        self.message_user(request, 'Отклонено заявок: %d.' % len(pending))
 
 
 @admin.register(UserGroupColor)
@@ -120,9 +78,13 @@ class PaymentReceiptAdmin(admin.ModelAdmin):
 
 @admin.register(TestResult)
 class TestResultAdmin(admin.ModelAdmin):
-    list_display = ('student', 'tutor', 'subject', 'score', 'max_score', 'date', 'comment')
-    list_filter = ('tutor', 'subject', 'date')
+    list_display = ('student', 'get_tutor', 'subject', 'score', 'max_score', 'date', 'comment')
+    list_filter = ('subject__tutor', 'subject', 'date')
     search_fields = ('student__first_name', 'student__last_name')
+
+    @admin.display(description='Репетитор')
+    def get_tutor(self, obj):
+        return obj.subject.tutor if obj.subject_id else '—'
 
 
 @admin.register(Notification)
@@ -144,22 +106,9 @@ class ChatMessageAdmin(admin.ModelAdmin):
     text_preview.short_description = 'Текст'
 
 
-@admin.register(BotChatMessage)
-class BotChatMessageAdmin(admin.ModelAdmin):
-    list_display = ('user', 'role', 'content_preview', 'created_at')
-    list_filter = ('role',)
-    search_fields = ('content', 'user__username')
-
-    def content_preview(self, obj):
-        return (obj.content[:50] + '...') if len(obj.content) > 50 else obj.content
-    content_preview.short_description = 'Текст'
-
-
 admin.site.register(Subjects)
 admin.site.register(StudyGroups)
-admin.site.register(StudentBalance)
 admin.site.register(Transaction)
-admin.site.register(TutorSubjects)
 
 # Скрыть стандартные модели User и Group в /admin/ (кастомная панель — /dashboard/admin/)
 admin.site.unregister(User)

@@ -51,7 +51,7 @@
             <div style="margin-bottom: 24px;">
                 <div class="detail-section-title"><i class="fas fa-align-left"></i> Описание задания</div>
                 <div class="hw-detail-description" style="font-size: 15px; color: #334155; line-height: 1.6; background: #f1f5f9; padding: 20px; border-radius: 12px; border-left: 4px solid var(--primary);">
-                    {{ hw.description|linebreaksbr }}
+                    {{ hw.effective_description|linebreaksbr }}
                 </div>
             </div>
 
@@ -61,15 +61,15 @@
                     <span style="color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 8px;">Срок сдачи (Дедлайн)</span>
                     <div style="font-size: 16px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 8px;">
                         <i class="far fa-clock" style="color: #f59e0b; font-size: 18px;"></i>
-                        {{ hw.deadline|date:"d.m.Y H:i"|default:"<span style='color: #94a3b8;'>Не установлен</span>" }}
+                        {{ hw.effective_deadline|date:"d.m.Y H:i"|default:"<span style='color: #94a3b8;'>Не установлен</span>" }}
                     </div>
                 </div>
 
-                {% if hw.files.exists %}
+                {% if hw.has_effective_attachments %}
                 <div style="background: white; border: 1px solid var(--border); padding: 16px 20px; border-radius: 12px;">
                     <span style="color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 8px;">Материалы от репетитора</span>
                     <a href="{% url 'download_homework_all' hw.id %}" class="btn btn-outline btn-sm" style="display: flex; justify-content: center; width: 100%; border-radius: 8px;">
-                        <i class="fas fa-file-archive"></i> Скачать архив ({{ hw.files.count }})
+                        <i class="fas fa-file-archive"></i> Скачать архив ({{ hw.effective_files.count }})
                     </a>
                 </div>
                 {% endif %}

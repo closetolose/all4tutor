@@ -1,0 +1,211 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    {% if is_tutor %}
+    <a href="{% url 'student_homework_list' hw.student.id %}" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
+    {% else %}
+    <a href="{% url 'my_assignments' %}" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<style>
+    .m-hw-detail-head {
+        margin-bottom: var(--space-4);
+    }
+    .m-hw-detail-title {
+        margin: 0 0 6px;
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--tg-text);
+        line-height: 1.25;
+    }
+    .m-hw-detail-sub {
+        font-size: 13px;
+        color: var(--tg-hint);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .m-hw-detail-section {
+        margin-bottom: var(--space-5);
+    }
+    .m-hw-detail-label {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--tg-hint);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .m-hw-detail-body {
+        font-size: 15px;
+        line-height: 1.55;
+        color: var(--tg-text);
+        background: var(--tg-input-bg);
+        padding: 16px;
+        border-radius: 14px;
+        border-left: 4px solid var(--tg-active);
+    }
+    .m-hw-detail-meta-grid {
+        display: grid;
+        gap: 12px;
+        margin-bottom: var(--space-4);
+    }
+    .m-hw-meta-card {
+        background: var(--tg-card-bg);
+        border: 1px solid var(--tg-separator);
+        border-radius: 14px;
+        padding: 14px 16px;
+    }
+    .m-hw-meta-card .m-hw-detail-label { margin-bottom: 6px; }
+    .m-hw-meta-value {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--tg-text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .m-hw-comment-box {
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        border-radius: 14px;
+        padding: 16px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--tg-text);
+    }
+    .m-hw-resp-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        background: var(--tg-input-bg);
+        border: 1px solid var(--tg-separator);
+        border-radius: 14px;
+        margin-bottom: 10px;
+    }
+    .m-hw-resp-info { min-width: 0; flex: 1; }
+    .m-hw-resp-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--tg-text);
+        word-break: break-word;
+    }
+    .m-hw-resp-date { font-size: 12px; color: var(--tg-hint); margin-top: 4px; }
+    .m-hw-resp-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .m-hw-btn-outline {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: 1px solid var(--tg-separator);
+        background: var(--tg-card-bg);
+        color: var(--tg-active);
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+    .m-hw-btn-outline.danger { color: var(--tg-red); border-color: rgba(239, 68, 68, 0.35); }
+    .m-hw-empty {
+        text-align: center;
+        padding: 28px 16px;
+        border: 2px dashed var(--tg-separator);
+        border-radius: 16px;
+        color: var(--tg-hint);
+        font-size: 14px;
+    }
+    .m-hw-empty i { font-size: 32px; margin-bottom: 12px; opacity: 0.5; display: block; }
+</style>
+
+<div class="m-hw-detail-head">
+    <h1 class="m-hw-detail-title">{{ hw.subject.name|default:hw.subject }}</h1>
+    <div class="m-hw-detail-sub">
+        {% if is_tutor %}
+        <span><i class="fas fa-user-graduate"></i> {{ hw.student.first_name }} {{ hw.student.last_name }}</span>
+        {% else %}
+        <span><i class="fas fa-chalkboard-teacher"></i> {{ hw.tutor.first_name }} {{ hw.tutor.last_name }}</span>
+        {% endif %}
+        <span class="hw-status-badge {{ hw.status }}">{{ hw.get_status_display }}</span>
+    </div>
+</div>
+
+<div class="m-hw-detail-section">
+    <div class="m-hw-detail-label"><i class="fas fa-align-left"></i> Описание</div>
+    <div class="m-hw-detail-body">{{ hw.effective_description|linebreaksbr }}</div>
+</div>
+
+<div class="m-hw-detail-meta-grid">
+    <div class="m-hw-meta-card">
+        <div class="m-hw-detail-label"><i class="far fa-clock"></i> Дедлайн</div>
+        <div class="m-hw-meta-value">
+            {% if hw.effective_deadline %}
+            {{ hw.effective_deadline|date:"d.m.Y H:i" }}
+            {% else %}
+            <span style="color: var(--tg-hint); font-weight: 600;">Не установлен</span>
+            {% endif %}
+        </div>
+    </div>
+    {% if hw.has_effective_attachments %}
+    <div class="m-hw-meta-card">
+        <div class="m-hw-detail-label"><i class="fas fa-paperclip"></i> Материалы</div>
+        <a href="{% url 'download_homework_all' hw.id %}" class="tg-modal-btn" style="width: 100%; box-sizing: border-box; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <i class="fas fa-file-archive"></i> Скачать архив ({{ hw.effective_files.count }})
+        </a>
+        <div class="hw-files-chips" style="margin-top: 12px;">
+            {% for f in hw.effective_files %}
+            <a href="{{ f.file.url }}" target="_blank" rel="noopener" class="hw-file-chip">
+                <i class="fas fa-file-alt"></i> {{ f.file_name|truncatechars:28 }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if hw.tutor_comment %}
+<div class="m-hw-detail-section">
+    <div class="m-hw-detail-label" style="color: #d97706;"><i class="fas fa-comment-dots"></i> Комментарий репетитора</div>
+    <div class="m-hw-comment-box">{{ hw.tutor_comment|linebreaksbr }}</div>
+</div>
+{% endif %}
+
+<div class="m-hw-detail-section">
+    <div class="m-hw-detail-label" style="margin-bottom: 14px;"><i class="fas fa-tasks"></i> Ответы ученика</div>
+    {% if responses %}
+        {% for resp in responses %}
+        <div class="m-hw-resp-row">
+            <div class="m-hw-resp-info">
+                <div class="m-hw-resp-name">{{ resp.file_name|default:"Файл с ответом"|truncatechars:48 }}</div>
+                <div class="m-hw-resp-date">{{ resp.created_at|date:"d.m.Y, H:i" }}</div>
+            </div>
+            {% if resp.file %}
+            <div class="m-hw-resp-actions">
+                <a href="{% url 'download_homework_response' resp.id %}" class="m-hw-btn-outline"><i class="fas fa-download"></i></a>
+                {% if not is_tutor and hw.status != 'completed' %}
+                <form action="{% url 'delete_homework_response' resp.id %}" method="post" style="margin:0;" onsubmit="return confirm('Удалить этот файл?');">
+                    {% csrf_token %}
+                    <button type="submit" class="m-hw-btn-outline danger" title="Удалить"><i class="fas fa-trash"></i></button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="m-hw-empty">
+        <i class="fas fa-folder-open"></i>
+        Решений пока нет
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

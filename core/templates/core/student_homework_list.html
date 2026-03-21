@@ -1,0 +1,33 @@
+{% extends 'core/base.html' %}
+{% block title %}Домашние задания | All4Tutors{% endblock %}
+{% block content %}
+<div class="content-header">
+    <h1><i class="fas fa-book"></i> ДЗ: {{ student.first_name }} {{ student.last_name }}</h1>
+    <a href="{% url 'student_card' student.id %}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> К карточке</a>
+</div>
+<div class="card" style="padding:16px;">
+    {% for hw in page_obj %}
+    <div style="border-bottom:1px solid var(--border);padding:16px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+            <div>
+                <strong>{{ hw.subject.name }}</strong>
+                <p style="margin:8px 0 0;font-size:14px;">{{ hw.effective_description|truncatechars:200 }}</p>
+            </div>
+            <a href="{% url 'homework_detail' hw.id %}" class="btn btn-primary btn-sm">Открыть</a>
+        </div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:8px;">
+            {{ hw.get_status_display }} · {{ hw.effective_deadline|date:"d.m.Y H:i"|default:"без срока" }}
+        </div>
+    </div>
+    {% empty %}
+    <p>Заданий нет.</p>
+    {% endfor %}
+    {% if page_obj.has_other_pages %}
+    <div style="display:flex;justify-content:center;gap:16px;padding-top:16px;">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline btn-sm">Назад</a>{% endif %}
+        <span>Стр. {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline btn-sm">Вперёд</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

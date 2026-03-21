@@ -23,10 +23,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/app_shell_redesign.css' %}">
 </head>
 <body class="{% if not user.is_authenticated %}auth-body{% endif %}">
 
 
+    <a class="skip-link" href="#page-content">Перейти к контенту</a>
+    <div class="app-desktop-shell">
     {% if user.is_authenticated %}
     <aside class="sidebar">
         <div class="sidebar-header">
@@ -47,49 +50,95 @@
         </nav>
         {% else %}
         <nav class="nav-list">
-            <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
-                <i class="fas fa-chart-pie"></i> Дашборд
-            </a>
-
-            <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
-                <i class="fas fa-folder-open"></i> Мои Файлы
-            </a>
-            <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
-                <i class="fas fa-comments"></i> Сообщения
-                {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
-            </a>
-            {% if user.profile.role == 'student' %}
-                <a href="{% url 'confirmations' %}" class="nav-item {% if 'confirmations' in request.path %}active{% endif %}">
-                    <i class="fas fa-user-check"></i> Подтверждение
-                </a>
-                <a href="{% url 'my_tutors' %}"
-                   class="nav-item {% if request.resolver_match.url_name == 'my_tutors' %}active{% endif %}">
-                    <i class="fas fa-user-graduate"></i> Мои репетиторы
-                </a>
-                <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
-                    <i class="fas fa-chart-line"></i> Аналитика
-                </a>
-                <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
-                    <i class="fas fa-receipt"></i> Оплаты
-                </a>
-            {% endif %}
             {% if user.profile.role == 'tutor' %}
-                <a href="{% url 'my_students' %}"
-                   class="nav-item {% if request.resolver_match.url_name == 'my_students' %}active{% endif %}">
-                    <i class="fas fa-user-graduate"></i> Мои ученики
+                <div class="menu-section">
+                    <div class="section-title">Меню</div>
+                    <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                        <i class="fas fa-chart-pie"></i> Дашборд
+                    </a>
+                    <a href="{% url 'my_students' %}"
+                       class="nav-item {% if request.resolver_match.url_name == 'my_students' %}active{% endif %}">
+                        <i class="fas fa-user-graduate"></i> Мои ученики
+                    </a>
+                    <a href="{% url 'my_subjects' %}" class="nav-item {% if request.resolver_match.url_name == 'my_subjects' %}active{% endif %}">
+                        <i class="fas fa-book"></i> Мои предметы
+                    </a>
+                </div>
+
+                <div class="menu-section">
+                    <div class="section-title">Инструменты</div>
+                    <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
+                        <i class="fas fa-folder-open"></i> Мои Файлы
+                    </a>
+                    <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+                        <i class="fas fa-comments"></i> Сообщения
+                        {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
+                    </a>
+                </div>
+
+                <div class="menu-section">
+                    <div class="section-title">Аналитика</div>
+                    <a href="{% url 'finances' %}" class="nav-item {% if request.resolver_match.url_name == 'finances' %}active{% endif %}">
+                        <i class="fas fa-wallet"></i> Финансы
+                    </a>
+                    <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
+                        <i class="fas fa-chart-line"></i> Аналитика / Результаты
+                    </a>
+                    <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
+                        <i class="fas fa-receipt"></i> Заявки на пополнение
+                    </a>
+                </div>
+            {% else %}
+                {% if user.profile.role == 'student' %}
+                <div class="menu-section">
+                    <div class="section-title">Меню</div>
+                    <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                        <i class="fas fa-chart-pie"></i> Дашборд
+                    </a>
+                    <a href="{% url 'my_tutors' %}"
+                       class="nav-item {% if request.resolver_match.url_name == 'my_tutors' %}active{% endif %}">
+                        <i class="fas fa-chalkboard-teacher"></i> Мои репетиторы
+                    </a>
+                    <a href="{% url 'my_assignments' %}" class="nav-item {% if request.resolver_match.url_name == 'my_assignments' %}active{% endif %}">
+                        <i class="fas fa-tasks"></i> Мои задания
+                    </a>
+                </div>
+
+                <div class="menu-section">
+                    <div class="section-title">Инструменты</div>
+                    <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
+                        <i class="fas fa-folder-open"></i> Мои Файлы
+                    </a>
+                    <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+                        <i class="fas fa-comments"></i> Сообщения
+                        {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
+                    </a>
+                    <a href="{% url 'confirmations' %}" class="nav-item {% if 'confirmations' in request.path %}active{% endif %}">
+                        <i class="fas fa-user-check"></i> Подтверждение
+                    </a>
+                </div>
+
+                <div class="menu-section">
+                    <div class="section-title">Аналитика</div>
+                    <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
+                        <i class="fas fa-chart-line"></i> Аналитика / Результаты
+                    </a>
+                    <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
+                        <i class="fas fa-receipt"></i> Оплаты
+                    </a>
+                </div>
+                {% else %}
+                <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                    <i class="fas fa-chart-pie"></i> Дашборд
                 </a>
-                <a href="{% url 'my_subjects' %}" class="nav-item {% if request.resolver_match.url_name == 'my_subjects' %}active{% endif %}">
-                    <i class="fas fa-book"></i> Мои предметы
+                <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
+                    <i class="fas fa-folder-open"></i> Мои Файлы
                 </a>
-                <a href="{% url 'finances' %}" class="nav-item {% if request.resolver_match.url_name == 'finances' %}active{% endif %}">
-                    <i class="fas fa-wallet"></i> Финансы
+                <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+                    <i class="fas fa-comments"></i> Сообщения
+                    {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
                 </a>
-                <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
-                    <i class="fas fa-chart-line"></i> Аналитика / Результаты
-                </a>
-                <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
-                    <i class="fas fa-receipt"></i> Заявки на пополнение
-                </a>
+                {% endif %}
             {% endif %}
         </nav>
         {% endif %}
@@ -171,8 +220,13 @@
                 {% endif %}
             </button>
             <div class="notifications-dropdown" id="notificationsDropdown">
-                <div class="notifications-dropdown-header">Уведомления</div>
-                <div class="notifications-dropdown-list">
+                <div class="notifications-dropdown-header">
+                    <span>Уведомления</span>
+                    {% if recent_notifications %}
+                    <button type="button" class="notifications-clear-btn" id="notificationsClearAll" title="Удалить все уведомления">Очистить</button>
+                    {% endif %}
+                </div>
+                <div class="notifications-dropdown-list" id="notificationsDropdownList">
                     {% for n in recent_notifications %}
                     <a href="{{ n.link|default:'#' }}" class="notification-item {% if not n.is_read %}unread{% endif %}" data-id="{{ n.id }}" data-link="{{ n.link|default:'' }}">
                         <span class="notification-message">{{ n.message }}</span>
@@ -192,7 +246,7 @@
     </div>
     {% endif %}
 
-    <main class="{% if request.user.is_authenticated %}main-content{% else %}auth-content{% endif %}">
+    <main id="page-content" class="{% if request.user.is_authenticated %}main-content{% else %}auth-content{% endif %}">
     <div class="main-content-inner">
     {% if user.is_authenticated and auto_breadcrumbs %}
     <div class="breadcrumb-wrapper">
@@ -216,6 +270,8 @@
     {% block content %}{% endblock %}
     </div>
 </main>
+
+ </div>
 
     <div id="global-tooltip"></div>
 
@@ -401,6 +457,35 @@
                 }
             });
         });
+        var clearAllBtn = document.getElementById('notificationsClearAll');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                clearAllBtn.disabled = true;
+                fetch('{% url "api_notifications_clear_all" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrf,
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrf)
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    if (data && data.ok) {
+                        var listEl = document.getElementById('notificationsDropdownList');
+                        if (listEl) {
+                            listEl.innerHTML = '<div class="notification-empty">Нет уведомлений</div>';
+                        }
+                        var badge = document.querySelector('.notifications-bell-wrap .notifications-badge');
+                        if (badge) badge.remove();
+                        clearAllBtn.remove();
+                    }
+                }).catch(function() {}).finally(function() {
+                    if (clearAllBtn.parentNode) clearAllBtn.disabled = false;
+                });
+            });
+        }
     }
 });
         function copyToClipboard(text, btn) {
@@ -474,18 +559,24 @@ let explorerCurrentPage = 1;
     let selectedExplorerFiles = {};
     let explorerTargetDisplay = '';
     let explorerTargetSelect = '';
+    let explorerSingleSelect = false;
+    let explorerOwnerTutorId = '';
 
-    function openFilePickerModal(displayId, selectId) {
+    function openFilePickerModal(displayId, selectId, singleMode, ownerTutorId) {
         explorerTargetDisplay = displayId;
         explorerTargetSelect = selectId;
+        explorerSingleSelect = !!singleMode;
+        explorerOwnerTutorId = (ownerTutorId !== undefined && ownerTutorId !== null && String(ownerTutorId).trim() !== '')
+            ? String(ownerTutorId).trim() : '';
 
         selectedExplorerFiles = {};
-        const hiddenSelect = document.getElementById(selectId);
-        if (hiddenSelect) {
-            Array.from(hiddenSelect.options).forEach(opt => {
+        const targetEl = document.getElementById(selectId);
+        if (targetEl && targetEl.tagName === 'SELECT') {
+            Array.from(targetEl.options).forEach(opt => {
                 selectedExplorerFiles[opt.value] = opt.text;
             });
         }
+
         updateSelectedCount();
 
         document.getElementById('fileExplorerModal').style.display = 'flex';
@@ -495,6 +586,7 @@ let explorerCurrentPage = 1;
 
     function closeFileExplorer() {
         document.getElementById('fileExplorerModal').style.display = 'none';
+        explorerOwnerTutorId = '';
     }
 
     async function loadExplorerFiles(page = 1, search = '', reset = false) {
@@ -511,7 +603,12 @@ let explorerCurrentPage = 1;
         }
 
         try {
-            const response = await fetch(`/api/user-files/?page=${page}&search=${search}`);
+            const ownerParam = explorerOwnerTutorId
+                ? `&owner_tutor_id=${encodeURIComponent(explorerOwnerTutorId)}`
+                : '';
+            const response = await fetch(
+                `/api/user-files/?page=${page}&search=${encodeURIComponent(search)}${ownerParam}`
+            );
             const data = await response.json();
             explorerHasNext = data.has_next;
 
@@ -528,11 +625,21 @@ let explorerCurrentPage = 1;
                 item.innerHTML = `<i class="fas ${iconClass}"></i><span>${file.name}</span>`;
 
                 item.onclick = function() {
-                    this.classList.toggle('selected');
-                    if (this.classList.contains('selected')) {
-                        selectedExplorerFiles[file.id] = file.name;
+                    if (explorerSingleSelect) {
+                        const wasOn = this.classList.contains('selected');
+                        grid.querySelectorAll('.file-icon-item.selected').forEach(node => node.classList.remove('selected'));
+                        selectedExplorerFiles = {};
+                        if (!wasOn) {
+                            this.classList.add('selected');
+                            selectedExplorerFiles[file.id] = file.name;
+                        }
                     } else {
-                        delete selectedExplorerFiles[file.id];
+                        this.classList.toggle('selected');
+                        if (this.classList.contains('selected')) {
+                            selectedExplorerFiles[file.id] = file.name;
+                        } else {
+                            delete selectedExplorerFiles[file.id];
+                        }
                     }
                     updateSelectedCount();
                 };
@@ -552,11 +659,38 @@ let explorerCurrentPage = 1;
     }
 
     function applyExplorerSelection() {
-        const displayContainer = document.getElementById(explorerTargetDisplay);
-        const hiddenSelect = document.getElementById(explorerTargetSelect);
+        if (explorerSingleSelect && Object.keys(selectedExplorerFiles).length > 1) {
+            if (typeof showToast === 'function') showToast('Выберите не более одного файла', 'error');
+            else alert('Выберите не более одного файла');
+            return;
+        }
 
+        const displayContainer = document.getElementById(explorerTargetDisplay);
+        const targetEl = document.getElementById(explorerTargetSelect);
+
+        if (targetEl && targetEl.tagName === 'INPUT' && targetEl.type === 'hidden') {
+            if (displayContainer) displayContainer.innerHTML = '';
+            const entries = Object.entries(selectedExplorerFiles);
+            targetEl.value = entries.length ? entries[0][0] : '';
+            if (displayContainer && entries.length) {
+                const badge = document.createElement('div');
+                badge.style.cssText = 'background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 5px;';
+                badge.innerHTML = `<i class="fas fa-file"></i> ${entries[0][1]}`;
+                displayContainer.appendChild(badge);
+            }
+            if (explorerTargetSelect === 'chat-library-file-id') {
+                const cf = document.getElementById('chatFileInput');
+                if (cf) cf.value = '';
+                const pv = document.getElementById('chatFilePreview');
+                if (pv) pv.textContent = '';
+            }
+            closeFileExplorer();
+            return;
+        }
+
+        const hiddenSelect = targetEl;
         if(displayContainer) displayContainer.innerHTML = '';
-        if(hiddenSelect) hiddenSelect.innerHTML = '';
+        if(hiddenSelect && hiddenSelect.tagName === 'SELECT') hiddenSelect.innerHTML = '';
 
         for (const [id, name] of Object.entries(selectedExplorerFiles)) {
             if(displayContainer) {
@@ -566,7 +700,7 @@ let explorerCurrentPage = 1;
                 displayContainer.appendChild(badge);
             }
 
-            if(hiddenSelect) {
+            if(hiddenSelect && hiddenSelect.tagName === 'SELECT') {
                 const option = document.createElement('option');
                 option.value = id;
                 option.text = name;

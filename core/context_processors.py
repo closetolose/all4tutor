@@ -1,6 +1,6 @@
 from django.utils import timezone
 
-from .models import ChatMessage, ConnectionRequest, Homework, Lessons, Notification, StudyGroups, Users
+from .models import ChatMessage, ConnectionRequest, Homework, Lessons, Notification, StudyGroups, Profile
 from django.urls import resolve, reverse, NoReverseMatch
 from django.db.models import Q
 
@@ -80,6 +80,8 @@ BREADCRUMB_CHAIN = {
     'index': ('Главная', None),
     'my_students': ('Мои ученики', 'index'),
     'student_card': (None, 'my_students'),  # название подставим из БД
+    'student_journal': (None, 'my_students'),
+    'student_homework_list': (None, 'my_students'),
     'add_student': ('Добавить ученика', 'my_students'),
     'add_lesson': ('Новое занятие', 'index'),
     'edit_lesson': ('Редактирование занятия', 'index'),
@@ -99,13 +101,14 @@ BREADCRUMB_CHAIN = {
     'confirmations': ('Подтверждения', 'index'),
     'my_tutors': ('Мои репетиторы', 'index'),
     'tutor_card': (None, 'my_tutors'),
+    'tutor_card_journal': (None, 'my_tutors'),
+    'tutor_card_homework': (None, 'my_tutors'),
     'faq': ('FAQ', 'index'),
     'archived_students': ('Архив учеников', 'my_students'),
     'accept_request': ('Подтверждения', 'confirmations'),
     'reject_request': ('Подтверждения', 'confirmations'),
     'chat_list': ('Сообщения', 'index'),
     'chat_thread': (None, 'chat_list'),
-    'bot_chat': ('AI-помощник', 'chat_list'),
 }
 
 
@@ -147,16 +150,40 @@ def breadcrumbs(request):
         first_label, first_url, first_name = chain[0]
         if first_name == 'student_card' and kwargs.get('student_id'):
             try:
-                student = Users.objects.get(id=kwargs['student_id'])
+                student = Profile.objects.get(id=kwargs['student_id'])
                 first_label = f"{student.first_name} {student.last_name}"
-            except Users.DoesNotExist:
+            except Profile.DoesNotExist:
                 first_label = "Ученик"
+        elif first_name == 'student_journal' and kwargs.get('student_id'):
+            try:
+                student = Profile.objects.get(id=kwargs['student_id'])
+                first_label = f"Журнал: {student.first_name}"
+            except Profile.DoesNotExist:
+                first_label = "Журнал занятий"
+        elif first_name == 'student_homework_list' and kwargs.get('student_id'):
+            try:
+                student = Profile.objects.get(id=kwargs['student_id'])
+                first_label = f"ДЗ: {student.first_name}"
+            except Profile.DoesNotExist:
+                first_label = "Домашние задания"
         elif first_name == 'tutor_card' and kwargs.get('tutor_id'):
             try:
-                tutor = Users.objects.get(id=kwargs['tutor_id'], role='tutor')
+                tutor = Profile.objects.get(id=kwargs['tutor_id'], role='tutor')
                 first_label = f"{tutor.first_name} {tutor.last_name}"
-            except Users.DoesNotExist:
+            except Profile.DoesNotExist:
                 first_label = "Репетитор"
+        elif first_name == 'tutor_card_journal' and kwargs.get('tutor_id'):
+            try:
+                tutor = Profile.objects.get(id=kwargs['tutor_id'], role='tutor')
+                first_label = f"Журнал: {tutor.first_name}"
+            except Profile.DoesNotExist:
+                first_label = "Журнал"
+        elif first_name == 'tutor_card_homework' and kwargs.get('tutor_id'):
+            try:
+                tutor = Profile.objects.get(id=kwargs['tutor_id'], role='tutor')
+                first_label = f"ДЗ: {tutor.first_name}"
+            except Profile.DoesNotExist:
+                first_label = "Задания"
         elif first_name == 'group_card' and kwargs.get('group_id'):
             try:
                 group = StudyGroups.objects.get(id=kwargs['group_id'])

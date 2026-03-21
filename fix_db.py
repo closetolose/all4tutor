@@ -14,19 +14,19 @@ def run_fix():
     # Список таблиц и колонок, которые нам нужны
     # Формат: 'имя_таблицы': [('имя_колонки', 'тип_данных')]
     tasks = {
-        'core_lessons': [
+        'lessons': [
             ('created_at', 'DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)'),
             ('updated_at', 'DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)')
         ],
-        'core_homework': [
+        'homework': [
             ('created_at', 'DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)'),
             ('updated_at', 'DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)')
         ],
-        'core_transactions': [
+        'student_transactions': [
             ('created_at', 'DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)'),
             ('updated_at', 'DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)')
         ],
-        'core_users': [
+        'users': [
             ('session_key', 'VARCHAR(100) NULL'),
             ('timezone', "VARCHAR(50) DEFAULT 'Europe/Moscow'")
         ]

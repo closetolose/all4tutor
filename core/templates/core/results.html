@@ -2,7 +2,7 @@
 {% block content %}
 <h2 class="page-title"><i class="fas fa-chart-line"></i> Аналитика / Результаты</h2>
 
-<div class="card" style="margin-bottom: 24px;">
+<div class="card">
     <form method="GET" class="results-filters-form" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;">
         <div class="input-group" style="margin-bottom: 0;">
             <label>Период с</label>
@@ -31,14 +31,23 @@
                 {% endfor %}
             </select>
         </div>
+        <div class="input-group" style="margin-bottom: 0;">
+            <label>Группа</label>
+            <select name="group_id" class="filter-select" style="min-width: 160px; margin-bottom: 0;">
+                <option value="">Все</option>
+                {% for g in groups_list %}
+                <option value="{{ g.id }}" {% if group_id_filter == g.id %}selected{% endif %}>{{ g.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
         {% endif %}
         <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i> Показать</button>
         <a href="{% url 'results_page' %}" class="btn btn-outline btn-sm">Сбросить</a>
     </form>
 </div>
 
-<div class="card" style="margin-bottom: 24px;">
-    <div class="results-main-buttons" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+<div class="card">
+    <div class="results-main-buttons">
         <h3 style="margin: 0;">Динамика успеваемости (% от макс. балла)</h3>
         {% if not is_student_view %}
         <button type="button" class="btn btn-primary" onclick="openModal('addResultModal')"><i class="fas fa-plus"></i> Добавить результат</button>
@@ -67,7 +76,7 @@
         <tbody>
             {% for r in results %}
             <tr style="border-bottom: 1px solid var(--border);">
-                <td style="padding: 12px;">{% if is_student_view %}{{ r.tutor.first_name }} {{ r.tutor.last_name }}{% else %}{{ r.student.first_name }} {{ r.student.last_name }}{% endif %}</td>
+                <td style="padding: 12px;">{% if is_student_view %}{{ r.subject.tutor.first_name }} {{ r.subject.tutor.last_name }}{% else %}{{ r.student.first_name }} {{ r.student.last_name }}{% endif %}</td>
                 <td style="padding: 12px;">{{ r.subject.name }}</td>
                 <td style="padding: 12px; font-weight: 700;" data-sort="{{ r.score }}">{{ r.score }}</td>
                 <td style="padding: 12px;" data-sort="{{ r.max_score }}">{{ r.max_score }}</td>

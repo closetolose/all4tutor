@@ -1,0 +1,16 @@
+{% for att in page_obj %}
+<tr>
+    <td>{{ att.lesson.start_time|date:"d.m" }}</td>
+    <td>{{ att.lesson.subject.name }}</td>
+    <td class="{% if not att.is_paid %}txt-red{% endif %}">
+        <div class="price-cell">
+            <span>{{ att.lesson.price|floatformat:0 }} ₽</span>
+            <button type="button" class="btn-pay-mini {% if att.is_paid %}paid{% endif %}" onclick="openAttModalMobile({{ att.id }}, '{{ att.lesson.start_time|date:'d.m.Y' }}', '{{ att.lesson.subject.name|escapejs }}', '{{ att.lesson.price }}', {{ att.is_paid|yesno:'true,false' }}, this)">
+                <i class="fas {% if att.is_paid %}fa-check-circle{% else %}fa-wallet{% endif %}"></i>
+            </button>
+        </div>
+    </td>
+</tr>
+{% empty %}
+<tr><td colspan="3" class="empty-row">Нет проведенных уроков</td></tr>
+{% endfor %}

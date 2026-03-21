@@ -70,10 +70,29 @@
     }
 
     .fab-btn {
-        position: fixed; bottom: 25px; right: 20px; width: 56px; height: 56px; border-radius: 50%;
+        position: fixed; bottom: calc(92px + env(safe-area-inset-bottom)); right: 20px; width: 56px; height: 56px; border-radius: 50%;
         background: var(--tg-active); color: white; display: flex; align-items: center; justify-content: center;
         font-size: 24px; text-decoration: none; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); z-index: 500;
     }
+    .fab-btn[hidden] { display: none !important; }
+
+    .ms-segment-wrap { padding: 0 15px 12px; background: var(--tg-bg); }
+    .ms-segment-wrap .segment-control { margin: 0; }
+
+    .ms-list-panel { display: none; padding: 0 15px 100px; }
+    .ms-list-panel.active { display: block; }
+
+    .group-card .student-avatar i { font-size: 18px; }
+    .group-card-actions { flex-wrap: wrap; }
+    .group-archive-form { flex: 1 1 100%; margin: 0; }
+    .group-archive-btn { width: 100%; margin-top: 6px; box-sizing: border-box; }
+    .action-btn.btn-edit {
+        color: var(--tg-active);
+        background: rgba(99, 102, 241, 0.06);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--tg-hint); font-size: 15px; }
 </style>
 
 <div class="page-header">
@@ -86,11 +105,18 @@
 <div class="search-container">
     <div class="search-box">
         <i class="fas fa-search"></i>
-        <input type="text" placeholder="Поиск ученика..." id="studentSearch">
+        <input type="text" placeholder="Поиск ученика..." id="msSearch" autocomplete="off">
     </div>
 </div>
 
-<div class="student-list">
+<div class="ms-segment-wrap">
+    <div class="segment-control" role="tablist" aria-label="Список">
+        <button type="button" class="segment-btn active" role="tab" data-tab="students" aria-selected="true" id="msTabStudents">Ученики</button>
+        <button type="button" class="segment-btn" role="tab" data-tab="groups" aria-selected="false" id="msTabGroups">Группы</button>
+    </div>
+</div>
+
+<div id="ms-panel-students" class="ms-list-panel active">
     {% for conn in connections %}
     <div class="student-card">
         <a href="{% url 'student_card' conn.student.id %}" class="student-main">
@@ -104,7 +130,7 @@
         </a>
 
         <div class="card-actions">
-            <button onclick="openTariffModal('{{ conn.student.id }}', '{{ conn.student.first_name }}')" class="action-btn btn-tariff">
+            <button type="button" onclick="openTariffModal('{{ conn.student.id }}', '{{ conn.student.first_name|escapejs }}', 'student')" class="action-btn btn-tariff">
                 <i class="fas fa-coins"></i> Тариф
             </button>
 
@@ -123,7 +149,44 @@
     {% endfor %}
 </div>
 
-<a href="{% url 'add_student' %}" class="fab-btn"><i class="fas fa-user-plus"></i></a>
+<div id="ms-panel-groups" class="ms-list-panel">
+    {% for group in groups %}
+    <div class="student-card group-card" data-search-extra="{{ group.name|lower|escape }} {{ group.subject.name|lower|escape }}">
+        <a href="{% url 'group_card' group.id %}" class="student-main">
+            <div class="student-avatar" style="background: hsla({{ forloop.counter0|add:200 }}, 65%, 48%, 1);">
+                <i class="fas fa-users" aria-hidden="true"></i>
+            </div>
+            <div class="student-info">
+                <div class="student-name">{{ group.name }}</div>
+                <div class="student-contact">{{ group.subject.name }} · {{ group.students.count }} {% if group.students.count == 1 %}ученик{% elif group.students.count > 1 and group.students.count < 5 %}ученика{% else %}учеников{% endif %}</div>
+            </div>
+        </a>
+        <div class="card-actions group-card-actions">
+            <button type="button" onclick="openTariffModal('{{ group.id }}', '{{ group.name|escapejs }}', 'group')" class="action-btn btn-tariff">
+                <i class="fas fa-coins"></i> Тариф
+            </button>
+            <a href="{% url 'edit_group' group.id %}" class="action-btn btn-edit">
+                <i class="fas fa-edit"></i> Изменить
+            </a>
+            <form action="{% url 'archive_group' group.id %}" method="post" class="group-archive-form"
+                  onsubmit="return confirm('Отправить группу «{{ group.name|escapejs }}» в архив? Она исчезнет из списка и из выбора при создании урока.');">
+                {% csrf_token %}
+                <button type="submit" class="action-btn btn-archive group-archive-btn">
+                    <i class="fas fa-archive"></i> В архив
+                </button>
+            </form>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <p>Групп пока нет</p>
+        <p style="font-size: 13px; margin-top: 8px;">Создайте группу, чтобы вести занятия с несколькими учениками</p>
+    </div>
+    {% endfor %}
+</div>
+
+<a href="{% url 'add_student' %}" class="fab-btn" id="msFabStudents" aria-label="Добавить ученика"><i class="fas fa-user-plus"></i></a>
+<a href="{% url 'add_group' %}" class="fab-btn" id="msFabGroups" hidden aria-label="Создать группу"><i class="fas fa-users"></i></a>
 
 <div id="tariffModal" class="tg-modal">
     <div class="tg-modal-content">
@@ -134,13 +197,14 @@
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="save_tariff" value="1">
-            <input type="hidden" name="t_student" id="modalStudentId">
+            <input type="hidden" name="t_student" id="modalStudentId" value="">
+            <input type="hidden" name="t_group" id="modalGroupId" value="">
 
             <div class="tg-form-group">
                 <label>Предмет</label>
                 <select name="t_subject" class="tg-input" required>
                     {% for item in my_subjects %}
-                        <option value="{{ item.subject.id }}">{{ item.subject.name }}</option>
+                        <option value="{{ item.id }}">{{ item.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -156,25 +220,86 @@
 </div>
 
 <script>
-    // Поиск
-    document.getElementById('studentSearch').addEventListener('input', function(e) {
-        let val = e.target.value.toLowerCase();
-        document.querySelectorAll('.student-card').forEach(card => {
-            let name = card.querySelector('.student-name').textContent.toLowerCase();
-            card.style.display = name.includes(val) ? 'block' : 'none';
+    function getActiveMsTab() {
+        var btn = document.querySelector('.ms-segment-wrap .segment-btn.active');
+        return btn ? btn.getAttribute('data-tab') : 'students';
+    }
+
+    function runMsSearch() {
+        var input = document.getElementById('msSearch');
+        if (!input) return;
+        var val = input.value.toLowerCase().trim();
+        var tab = getActiveMsTab();
+        var panel = tab === 'groups' ? document.getElementById('ms-panel-groups') : document.getElementById('ms-panel-students');
+        if (!panel) return;
+        panel.querySelectorAll('.student-card').forEach(function(card) {
+            var nameEl = card.querySelector('.student-name');
+            var name = nameEl ? nameEl.textContent.toLowerCase() : '';
+            var extra = (card.getAttribute('data-search-extra') || '').toLowerCase();
+            var match = !val || name.includes(val) || extra.includes(val);
+            card.style.display = match ? 'block' : 'none';
+        });
+    }
+
+    function setMsTab(tab) {
+        var studentsPanel = document.getElementById('ms-panel-students');
+        var groupsPanel = document.getElementById('ms-panel-groups');
+        var fabS = document.getElementById('msFabStudents');
+        var fabG = document.getElementById('msFabGroups');
+        var search = document.getElementById('msSearch');
+
+        document.querySelectorAll('.ms-segment-wrap .segment-btn').forEach(function(btn) {
+            var on = btn.getAttribute('data-tab') === tab;
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+
+        if (studentsPanel) {
+            studentsPanel.classList.toggle('active', tab === 'students');
+        }
+        if (groupsPanel) {
+            groupsPanel.classList.toggle('active', tab === 'groups');
+        }
+        if (fabS) fabS.hidden = tab !== 'students';
+        if (fabG) fabG.hidden = tab !== 'groups';
+        if (search) {
+            search.placeholder = tab === 'groups' ? 'Поиск группы…' : 'Поиск ученика…';
+        }
+        runMsSearch();
+    }
+
+    document.querySelectorAll('.ms-segment-wrap .segment-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            setMsTab(btn.getAttribute('data-tab'));
         });
     });
 
-    // Модалка
-    function openTariffModal(id, name) {
+    document.getElementById('msSearch').addEventListener('input', runMsSearch);
+
+    (function initMsTabFromUrl() {
+        try {
+            var p = new URLSearchParams(window.location.search).get('tab');
+            if (p === 'groups') setMsTab('groups');
+        } catch (e) {}
+    })();
+
+    function openTariffModal(id, name, type) {
         document.getElementById('modalStudentName').innerText = name;
-        document.getElementById('modalStudentId').value = id;
+        var sEl = document.getElementById('modalStudentId');
+        var gEl = document.getElementById('modalGroupId');
+        if (type === 'group') {
+            if (gEl) gEl.value = id;
+            if (sEl) sEl.value = '';
+        } else {
+            if (sEl) sEl.value = id;
+            if (gEl) gEl.value = '';
+        }
         document.getElementById('tariffModal').style.display = 'flex';
         document.body.style.overflow = 'hidden';
     }
     function closeTariffModal() {
         document.getElementById('tariffModal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        document.body.style.overflow = '';
     }
 </script>
 {% endblock %}

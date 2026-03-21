@@ -1,0 +1,125 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'student_card' student.id %}" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<div class="s-section" style="margin-bottom: 8px;">
+    <h2 class="section-title" style="margin-bottom: 4px;">Журнал занятий</h2>
+    <p class="mobile-subtle-note">{{ student.first_name }} {{ student.last_name }} — проведённые уроки. Список подгружается при прокрутке вниз.</p>
+</div>
+
+<div class="m-table-wrap table-container">
+    <table class="m-simple-table">
+        <thead>
+            <tr><th>Дата</th><th>Предмет</th><th>Цена и Оплата</th></tr>
+        </thead>
+        <tbody id="student-journal-tbody">
+            {% include 'mobile/partials/student_journal_rows.html' %}
+        </tbody>
+    </table>
+</div>
+<div id="student-journal-sentinel" class="m-lazy-sentinel" aria-hidden="true"
+     data-base-url="{% url 'student_journal' student.id %}"
+     data-next="{% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}0{% endif %}"
+     data-last="{{ page_obj.paginator.num_pages }}"></div>
+<p id="student-journal-lazy-status" class="mobile-subtle-note" style="text-align:center;margin:12px 0;"></p>
+
+<div id="att-modal-mobile" class="tg-modal att-bottom-sheet">
+    <div class="att-sheet-content">
+        <div class="att-sheet-header">
+            <h3>Статус оплаты</h3>
+            <button type="button" class="att-sheet-close" onclick="closeAttModalMobile()">&times;</button>
+        </div>
+        <p id="att-m-info" class="att-info-text"></p>
+        <p id="att-m-status" class="att-status-text"></p>
+        <div class="att-actions">
+            <button type="button" class="tg-modal-btn" onclick="submitAttToggleMobile()">Переключить статус</button>
+            <button type="button" class="att-close-btn" onclick="closeAttModalMobile()">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    var attModalMobile = { attId: null, triggerBtn: null };
+    function openAttModalMobile(attId, dateStr, subjectName, price, isPaid, triggerBtn) {
+        attModalMobile.attId = attId;
+        attModalMobile.triggerBtn = triggerBtn;
+        document.getElementById('att-m-info').textContent = dateStr + ', ' + subjectName + ', ' + price + ' ₽';
+        document.getElementById('att-m-status').textContent = 'Текущий статус: ' + (isPaid ? 'Оплачено' : 'Долг');
+        document.getElementById('att-modal-mobile').style.display = 'flex';
+    }
+    function closeAttModalMobile() {
+        document.getElementById('att-modal-mobile').style.display = 'none';
+        attModalMobile.attId = null;
+        attModalMobile.triggerBtn = null;
+    }
+    function submitAttToggleMobile() {
+        var attId = attModalMobile.attId;
+        var btn = attModalMobile.triggerBtn;
+        if (!attId || !btn) return;
+        fetch('/toggle-pay/' + attId + '/')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'ok') {
+                    var priceCell = btn.closest('td');
+                    var icon = btn.querySelector('i');
+                    if (data.is_paid) {
+                        priceCell.classList.remove('txt-red');
+                        btn.classList.add('paid');
+                        icon.className = 'fas fa-check-circle';
+                    } else {
+                        priceCell.classList.add('txt-red');
+                        btn.classList.remove('paid');
+                        icon.className = 'fas fa-wallet';
+                    }
+                    closeAttModalMobile();
+                    if (window.navigator.vibrate) window.navigator.vibrate(40);
+                } else if (data.status === 'error') {
+                    alert(data.message);
+                }
+            })
+            .catch(function(err) { console.error(err); });
+    }
+    (function lazyJournal() {
+        var el = document.getElementById('student-journal-sentinel');
+        var tbody = document.getElementById('student-journal-tbody');
+        var status = document.getElementById('student-journal-lazy-status');
+        if (!el || !tbody) return;
+        var baseUrl = el.getAttribute('data-base-url');
+        var next = parseInt(el.getAttribute('data-next') || '0', 10);
+        var last = parseInt(el.getAttribute('data-last') || '1', 10);
+        if (!next || next > last) {
+            if (status) status.textContent = last ? '' : 'Нет записей';
+            return;
+        }
+        var loading = false;
+        function load() {
+            if (loading || next > last) return;
+            loading = true;
+            if (status) status.textContent = 'Загрузка…';
+            fetch(baseUrl + '?page=' + next + '&partial=1')
+                .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
+                .then(function(html) {
+                    tbody.insertAdjacentHTML('beforeend', html);
+                    next += 1;
+                    el.setAttribute('data-next', String(next));
+                    loading = false;
+                    if (status) status.textContent = next > last ? 'Все уроки загружены' : '';
+                    if (next > last) obs.disconnect();
+                })
+                .catch(function() {
+                    loading = false;
+                    if (status) status.textContent = 'Не удалось подгрузить. Прокрутите ещё раз.';
+                });
+        }
+        var obs = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) load();
+            });
+        }, { rootMargin: '200px' });
+        obs.observe(el);
+    })();
+</script>
+{% endblock %}

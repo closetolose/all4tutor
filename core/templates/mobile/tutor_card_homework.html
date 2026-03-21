@@ -1,0 +1,123 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'tutor_card' tutor.id %}" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .m-tutor-hw-link { display: block; padding: 16px; color: inherit; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+    .m-tutor-hw-link:active { background: var(--tg-input-bg); }
+    .m-tutor-hw-summary { padding: 0; overflow: hidden; }
+    .m-tutor-hw-summary .hw-header { padding: 16px 16px 0; }
+    .m-tutor-hw-summary .hw-description { padding: 0 16px; }
+    .m-tutor-hw-summary .hw-footer { padding: 8px 16px 0; }
+</style>
+
+<h2 class="section-title">Домашние задания</h2>
+<p class="mobile-subtle-note">От {{ tutor.first_name }} {{ tutor.last_name }}. Карточка — подробности, кнопка — сдать работу.</p>
+
+<div id="tutor-hw-list" class="m-hw-lazy-list">
+    {% if page_obj.paginator.count == 0 %}
+    <div style="text-align: center; padding: 20px; color: var(--tg-hint);">Заданий пока нет</div>
+    {% else %}
+    {% include 'mobile/partials/tutor_card_homework_cards.html' %}
+    {% endif %}
+</div>
+<div id="tutor-hw-sentinel" class="m-lazy-sentinel" aria-hidden="true"
+     data-base-url="{% url 'tutor_card_homework' tutor.id %}"
+     data-next="{% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}0{% endif %}"
+     data-last="{{ page_obj.paginator.num_pages }}"></div>
+<p id="tutor-hw-lazy-status" class="mobile-subtle-note" style="text-align:center;margin:12px 0;"></p>
+
+<div id="tutor-submit-hw-modal" class="tg-modal" onclick="if(event.target===this) closeTutorSubmitHwModal()">
+    <div class="tg-modal-content" onclick="event.stopPropagation()">
+        <div class="tg-modal-header">
+            <h3>Сдать работу</h3>
+            <button type="button" class="close-modal" onclick="closeTutorSubmitHwModal()">&times;</button>
+        </div>
+        <div class="tg-modal-scroll">
+            <p id="tutor-submit-hw-hint" style="color: var(--tg-hint); font-size: 14px; margin: 0 0 16px;"></p>
+            <form id="tutor-submit-hw-form" method="post" enctype="multipart/form-data" onsubmit="return checkTutorSubmitHwForm()">
+                {% csrf_token %}
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Файлы с решением</label>
+                    <input type="file" name="response_files" multiple class="tg-modal-field-input m-file-input-padded" id="tutorSubmitHwFileInput" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
+                    <span style="font-size: 12px; color: var(--tg-hint); margin: 8px 0; display: block;">или</span>
+                    <button type="button" onclick="openMobileFilePicker('tutor-submit-hw-lib-display', 'tutor-submit-hw-lib-select')" class="btn-secondary" style="width: 100%; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                    </button>
+                    <div id="tutor-submit-hw-lib-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
+                    <select id="tutor-submit-hw-lib-select" name="response_files" multiple hidden></select>
+                </div>
+                <div class="m-modal-actions">
+                    <button type="button" onclick="closeTutorSubmitHwModal()" class="btn-secondary">Отмена</button>
+                    <button type="submit" class="tg-modal-btn">Отправить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function closeTutorSubmitHwModal() {
+        var m = document.getElementById('tutor-submit-hw-modal');
+        if (m) { m.style.display = 'none'; document.body.style.overflow = ''; }
+    }
+    function openTutorCardSubmitHw(hwId) {
+        var form = document.getElementById('tutor-submit-hw-form');
+        if (!form) return;
+        form.action = '/homework/submit/' + hwId + '/';
+        form.reset();
+        document.getElementById('tutor-submit-hw-lib-display').innerHTML = '';
+        var sel = document.getElementById('tutor-submit-hw-lib-select');
+        if (sel) sel.innerHTML = '';
+        var hint = document.getElementById('tutor-submit-hw-hint');
+        if (hint) hint.textContent = 'Задание #' + hwId;
+        document.getElementById('tutor-submit-hw-modal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function checkTutorSubmitHwForm() {
+        var fileInput = document.getElementById('tutorSubmitHwFileInput');
+        var select = document.getElementById('tutor-submit-hw-lib-select');
+        var hasFiles = fileInput && fileInput.files && fileInput.files.length > 0;
+        var hasLibrary = select && select.options && select.options.length > 0;
+        if (!hasFiles && !hasLibrary) {
+            alert('Выберите файлы с устройства или из библиотеки');
+            return false;
+        }
+        return true;
+    }
+    (function lazyTutorHw() {
+        var el = document.getElementById('tutor-hw-sentinel');
+        var list = document.getElementById('tutor-hw-list');
+        var status = document.getElementById('tutor-hw-lazy-status');
+        if (!el || !list) return;
+        var baseUrl = el.getAttribute('data-base-url');
+        var next = parseInt(el.getAttribute('data-next') || '0', 10);
+        var last = parseInt(el.getAttribute('data-last') || '1', 10);
+        if (!next || next > last) return;
+        var loading = false;
+        function load() {
+            if (loading || next > last) return;
+            loading = true;
+            if (status) status.textContent = 'Загрузка…';
+            fetch(baseUrl + '?page=' + next + '&partial=1')
+                .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
+                .then(function(html) {
+                    list.insertAdjacentHTML('beforeend', html);
+                    next += 1;
+                    el.setAttribute('data-next', String(next));
+                    loading = false;
+                    if (status) status.textContent = next > last ? 'Все задания загружены' : '';
+                    if (next > last) obs.disconnect();
+                })
+                .catch(function() { loading = false; if (status) status.textContent = 'Ошибка подгрузки.'; });
+        }
+        var obs = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) { if (entry.isIntersecting) load(); });
+        }, { rootMargin: '200px' });
+        obs.observe(el);
+    })();
+</script>
+{% endblock %}

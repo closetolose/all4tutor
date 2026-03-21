@@ -15,6 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/app_shell_redesign.css' %}">
     <style>
         /* Override desktop layout rules from style.css */
         .main-content {
@@ -37,7 +38,8 @@
             --tg-red: var(--danger, #ef4444);
             --tg-green: #16a34a;
             --tg-green-bg: rgba(22, 163, 74, 0.08);
-            --overlay-bg: var(--overlay-bg, rgba(0, 0, 0, 0.4));
+            /* Явное значение: самоссылка var(--overlay-bg, …) ломала затемнение в части браузеров */
+            --overlay-bg: rgba(0, 0, 0, 0.45);
             --tg-card-bg: var(--bg-card, #ffffff);
             --tg-header-bg: rgba(255, 255, 255, 0.92);
             --tg-card-active: var(--bg-light, #f1f5f9);
@@ -56,7 +58,7 @@
             --tg-red: #f87171;
             --tg-green: #22c55e;
             --tg-green-bg: rgba(34, 197, 94, 0.1);
-            --overlay-bg: var(--overlay-bg, rgba(0, 0, 0, 0.7));
+            --overlay-bg: rgba(0, 0, 0, 0.72);
             --tg-card-bg: var(--bg-card, #1e293b);
             --tg-header-bg: rgba(30, 41, 59, 0.95);
             --tg-card-active: #28364d;
@@ -126,7 +128,7 @@
 
         /* БОКОВОЕ МЕНЮ (DRAWER) */
         .drawer {
-            position: fixed; top: 0; left: -300px; width: 280px; height: 100%;
+            position: fixed; top: 0; left: -300px; width: 260px; height: 100%;
             background: var(--tg-sidebar); z-index: 2000;
             transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex; flex-direction: column;
@@ -141,15 +143,25 @@
         .menu-open .drawer-overlay { display: block; opacity: 1; }
         .menu-open body { overflow: hidden; }
 
-        .drawer-header { padding: 20px; border-bottom: 1px solid var(--tg-separator); font-size: 22px; font-weight: 800; }
-        .drawer-nav { padding: 15px 10px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
-        .nav-item { padding: 12px 15px; color: var(--tg-text); font-weight: 600; border-radius: 12px; display: flex; align-items: center; gap: 12px; font-size: 15px; }
-        .nav-item i { width: 20px; text-align: center; color: var(--tg-hint); }
+        .drawer-header { padding: 16px 16px; border-bottom: 1px solid var(--tg-separator); font-size: 20px; font-weight: 800; }
+        .drawer-nav { padding: 12px 10px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+        .drawer-section-title {
+            margin: 14px 0 6px;
+            padding: 0 12px 0 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 900;
+            color: var(--tg-hint);
+            opacity: 0.95;
+        }
+        .nav-item { padding: 10px 12px; color: var(--tg-text); font-weight: 600; border-radius: 10px; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+        .nav-item i { width: 18px; text-align: center; color: var(--tg-hint); font-size: 14px; }
         .nav-item.active { background: var(--tg-active); color: white; }
         .nav-item.active i { color: white; }
 
-        .drawer-footer { padding: 15px; border-top: 1px solid var(--tg-separator); display: flex; flex-direction: column; gap: 10px; }
-        .footer-link, .theme-toggle { padding: 10px; background: none; border: none; color: var(--tg-text); font-weight: 600; display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; border-radius: 10px; }
+        .drawer-footer { padding: 12px; border-top: 1px solid var(--tg-separator); display: flex; flex-direction: column; gap: 8px; }
+        .footer-link, .theme-toggle { padding: 9px; background: none; border: none; color: var(--tg-text); font-weight: 600; display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; border-radius: 10px; }
         .bot-status { padding: 12px; border-radius: 12px; font-weight: 700; text-align: center; font-size: 14px; margin-bottom: 5px; }
         .bot-status.active { background: var(--tg-green-bg); color: var(--tg-green); }
         .bot-status.inactive { background: rgba(239, 68, 68, 0.08); color: var(--tg-red); }
@@ -172,8 +184,20 @@
         }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-        .tg-modal-header { padding: 20px; border-bottom: 1px solid var(--tg-separator); display: flex; justify-content: space-between; align-items: center; }
+        .tg-modal-header { padding: 20px; border-bottom: 1px solid var(--tg-separator); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
         .tg-modal-header h3 { margin: 0; font-size: 18px; font-weight: 800; }
+        .tg-notifications-clear {
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--tg-active);
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .tg-notifications-clear:disabled { opacity: 0.5; cursor: not-allowed; }
+        .tg-modal-header-actions { display: flex; align-items: center; gap: 8px; }
         .close-modal { background: var(--tg-bg); border: none; min-width: 44px; min-height: 44px; width: 44px; height: 44px; border-radius: 50%; font-size: 18px; color: var(--tg-hint); display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .tg-modal-scroll { padding: 20px; overflow-y: auto; flex-grow: 1; }
 
@@ -245,7 +269,12 @@
 
         /* КНОПКА ПЛАВАЮЩЕГО ДОБАВЛЕНИЯ (FAB) */
         .fab-btn {
-            position: fixed; bottom: 25px; right: 25px; width: 56px; height: 56px;
+            /* Mobile bottom nav занимает часть нижней области экрана,
+               FAB поднимаем выше, чтобы не перекрывался. */
+            position: fixed;
+            bottom: calc(92px + env(safe-area-inset-bottom));
+            right: 25px;
+            width: 56px; height: 56px;
             background: var(--tg-active); color: white; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             font-size: 24px; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.4);
@@ -312,53 +341,91 @@
         </div>
 
         <nav class="drawer-nav">
-            <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
-                <i class="fas fa-chart-pie"></i> Дашборд
-            </a>
-            <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
-                <i class="fas fa-folder"></i> Мои Файлы
-            </a>
-            <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
-                <i class="fas fa-comments"></i> Сообщения
-                {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
-            </a>
-            {% if user.profile.role == 'tutor' %}
-                <a href="{% url 'my_students' %}" class="nav-item {% if request.resolver_match.url_name == 'my_students' %}active{% endif %}">
-                    <i class="fas fa-user-graduate"></i> Мои ученики
+            {% if user.is_superuser %}
+                <a href="{% url 'dashboard_admin_index' %}" class="nav-item {% if 'dashboard/admin' in request.path %}active{% endif %}">
+                    <i class="fas fa-shield-alt"></i> Панель администратора
                 </a>
-                <a href="{% url 'my_subjects' %}" class="nav-item {% if request.resolver_match.url_name == 'my_subjects' %}active{% endif %}">
-                    <i class="fas fa-book"></i> Мои предметы
-                </a>
-                <a href="{% url 'finances' %}" class="nav-item {% if request.resolver_match.url_name == 'finances' %}active{% endif %}">
-                    <i class="fas fa-wallet"></i> Финансы
-                </a>
-                <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
-                    <i class="fas fa-receipt"></i> Заявки на пополнение
-                </a>
-                <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
-                    <i class="fas fa-chart-line"></i> Аналитика / Результаты
+                <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+                    <i class="fas fa-comments"></i> Сообщения
+                    {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
                 </a>
             {% else %}
-                <a href="{% url 'confirmations' %}" class="nav-item {% if request.resolver_match.url_name == 'confirmations' %}active{% endif %}">
-                    <i class="fas fa-user-check"></i> Подтверждение
-                </a>
-                <a href="{% url 'my_assignments' %}" class="nav-item {% if request.resolver_match.url_name == 'my_assignments' %}active{% endif %}">
-                    <i class="fas fa-tasks"></i> Мои задания
-                </a>
-                <a href="{% url 'my_tutors' %}" class="nav-item {% if request.resolver_match.url_name == 'my_tutors' %}active{% endif %}">
-                    <i class="fas fa-chalkboard-teacher"></i> Мои репетиторы
-                </a>
-                <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
-                    <i class="fas fa-receipt"></i> Оплаты
-                </a>
-                <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
-                    <i class="fas fa-chart-line"></i> Аналитика
-                </a>
-            {% endif %}
-            {% if user.is_superuser %}
-            <a href="{% url 'dashboard_admin_index' %}" class="nav-item {% if 'dashboard/admin' in request.path %}active{% endif %}">
-                <i class="fas fa-shield-alt"></i> Панель администратора
-            </a>
+                {% if user.profile.role == 'tutor' %}
+                    <div class="drawer-section-title">Меню</div>
+                    <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                        <i class="fas fa-chart-pie"></i> Дашборд
+                    </a>
+                    <a href="{% url 'my_students' %}" class="nav-item {% if request.resolver_match.url_name == 'my_students' %}active{% endif %}">
+                        <i class="fas fa-user-graduate"></i> Мои ученики
+                    </a>
+                    <a href="{% url 'my_subjects' %}" class="nav-item {% if request.resolver_match.url_name == 'my_subjects' %}active{% endif %}">
+                        <i class="fas fa-book"></i> Мои предметы
+                    </a>
+
+                    <div class="drawer-section-title">Инструменты</div>
+                    <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
+                        <i class="fas fa-folder-open"></i> Мои Файлы
+                    </a>
+                    <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+                        <i class="fas fa-comments"></i> Сообщения
+                        {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
+                    </a>
+
+                    <div class="drawer-section-title">Аналитика</div>
+                    <a href="{% url 'finances' %}" class="nav-item {% if request.resolver_match.url_name == 'finances' %}active{% endif %}">
+                        <i class="fas fa-wallet"></i> Финансы
+                    </a>
+                    <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
+                        <i class="fas fa-chart-line"></i> Аналитика / Результаты
+                    </a>
+                    <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
+                        <i class="fas fa-receipt"></i> Заявки на пополнение
+                    </a>
+                {% else %}
+                    {% if user.profile.role == 'student' %}
+                        <div class="drawer-section-title">Меню</div>
+                        <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                            <i class="fas fa-chart-pie"></i> Дашборд
+                        </a>
+                        <a href="{% url 'my_tutors' %}" class="nav-item {% if request.resolver_match.url_name == 'my_tutors' %}active{% endif %}">
+                            <i class="fas fa-chalkboard-teacher"></i> Мои репетиторы
+                        </a>
+                        <a href="{% url 'my_assignments' %}" class="nav-item {% if request.resolver_match.url_name == 'my_assignments' %}active{% endif %}">
+                            <i class="fas fa-tasks"></i> Мои задания
+                        </a>
+
+                        <div class="drawer-section-title">Инструменты</div>
+                        <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
+                            <i class="fas fa-folder-open"></i> Мои Файлы
+                        </a>
+                        <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+                            <i class="fas fa-comments"></i> Сообщения
+                            {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
+                        </a>
+                        <a href="{% url 'confirmations' %}" class="nav-item {% if 'confirmations' in request.path %}active{% endif %}">
+                            <i class="fas fa-user-check"></i> Подтверждение
+                        </a>
+
+                        <div class="drawer-section-title">Аналитика</div>
+                        <a href="{% url 'results_page' %}" class="nav-item {% if request.resolver_match.url_name == 'results_page' %}active{% endif %}">
+                            <i class="fas fa-chart-line"></i> Аналитика / Результаты
+                        </a>
+                        <a href="{% url 'payment_receipts' %}" class="nav-item {% if request.resolver_match.url_name == 'payment_receipts' %}active{% endif %}">
+                            <i class="fas fa-receipt"></i> Оплаты
+                        </a>
+                    {% else %}
+                        <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                            <i class="fas fa-chart-pie"></i> Дашборд
+                        </a>
+                        <a href="{% url 'files_library' %}" class="nav-item {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
+                            <i class="fas fa-folder-open"></i> Мои Файлы
+                        </a>
+                        <a href="{% url 'chat_list' %}" class="nav-item nav-item-with-badge {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+                            <i class="fas fa-comments"></i> Сообщения
+                            {% if unread_chat_count > 0 %}<span class="nav-chat-badge">{{ unread_chat_count }}</span>{% endif %}
+                        </a>
+                    {% endif %}
+                {% endif %}
             {% endif %}
         </nav>
 
@@ -402,13 +469,51 @@
         {% block content %}{% endblock %}
     </div>
 
+    <nav class="mobile-bottom-nav{% if user.is_authenticated and user.profile.role != 'tutor' %} mobile-bottom-nav--five{% endif %}" aria-label="Нижняя навигация">
+        <a href="{% url 'index' %}" class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+            <i class="fas fa-home"></i>
+            <span>Главная</span>
+        </a>
+
+        {% if user.is_authenticated and user.profile.role == 'tutor' %}
+            <a href="{% url 'my_students' %}" class="nav-link {% if request.resolver_match.url_name == 'my_students' %}active{% endif %}">
+                <i class="fas fa-users"></i>
+                <span>Ученики</span>
+            </a>
+        {% else %}
+            <a href="{% url 'my_tutors' %}" class="nav-link {% if request.resolver_match.url_name == 'my_tutors' %}active{% endif %}">
+                <i class="fas fa-users"></i>
+                <span>Репетиторы</span>
+            </a>
+            <a href="{% url 'my_assignments' %}" class="nav-link {% if request.resolver_match.url_name == 'my_assignments' %}active{% endif %}">
+                <i class="fas fa-tasks"></i>
+                <span>Задания</span>
+            </a>
+        {% endif %}
+
+        <a href="{% url 'chat_list' %}" class="nav-link {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_thread' %}active{% endif %}">
+            <i class="fas fa-comments"></i>
+            <span>Чаты</span>
+        </a>
+
+        <a href="{% url 'files_library' %}" class="nav-link {% if request.resolver_match.url_name == 'files_library' %}active{% endif %}">
+            <i class="fas fa-folder-open"></i>
+            <span>Мои файлы</span>
+        </a>
+    </nav>
+
     <div id="notificationsModal" class="tg-modal" style="display: none;">
         <div class="tg-modal-content" onclick="event.stopPropagation()">
             <div class="tg-modal-header">
                 <h3>Уведомления</h3>
-                <button type="button" class="close-modal" onclick="closeNotificationsModal()">&times;</button>
+                <div class="tg-modal-header-actions">
+                    {% if recent_notifications %}
+                    <button type="button" class="tg-notifications-clear" id="mobileNotificationsClearAll">Очистить</button>
+                    {% endif %}
+                    <button type="button" class="close-modal" onclick="closeNotificationsModal()">&times;</button>
+                </div>
             </div>
-            <div class="tg-modal-scroll">
+            <div class="tg-modal-scroll" id="mobileNotificationsList">
                 {% for n in recent_notifications %}
                 <a href="{{ n.link|default:'#' }}" class="tg-notification-item {% if not n.is_read %}unread{% endif %}" data-id="{{ n.id }}" data-link="{{ n.link|default:'' }}">
                     <span class="tg-notification-msg">{{ n.message }}</span>
@@ -429,6 +534,37 @@
             const body = document.getElementById('app-body');
             body.classList.toggle('menu-open');
             document.body.style.overflow = body.classList.contains('menu-open') ? 'hidden' : '';
+        }
+
+        // Унифицированные модалки для мобильных страниц (используется в onclick="openModal('...')").
+        // IMPORTANT: некоторые страницы уже имеют локальные openModal/closeModal для своих модалок (например fl-modal-overlay).
+        // Поэтому определяем обработчики только если они ещё не объявлены.
+        if (typeof window.openModal !== 'function') {
+            window.openModal = function (id) {
+                const modal = document.getElementById(id);
+                if (!modal) return;
+
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+
+                // Фокусируемся на закрывающей кнопке/первом интерактивном элементе для a11y.
+                const closeBtn = modal.querySelector('.close-modal, button, [role="button"], a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                if (closeBtn && typeof closeBtn.focus === 'function') closeBtn.focus();
+            };
+        }
+
+        if (typeof window.closeModal !== 'function') {
+            window.closeModal = function (id) {
+                const modal = document.getElementById(id);
+                if (!modal) return;
+
+                modal.style.display = 'none';
+                modal.classList.remove('active');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
+            };
         }
 
         function openNotificationsModal() {
@@ -457,6 +593,32 @@
                     }
                 });
             });
+            var mobClear = document.getElementById('mobileNotificationsClearAll');
+            if (mobClear) {
+                mobClear.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                    mobClear.disabled = true;
+                    fetch('{% url "api_notifications_clear_all" %}', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrf)
+                    }).then(function(r) { return r.json(); }).then(function(data) {
+                        if (data && data.ok) {
+                            var listEl = document.getElementById('mobileNotificationsList');
+                            if (listEl) {
+                                listEl.innerHTML = '<div class="tg-notification-empty">Нет уведомлений</div>';
+                            }
+                            var badge = document.querySelector('.header-bell-badge');
+                            if (badge) badge.remove();
+                            mobClear.remove();
+                        }
+                    }).catch(function() {}).finally(function() {
+                        if (mobClear.parentNode) mobClear.disabled = false;
+                    });
+                });
+            }
         });
 
         function applyTheme(theme) {

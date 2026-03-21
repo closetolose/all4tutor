@@ -1,0 +1,20 @@
+{% for hw in page_obj %}
+<div class="hw-card m-tutor-hw-summary" style="margin-bottom: 12px;">
+    <a href="{% url 'homework_detail' hw.id %}" class="m-tutor-hw-link">
+        <div class="hw-header" style="margin-bottom: 8px;">
+            <span class="hw-subject">{{ hw.subject.name }}</span>
+            <span class="hw-badge status-{{ hw.status }}">{{ hw.get_status_display }}</span>
+        </div>
+        <div class="hw-description" style="font-size: 14px;">{{ hw.effective_description|truncatechars:120 }}</div>
+        <div class="hw-footer" style="margin-top: 10px;">
+            <span class="hw-deadline"><i class="far fa-clock"></i> {{ hw.effective_deadline|date:"d.m H:i"|default:"Без срока" }}</span>
+            <span class="hw-compact-chevron"><i class="fas fa-chevron-right"></i></span>
+        </div>
+    </a>
+    {% if hw.status != 'completed' %}
+    <div style="padding: 0 16px 16px;">
+        <button type="button" onclick="openTutorCardSubmitHw({{ hw.id }})" class="btn-submit" style="width:100%;">Сдать работу</button>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}

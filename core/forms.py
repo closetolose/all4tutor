@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 
 from .models import (
     ConnectionRequest, FilesLibrary, Lessons, Subjects, StudyGroups,
-    TutorSubjects, Users,
+    Profile,
 )
 
 
@@ -74,7 +74,7 @@ class RegistrationForm(forms.ModelForm):
 
 class ProfileUpdateForm(forms.ModelForm):
     class Meta:
-        model = Users
+        model = Profile
         fields = [
             'last_name', 'first_name', 'patronymic', 'address', 'contact',
             'telegram_id', 'school_class', 'parent_name', 'parent_phone', 'timezone',
@@ -218,12 +218,11 @@ class AddLessonForm(forms.ModelForm):
             confirmed_ids = ConnectionRequest.objects.filter(
                 tutor=tutor, status='confirmed'
             ).values_list('student_id', flat=True)
-            self.fields['student'].queryset = Users.objects.filter(id__in=confirmed_ids)
+            self.fields['student'].queryset = Profile.objects.filter(id__in=confirmed_ids)
 
-            self.fields['group'].queryset = StudyGroups.objects.filter(tutor=tutor)
+            self.fields['group'].queryset = StudyGroups.objects.filter(tutor=tutor, is_archived=False)
 
-            subject_ids = TutorSubjects.objects.filter(tutor=tutor).values_list('subject_id', flat=True)
-            self.fields['subject'].queryset = Subjects.objects.filter(id__in=subject_ids)
+            self.fields['subject'].queryset = Subjects.objects.filter(tutor=tutor)
 
             self.fields['student'].required = False
             self.fields['group'].required = False
@@ -247,6 +246,11 @@ class AddLessonForm(forms.ModelForm):
 
         if lesson_type == 'group' and not group:
             self.add_error('group', "Выберите группу для группового занятия")
+
+        # Коллизия: при групповом уроке предмет и репетитор должны совпадать с группой
+        subject = cleaned_data.get('subject')
+        if group and subject and (group.subject_id != subject.id or group.tutor_id != tutor.id):
+            self.add_error('group', "Предмет урока должен совпадать с предметом группы.")
 
         if start_time and duration and tutor:
             end_time = start_time + timedelta(minutes=duration)
@@ -292,7 +296,6 @@ class StudyGroupForm(forms.ModelForm):
             confirmed_ids = ConnectionRequest.objects.filter(
                 tutor=tutor, status='confirmed'
             ).values_list('student_id', flat=True)
-            self.fields['students'].queryset = Users.objects.filter(id__in=confirmed_ids)
+            self.fields['students'].queryset = Profile.objects.filter(id__in=confirmed_ids)
 
-            subject_ids = TutorSubjects.objects.filter(tutor=tutor).values_list('subject_id', flat=True)
-            self.fields['subject'].queryset = Subjects.objects.filter(id__in=subject_ids)
+            self.fields['subject'].queryset = Subjects.objects.filter(tutor=tutor)

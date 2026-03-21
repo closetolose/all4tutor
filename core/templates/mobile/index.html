@@ -31,6 +31,117 @@
         box-shadow: var(--tg-shadow);
     }
 
+    /* === Next Lesson Widget + Quick Menu (из test_m.html) === */
+    .next-lesson-widget {
+        background: linear-gradient(135deg, var(--tg-active) 0%, #4f46e5 100%);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .widget-header {
+        font-size: 12px;
+        text-transform: uppercase;
+        opacity: 0.85;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #ffffff;
+        font-weight: 800;
+    }
+
+    .lesson-info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 12px;
+    }
+
+    .student-title {
+        font-size: 20px;
+        font-weight: 800;
+        margin: 0;
+        line-height: 1.15;
+    }
+
+    .subject-tag {
+        font-size: 15px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 6px;
+        color: rgba(255,255,255,0.98);
+        background: rgba(15, 23, 42, 0.18); /* override desktop .subject-tag light pill */
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        padding: 8px 14px;
+        border-radius: 999px;
+        width: fit-content;
+        opacity: 1;
+    }
+
+    .time-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 6px;
+        min-width: 130px;
+    }
+    .time-pill {
+        background: rgba(255,255,255,0.18);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 999px;
+        padding: 7px 12px;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-weight: 900;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    }
+    .time-pill i { font-size: 14px; opacity: 0.95; }
+    .time-pill .time-text { font-size: 14px; line-height: 1.1; }
+
+    .quick-menu {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin: 0 15px 16px;
+    }
+
+    .menu-card {
+        background: var(--tg-card-bg);
+        padding: 16px;
+        border-radius: 12px;
+        text-decoration: none;
+        color: var(--tg-text);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border: 1px solid rgba(255,255,255,0.05);
+        box-shadow: var(--shadow-sm);
+        min-height: 92px;
+    }
+
+    .menu-card i {
+        font-size: 24px;
+        color: var(--tg-active);
+    }
+
+    .menu-card span {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--tg-hint);
+    }
+
+    .menu-card:active {
+        transform: translateY(1px);
+        opacity: 0.95;
+    }
+
     /* === 3. КАРТОЧКИ УРОКОВ (Стили, которых не хватало) === */
     .lesson-list { padding-bottom: 80px; }
 
@@ -124,7 +235,7 @@
 
     /* Панель массовых действий */
     .selection-toolbar {
-        position: fixed; bottom: 20px; left: 15px; right: 15px;
+        position: fixed; bottom: 80px; left: 15px; right: 15px;
         background: #1e1b4b; color: white;
         padding: 12px 20px; border-radius: 16px;
         display: none; justify-content: space-between; align-items: center;
@@ -302,10 +413,57 @@
 </style>
 
 <div class="dashboard-mobile">
-    <div style="padding: 15px 15px 0;">
-        <h1 style="font-size: 24px; margin: 0; letter-spacing: -0.5px;">Привет, {{ user.first_name|default:user.username }}!</h1>
-        <p style="color: var(--tg-hint); font-size: 13px; margin: 4px 0 0;">Твое расписание на сегодня</p>
+    <div class="mobile-page-hero">
+        <h1 class="mobile-hero-title">Привет, {{ user.first_name|default:user.username }}!</h1>
+        <p class="mobile-hero-subtitle">Твое расписание на сегодня</p>
     </div>
+
+    {% if next_lesson %}
+    <div class="next-lesson-widget mobile-widget-margin">
+        <div class="widget-header">
+            <i class="fas fa-bolt" style="color: rgba(255,255,255,0.95);"></i>
+            Следующий урок
+        </div>
+
+        <div class="lesson-info-row">
+            <div>
+                <div class="student-title">
+                    {% if role == 'tutor' %}
+                        {% if next_lesson.student %}
+                            {{ next_lesson.student.first_name }} {{ next_lesson.student.last_name }}
+                        {% else %}
+                            {{ next_lesson.group.name }}
+                        {% endif %}
+                    {% else %}
+                        {{ next_lesson.tutor.first_name }} {{ next_lesson.tutor.last_name }}
+                    {% endif %}
+                </div>
+                <div class="subject-tag">
+                    <i class="fas fa-book-open" style="margin-right: 6px; opacity: 0.9;"></i>
+                    {{ next_lesson.subject.name }}
+                </div>
+            </div>
+
+            <div class="time-badge">
+                <div class="time-pill time-date-pill">
+                    <i class="far fa-calendar-alt"></i>
+                    <span class="time-text">
+                        {% if next_lesson.start_time.date == now.date %}
+                            Сегодня
+                        {% else %}
+                            {{ next_lesson.start_time|date:"d.m" }}
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="time-pill time-time-pill">
+                    <i class="far fa-clock"></i>
+                    <span class="time-text">{{ next_lesson.start_time|date:"H:i" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="mobile-stats-scroll">
         {% if role == 'tutor' %}
@@ -338,9 +496,9 @@
     </div>
 
     {% if role == 'tutor' %}
-    <div style="margin: 0 15px 10px;">
-        <button type="button" onclick="openModal('exportFilterModal')" class="mobile-export-btn" style="width: 100%; min-height: 44px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--tg-separator); background: var(--tg-sidebar); color: var(--tg-text); font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
-            <i class="fas fa-file-export" style="color: #10b981;"></i> Экспорт данных
+    <div class="mobile-section-tight">
+        <button type="button" onclick="openModal('exportFilterModal')" class="mobile-export-btn">
+            <i class="fas fa-file-export"></i> Экспорт данных
         </button>
     </div>
     {% endif %}
@@ -475,17 +633,28 @@
                 <select name="subject_id" class="tg-modal-field-input">
                     <option value="">Все предметы</option>
                     {% for item in my_subjects %}
-                    <option value="{{ item.subject.id }}">{{ item.subject.name }}</option>
+                    <option value="{{ item.id }}">{{ item.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="tg-modal-field">
-                <label class="tg-modal-field-label">Ученик</label>
-                <select name="student_id" class="tg-modal-field-input">
-                    <option value="">Все ученики</option>
-                    {% for st in tutor_students %}
-                    <option value="{{ st.id }}">{{ st.first_name }} {{ st.last_name }}</option>
-                    {% endfor %}
+                <label class="tg-modal-field-label">Ученик или группа</label>
+                <select name="export_target" class="tg-modal-field-input">
+                    <option value="">Все ученики и группы</option>
+                    {% if tutor_students %}
+                    <optgroup label="Ученики">
+                        {% for st in tutor_students %}
+                        <option value="s{{ st.id }}">{{ st.first_name }} {{ st.last_name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                    {% if tutor_groups %}
+                    <optgroup label="Группы">
+                        {% for g in tutor_groups %}
+                        <option value="g{{ g.id }}">{{ g.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
                 </select>
             </div>
             <div class="tg-modal-field">
@@ -494,14 +663,6 @@
                     <option value="">Все</option>
                     <option value="paid">Оплачено</option>
                     <option value="debt">Долг</option>
-                </select>
-            </div>
-            <div class="tg-modal-field">
-                <label class="tg-modal-field-label">Формат</label>
-                <select name="lesson_type" class="tg-modal-field-input">
-                    <option value="">Все</option>
-                    <option value="individual">Индив.</option>
-                    <option value="group">Группы</option>
                 </select>
             </div>
             <button type="submit" class="tg-modal-btn" style="width: 100%; margin-top: 8px;">

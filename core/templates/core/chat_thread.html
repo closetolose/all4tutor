@@ -73,10 +73,14 @@
     .chat-form {
         display: flex;
         gap: 12px;
-        align-items: flex-end;
+        align-items: center;
     }
+    /* глобальный style.css задаёт textarea margin — ломает выравнивание с кнопками */
     .chat-form textarea {
         flex: 1;
+        min-width: 0;
+        width: auto;
+        margin: 0;
         min-height: 48px;
         max-height: 120px;
         resize: vertical;
@@ -85,6 +89,22 @@
         border: 1px solid var(--border);
         font-size: 15px;
         font-family: inherit;
+        line-height: 1.4;
+    }
+    .chat-form .chat-attach-btn {
+        flex-shrink: 0;
+        width: 48px;
+        min-width: 48px;
+        height: 48px;
+        min-height: 48px;
+        margin: 0;
+        padding: 0;
+    }
+    .chat-form .chat-send-btn {
+        flex-shrink: 0;
+        margin: 0;
+        min-height: 48px;
+        padding: 12px 20px;
     }
     .chat-form textarea:focus {
         outline: none;
@@ -156,15 +176,21 @@
         <div class="chat-form-wrap">
             <form method="post" class="chat-form" id="chatForm" enctype="multipart/form-data">
                 {% csrf_token %}
+                <input type="hidden" name="library_file_id" id="chat-library-file-id" value="">
                 <input type="file" name="file" id="chatFileInput" accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.rtf,.odt,.ods" style="display: none;">
-                <button type="button" class="btn btn-outline" style="min-height: 48px; padding: 12px 14px;" onclick="document.getElementById('chatFileInput').click();" title="Прикрепить файл">
+                <button type="button" class="btn btn-outline chat-attach-btn" onclick="document.getElementById('chatFileInput').click();" title="С устройства">
                     <i class="fas fa-paperclip"></i>
                 </button>
+                <button type="button" class="btn btn-outline chat-attach-btn" title="Из библиотеки"
+                        onclick="openFilePickerModal('chat-library-display', 'chat-library-file-id', true, '{% if not is_tutor %}{{ connection.tutor_id }}{% endif %}');">
+                    <i class="fas fa-folder-open"></i>
+                </button>
                 <textarea name="text" placeholder="Введите сообщение..." rows="1" id="chatTextInput"></textarea>
-                <button type="submit" class="btn btn-primary" style="min-height: 48px; padding: 12px 20px;">
+                <button type="submit" class="btn btn-primary chat-send-btn">
                     <i class="fas fa-paper-plane"></i> Отправить
                 </button>
             </form>
+            <div id="chat-library-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;"></div>
             <div id="chatFilePreview" style="font-size: 12px; color: var(--text-muted); margin-top: 6px;"></div>
         </div>
     </div>
@@ -179,12 +205,17 @@
     if (fileInput && preview) {
         fileInput.addEventListener('change', function() {
             preview.textContent = this.files.length ? 'Файл: ' + this.files[0].name : '';
+            var lib = document.getElementById('chat-library-file-id');
+            var ld = document.getElementById('chat-library-display');
+            if (lib) lib.value = '';
+            if (ld) ld.innerHTML = '';
         });
     }
     document.getElementById('chatForm').addEventListener('submit', function(e) {
         var text = (document.getElementById('chatTextInput').value || '').trim();
         var file = document.getElementById('chatFileInput').files.length;
-        if (!text && !file) {
+        var libId = (document.getElementById('chat-library-file-id') || {}).value;
+        if (!text && !file && !libId) {
             e.preventDefault();
             alert('Введите текст или прикрепите файл.');
         }

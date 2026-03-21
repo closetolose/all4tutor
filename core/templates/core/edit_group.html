@@ -4,7 +4,7 @@
 {% block content %}
 <div style="max-width: 600px; margin: 0 auto;">
     <div class="card">
-        <h2>Редактировать группу: {{ group.name }}</h2>
+        <h2 style="margin-top: 0;">Редактировать группу: {{ group.name }}</h2>
 
         <form method="post" id="edit-group-main-form">
             {% csrf_token %}
@@ -29,15 +29,11 @@
                     </div>
                 </div>
             </div>
-
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Сохранить группу</button>
-                <a href="{% url 'my_students' %}" class="btn btn-outline">Отмена</a>
-            </div>
         </form>
 
         <div class="form-section form-section-divider">
-            <div class="form-section-title">Цвет группы</div>
+            <div class="form-section-title">Цвет в расписании</div>
+            <p class="form-hint" style="margin-top: 0;">Сохраняется отдельно от названия и состава — только отображение в календаре.</p>
             <form action="{% url 'update_group_color' group.id %}" method="post" id="edit-group-color-form">
                 {% csrf_token %}
                 <input type="hidden" name="color_hex" id="edit-group-color-hex" value="{{ group_color_hex|default:'' }}">
@@ -52,15 +48,28 @@
                     <span class="color-swatch" data-color="#84cc16" style="background:#84cc16;"></span>
                 </div>
                 <div class="color-picker-row">
-                    <input type="color" id="edit-group-color-picker" value="{{ group_color_hex|default:'#6366f1' }}" class="m-color-picker-input">
-                    <span class="form-hint">или свой цвет</span>
+                    <input type="color" id="edit-group-color-picker" value="{{ group_color_hex|default:'#6366f1' }}" class="m-color-picker-input" aria-label="Свой цвет">
+                    <span class="form-hint">Свой цвет</span>
                 </div>
                 <div class="form-actions form-actions--no-margin">
-                    <button type="submit" class="btn btn-outline">Сохранить цвет</button>
-                    <button type="button" class="btn btn-outline" onclick="document.getElementById('edit-group-color-hex').value=''; document.getElementById('edit-group-color-form').submit();">Убрать цвет</button>
+                    <button type="submit" class="btn btn-outline">Применить цвет</button>
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('edit-group-color-hex').value=''; document.getElementById('edit-group-color-form').submit();">Сбросить</button>
                 </div>
             </form>
         </div>
+
+        <div class="form-actions" style="margin-top: 20px;">
+            <button type="submit" form="edit-group-main-form" class="btn btn-primary">Сохранить изменения</button>
+            <a href="{% url 'my_students' %}?tab=groups" class="btn btn-outline">Отмена</a>
+        </div>
+
+        <form method="post" action="{% url 'archive_group' group.id %}" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);"
+              onsubmit="return confirm('Отправить группу «{{ group.name|escapejs }}» в архив? Она скроется из списка и из выбора при создании урока.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline" style="width: 100%; color: var(--danger-text, #b91c1c); border-color: rgba(239, 68, 68, 0.45);">
+                <i class="fas fa-archive"></i> В архив
+            </button>
+        </form>
     </div>
 </div>
 <script>

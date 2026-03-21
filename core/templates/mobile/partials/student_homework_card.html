@@ -1,0 +1,23 @@
+<div class="hw-compact-card">
+    <a href="{% url 'homework_detail' hw.id %}" class="hw-compact-link">
+        <div class="hw-compact-top">
+            <span class="hw-subject">{{ hw.subject.name }}</span>
+            <span class="hw-status-badge {{ hw.status }}">{{ hw.get_status_display }}</span>
+        </div>
+        <p class="hw-compact-preview">{{ hw.effective_description|truncatechars:100 }}</p>
+        <div class="hw-compact-meta">
+            <span class="hw-deadline"><i class="far fa-clock"></i> {{ hw.effective_deadline|date:"d.m, H:i"|default:"—" }}</span>
+            <span class="hw-compact-chevron" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+        </div>
+    </a>
+    <div class="hw-compact-toolbar">
+        <button type="button" class="hw-mini-btn edit" onclick="openEditHW('{{ hw.id }}', '{{ hw.subject.id }}', '{{ hw.effective_description|escapejs }}', '{% if hw.effective_deadline %}{{ hw.effective_deadline|date:'Y-m-d\TH:i' }}{% endif %}')"><i class="fas fa-pen"></i></button>
+        <button type="button" class="hw-mini-btn check" onclick="openCheckHW('{{ hw.id }}', '{{ hw.status }}', '{{ hw.tutor_comment|escapejs }}')">
+            <i class="fas fa-check-double"></i>
+        </button>
+        <form method="post" action="{% url 'delete_homework' hw.id %}" class="m-inline-form" onsubmit="return confirm('Удалить задание?');">
+            {% csrf_token %}
+            <button type="submit" class="hw-mini-btn delete" title="Удалить ДЗ"><i class="fas fa-trash"></i></button>
+        </form>
+    </div>
+</div>

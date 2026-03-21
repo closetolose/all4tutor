@@ -5,7 +5,7 @@
 <div style="max-width: 600px; margin: 0 auto;">
     <div class="card">
         <h2>Редактировать занятие</h2>
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             
             {% for field in form %}
@@ -22,10 +22,17 @@
 
             <div class="form-group">
                 <label class="form-label"><i class="fas fa-paperclip"></i> Материалы к занятию</label>
-                <button type="button" onclick="openFilePickerModal('edit-lesson-materials-display', 'edit-lesson-materials-select')"
-                        class="file-picker-trigger">
-                    <i class="fas fa-plus-circle"></i> Выбрать файлы из библиотеки
-                </button>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="file" name="materials_upload" multiple
+                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.txt,.rtf,.odt,.ods,.xls,.xlsx"
+                           class="filter-select"
+                           style="padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box;">
+                    <span style="font-size: 12px; color: var(--text-muted); text-align: center;">или</span>
+                    <button type="button" onclick="openFilePickerModal('edit-lesson-materials-display', 'edit-lesson-materials-select')"
+                            class="file-picker-trigger" style="width: 100%;">
+                        <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                    </button>
+                </div>
                 <div id="edit-lesson-materials-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;">
                     {% for m in lesson.materials.all %}
                     <span class="file-pill"><i class="fas fa-file"></i> {{ m.file_name }}</span>

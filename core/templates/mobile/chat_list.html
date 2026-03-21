@@ -15,14 +15,6 @@
 </div>
 
 <div class="chat-list-m">
-    <a href="{% url 'bot_chat' %}" class="chat-list-item" style="border-left: 4px solid var(--tg-active);">
-        <div class="chat-list-avatar" style="background: var(--tg-active);"><i class="fas fa-robot" style="font-size: 18px;"></i></div>
-        <div class="chat-list-body">
-            <span class="chat-list-name">AI-помощник (GigaChat)</span>
-            <span class="chat-list-preview" style="color: var(--tg-hint);">Нейросеть поможет с вопросами об учёбе</span>
-        </div>
-        <i class="fas fa-chevron-right chat-list-arrow"></i>
-    </a>
 {% if connections %}
     {% for conn in connections %}
         {% if is_tutor %}

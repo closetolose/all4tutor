@@ -1,0 +1,39 @@
+{% for hw in page_obj %}
+<div class="hw-card {% if hw.display_color %}entity-color-indicator{% endif %} {% if hw.is_overdue %}hw-card-overdue{% endif %}" {% if hw.display_color %}style="--custom-entity-color: {{ hw.display_color }};"{% endif %}>
+    <a href="{% url 'homework_detail' hw.id %}" class="m-assignments-card-link">
+        <div class="hw-header">
+            <span class="hw-subject">{{ hw.subject.name }}</span>
+            {% if hw.is_overdue %}<span class="badge-overdue-mobile">Просрочено</span>{% endif %}
+            <span class="hw-badge status-{{ hw.status }}">{{ hw.get_status_display }}</span>
+        </div>
+        <div class="m-assignments-tutor"><i class="fas fa-chalkboard-teacher"></i> {{ hw.tutor.first_name }} {{ hw.tutor.last_name }}</div>
+        <div class="hw-description">{{ hw.effective_description|truncatechars:140 }}</div>
+        {% if hw.has_effective_attachments %}
+        <div class="hw-files" style="margin-top: 8px;">
+            {% for f in hw.effective_files %}
+            <span class="file-pill" style="pointer-events: none;"><i class="fas fa-file-alt"></i> {{ f.file_name|truncatechars:20 }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="hw-footer">
+            <span class="hw-deadline {% if hw.is_overdue %}hw-deadline--overdue{% endif %}">
+                {% if hw.is_overdue %}<i class="fas fa-exclamation-circle"></i> {% endif %}<i class="fas fa-clock"></i> {{ hw.effective_deadline|date:"d.m.Y H:i" }}
+            </span>
+            <span class="hw-compact-chevron"><i class="fas fa-chevron-right"></i></span>
+        </div>
+    </a>
+    {% if hw.status != 'completed' %}
+    <div style="padding: 0 16px 16px;">
+        <button type="button" onclick="openSubmitModal({{ hw.id }})" class="hw-submit-btn" style="width:100%;">
+            <i class="fas fa-paper-plane"></i> Отправить
+        </button>
+    </div>
+    {% endif %}
+</div>
+{% empty %}
+<div class="empty-state">
+    <div class="empty-icon"><i class="fas fa-clipboard-check"></i></div>
+    <p>Заданий пока нет</p>
+    <span>У вас пока нет назначенных заданий.</span>
+</div>
+{% endfor %}

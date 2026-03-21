@@ -1,0 +1,33 @@
+{% extends 'core/base.html' %}
+{% block title %}Журнал занятий | All4Tutors{% endblock %}
+{% block content %}
+<div class="content-header">
+    <h1><i class="fas fa-calendar-check"></i> Журнал: {{ tutor.first_name }} {{ tutor.last_name }}</h1>
+    <a href="{% url 'tutor_card' tutor.id %}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Назад</a>
+</div>
+<div class="card table-container">
+    <table class="sortable-table" style="width:100%;">
+        <thead>
+            <tr><th>Дата</th><th>Предмет</th><th>Оплата</th></tr>
+        </thead>
+        <tbody>
+            {% for att in page_obj %}
+            <tr>
+                <td>{{ att.lesson.start_time|date:"d.m.Y" }}</td>
+                <td>{{ att.lesson.subject.name }}</td>
+                <td>{% if att.is_paid %}Оплачено{% else %}Долг{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3">Нет занятий</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if page_obj.has_other_pages %}
+    <div style="display:flex;justify-content:center;gap:16px;padding:16px;">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline btn-sm">Назад</a>{% endif %}
+        <span>Стр. {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline btn-sm">Вперёд</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -22,8 +22,8 @@
 })();
 </script>
 {% endif %}
-<div style="margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center;">
-    <h1 style="margin: 0;"><i class="fas fa-users-cog"></i> Мои ученики и группы</h1>
+<div class="page-header page-header--xl">
+    <h1 class="hero-title"><i class="fas fa-users-cog"></i> Мои ученики и группы</h1>
     <a href="{% url 'archived_students' %}" class="btn btn-outline btn-sm">
         <i class="fas fa-archive"></i> Архив учеников
     </a>
@@ -149,7 +149,7 @@
                 <label class="form-label">Предмет</label>
                 <select name="t_subject" class="filter-select" required>
                     {% for ts in my_subjects %}
-                        <option value="{{ ts.subject.id }}">{{ ts.subject.name }}</option>
+                        <option value="{{ ts.id }}">{{ ts.name }}</option>
                     {% endfor %}
                 </select>
             </div>

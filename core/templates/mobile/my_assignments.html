@@ -17,45 +17,14 @@
     {% endif %}
 </div>
 
-<div class="hw-list">
-    {% for hw in homeworks %}
-    <div class="hw-card {% if hw.display_color %}entity-color-indicator{% endif %} {% if hw.is_overdue %}hw-card-overdue{% endif %}" {% if hw.display_color %}style="--custom-entity-color: {{ hw.display_color }};"{% endif %}>
-        <div class="hw-header">
-            <span class="hw-subject">{{ hw.subject.name }}</span>
-            {% if hw.is_overdue %}<span class="badge-overdue-mobile">Просрочено</span>{% endif %}
-            <span class="hw-badge status-{{ hw.status }}">{{ hw.get_status_display }}</span>
-        </div>
-
-        <div class="hw-description">{{ hw.description }}</div>
-
-        {% if hw.files.all %}
-        <div class="hw-files">
-            {% for f in hw.files.all %}
-            <a href="{{ f.file.url }}" class="file-pill" target="_blank">
-                <i class="fas fa-file-alt"></i>
-                <span>{{ f.file_name }}</span>
-            </a>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <div class="hw-footer">
-            <span class="hw-deadline {% if hw.is_overdue %}hw-deadline--overdue{% endif %}">
-                {% if hw.is_overdue %}<i class="fas fa-exclamation-circle"></i> {% endif %}<i class="fas fa-clock"></i> {{ hw.deadline|date:"d.m.Y H:i" }}
-            </span>
-            <button onclick="openSubmitModal({{ hw.id }})" class="hw-submit-btn">
-                <i class="fas fa-paper-plane"></i> Отправить
-            </button>
-        </div>
-    </div>
-    {% empty %}
-    <div class="empty-state">
-        <div class="empty-icon"><i class="fas fa-clipboard-check"></i></div>
-        <p>Заданий пока нет</p>
-        <span>У вас пока нет назначенных заданий.</span>
-    </div>
-    {% endfor %}
+<div class="hw-list" id="my-assignments-list">
+    {% include 'mobile/partials/my_assignments_cards.html' with page_obj=homeworks %}
 </div>
+<div id="my-assignments-sentinel" class="m-lazy-sentinel" aria-hidden="true"
+     data-base-url="{% url 'my_assignments' %}"
+     data-next="{% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}0{% endif %}"
+     data-last="{{ page_obj.paginator.num_pages }}"></div>
+<p id="my-assignments-lazy-status" class="mobile-subtle-note" style="text-align:center;margin:12px 0;"></p>
 
 <div id="submitHWModal" class="tg-modal" onclick="if(event.target===this) closeModal('submitHWModal')">
     <div class="tg-modal-content" onclick="event.stopPropagation()">
@@ -114,5 +83,37 @@
         }
         return true;
     }
+
+    (function lazyMyAssignments() {
+        var el = document.getElementById('my-assignments-sentinel');
+        var list = document.getElementById('my-assignments-list');
+        var status = document.getElementById('my-assignments-lazy-status');
+        if (!el || !list) return;
+        var baseUrl = el.getAttribute('data-base-url');
+        var next = parseInt(el.getAttribute('data-next') || '0', 10);
+        var last = parseInt(el.getAttribute('data-last') || '1', 10);
+        if (!next || next > last) return;
+        var loading = false;
+        function load() {
+            if (loading || next > last) return;
+            loading = true;
+            if (status) status.textContent = 'Загрузка…';
+            fetch(baseUrl + '?page=' + next + '&partial=1')
+                .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
+                .then(function(html) {
+                    list.insertAdjacentHTML('beforeend', html);
+                    next += 1;
+                    el.setAttribute('data-next', String(next));
+                    loading = false;
+                    if (status) status.textContent = next > last ? 'Все задания загружены' : '';
+                    if (next > last) obs.disconnect();
+                })
+                .catch(function() { loading = false; if (status) status.textContent = 'Ошибка подгрузки.'; });
+        }
+        var obs = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) { if (entry.isIntersecting) load(); });
+        }, { rootMargin: '200px' });
+        obs.observe(el);
+    })();
 </script>
 {% endblock %}

@@ -13,30 +13,30 @@
         position: sticky; top: 0; background: var(--bg-table-header); z-index: 10; box-shadow: 0 1px 0 var(--border);
     }
     .info-stat-card { padding: 16px; border-radius: var(--radius-lg); text-align: center; margin-bottom: 16px; }
-    .balance-box { background: #f0fdf4; color: #166534; border: 1px solid #dcfce7; }
-    .debt-box { background: #fff1f2; color: #991b1b; border: 1px solid #ffe4e6; }
+    .balance-box { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+    .debt-box { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
     .box-label { font-size: 11px; font-weight: 700; opacity: 0.8; text-transform: uppercase; display: block; margin-bottom: 5px; }
     .user-avatar-large {
-        width: 70px; height: 70px; background: #e2e8f0; border-radius: 50%;
+        width: 70px; height: 70px; background: var(--border); border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         margin: 0 auto 15px; font-size: 28px; color: var(--text-muted); font-weight: 600;
     }
     .badge-hw { padding: 4px 12px; border-radius: var(--radius-pill); font-size: 11px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; position: relative; }
     .badge-hw:hover { opacity: 0.8; }
-    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-pending { background: var(--warning-bg); color: var(--warning-text); }
 
-    .status-submitted { background: #e0f2fe; color: #075985; padding-left: 18px !important; }
+    .status-submitted { background: var(--info-bg); color: var(--info-text); padding-left: 18px !important; }
     .status-submitted::before {
         content: ''; position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
-        width: 6px; height: 6px; background: #0ea5e9; border-radius: 50%; animation: pulse 1.5s infinite;
+        width: 6px; height: 6px; background: var(--primary); border-radius: 50%; animation: pulse 1.5s infinite;
     }
     @keyframes pulse { 0% { opacity: 1; transform: translateY(-50%) scale(1); } 100% { opacity: 0; transform: translateY(-50%) scale(2.5); } }
 
-    .status-completed { background: #dcfce7; color: #166534; }
-    .status-revision { background: #fef3c7; color: #d97706; padding-left: 18px !important; }
+    .status-completed { background: var(--success-bg); color: var(--success-text); }
+    .status-revision { background: var(--warning-bg); color: var(--warning-text); padding-left: 18px !important; }
     .status-revision::before {
         content: ''; position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
-        width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; animation: pulse 1.5s infinite;
+        width: 6px; height: 6px; background: var(--warning-text); border-radius: 50%; animation: pulse 1.5s infinite;
     }
 
     .badge-hw {
@@ -52,9 +52,9 @@
     .badge-hw:active { transform: scale(0.95); }
 </style>
 
-<div class="two-col-layout">
+    <div class="two-col-layout">
     <div class="two-col-sidebar">
-        <div class="card" style="text-align: center; border-top: 5px solid var(--primary);">
+        <div class="card student-sidebar-card">
             <div class="user-avatar-large">
                 {{ student.first_name|slice:":1" }}{{ student.last_name|slice:":1" }}
             </div>
@@ -82,14 +82,14 @@
 
             <div class="info-stat-card balance-box">
                 <span class="box-label">Текущий баланс</span>
-                <div id="student-balance-val" style="font-size: 24px; font-weight: 800; color: #22c55e;">
+                <div id="student-balance-val" class="student-balance-val">
                     {{ balance }} ₽
                 </div>
             </div>
 
             <div class="info-stat-card debt-box">
                 <span class="box-label">К оплате (с учетом баланса)</span>
-                <div id="total-debt-val" style="font-size: 20px; font-weight: 700; color: {% if total_debt > 0 %}#ef4444{% else %}#22c55e{% endif %};">
+                <div id="total-debt-val" class="student-debt-val {% if total_debt > 0 %}student-debt-val--debt{% else %}student-debt-val--credit{% endif %}">
                     {{ total_debt }} ₽
                 </div>
             </div>
@@ -138,7 +138,7 @@
 
     <div style="flex: 1; display: flex; flex-direction: column; gap: 24px;">
         <div class="card" style="padding: 0; overflow: hidden;">
-            <div style="padding: 20px; border-bottom: 1px solid var(--border);">
+            <div class="card-header">
                 <h3 style="margin: 0;">Журнал прошедших занятий</h3>
             </div>
             <div class="scrollable-container">
@@ -174,7 +174,7 @@
         </div>
 
         <div class="card" style="padding: 0; overflow: hidden;">
-            <div style="padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <div class="card-header flex-between">
                 <h3 style="margin: 0;">Домашние задания</h3>
                 <button onclick="openModal('homeworkModal')" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Задать ДЗ</button>
             </div>
@@ -198,12 +198,12 @@
         <td style="padding: 15px;"><strong>{{ hw.subject.name }}</strong></td>
 
         <td style="max-width: 300px;">
-            <div style="font-size: 13px; font-weight: 600;">{{ hw.description }}</div>
+            <div style="font-size: 13px; font-weight: 600;">{{ hw.effective_description }}</div>
 
 
-            {% if hw.files.exists %}
+            {% if hw.has_effective_attachments %}
                 <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
-                    {% for f in hw.files.all %}
+                    {% for f in hw.effective_files %}
                         <a href="#"
                            onclick="event.stopPropagation(); window.open('{% url 'download_homework_all' hw.id %}', '_blank')"
                            style="font-size: 10px; background: var(--bg-light); padding: 2px 8px; border-radius: 4px; color: var(--primary); text-decoration: none;">
@@ -218,10 +218,10 @@
                     <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Ответы ученика:</div>
                     <div style="display: flex; gap: 5px; flex-wrap: wrap;">
                         {% for resp in hw.responses.all %}
-                            <a href="{% url 'download_homework_response' resp.id %}"
+                                <a href="{% url 'download_homework_response' resp.id %}"
                                target="_blank"
                                onclick="event.stopPropagation();"
-                               style="font-size: 10px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; text-decoration: none; font-weight: 600;">
+                               style="font-size: 10px; background: var(--success-bg); color: var(--success-text); padding: 2px 8px; border-radius: 4px; text-decoration: none; font-weight: 600;">
                                 <i class="fas fa-reply"></i> {{ resp.file_name|truncatechars:15 }}
                             </a>
                         {% endfor %}
@@ -230,7 +230,7 @@
             {% endif %}
         </td>
 
-        <td style="font-size: 14px;">{{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}</td>
+        <td style="font-size: 14px;">{{ hw.effective_deadline|date:"d.m.Y H:i"|default:"---" }}</td>
 
         <td>
             <a href="javascript:void(0);"
@@ -245,8 +245,8 @@
 
         <td style="text-align: center;">
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button onclick="event.stopPropagation(); openEditHWModal('{{ hw.id }}', '{{ hw.subject.id }}', '{{ hw.description|escapejs }}', '{{ hw.deadline|date:'Y-m-d\TH:i' }}', '{{ hw.tutor_comment|default_if_none:""|escapejs }}', [
-                    {% for m in hw.files.all %}
+                <button onclick="event.stopPropagation(); openEditHWModal('{{ hw.id }}', '{{ hw.subject.id }}', '{{ hw.effective_description|escapejs }}', '{% if hw.effective_deadline %}{{ hw.effective_deadline|date:'Y-m-d\TH:i' }}{% endif %}', '{{ hw.tutor_comment|default_if_none:""|escapejs }}', [
+                    {% for m in hw.effective_files %}
                         { id: '{{ m.id }}', name: '{{ m.file_name|escapejs }}' }{% if not forloop.last %},{% endif %}
                     {% endfor %}
                 ])"
@@ -259,7 +259,7 @@
                     {% csrf_token %}
                     <button type="submit"
                             onclick="event.stopPropagation();"
-                            style="border:none; background:none; color: #ef4444; cursor:pointer;">
+                            style="border:none; background:none; color: var(--danger); cursor:pointer;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </form>
@@ -315,7 +315,7 @@
                             <thead><tr style="text-align: left; color: var(--text-muted);"><th style="padding: 12px;">Дата</th><th>Предмет</th><th>Оценка</th><th>Комментарий</th></tr></thead>
                             <tbody>
                                 {% for p in performance_tests %}
-                                <tr style="border-bottom: 1px solid rgba(99,102,241,0.15);"><td style="padding: 12px;">{{ p.date|date:"d.m.Y" }}</td><td>{% if p.lesson %}{{ p.lesson.subject.name }}{% else %}—{% endif %}</td><td style="font-weight: 700;">{{ p.score }}</td><td style="color: var(--text-muted);">{{ p.comment|default:""|truncatechars:40 }}</td></tr>
+                                <tr style="border-bottom: 1px solid rgba(99,102,241,0.15);"><td style="padding: 12px;">{{ p.date|date:"d.m.Y" }}</td><td>{{ p.subject.name }}</td><td style="font-weight: 700;">{{ p.score }}/{{ p.max_score }}{% if p.percent %} ({{ p.percent }}%){% endif %}</td><td style="color: var(--text-muted);">{{ p.comment|default:""|truncatechars:40 }}</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -357,21 +357,25 @@
     <div class="modal-window" style="max-width: 500px;">
         <div class="close-btn" onclick="closeModal('homeworkModal')">&times;</div>
         <h2 class="modal-title">Новое домашнее задание</h2>
-        <form action="{% url 'add_homework' student.id %}" method="post">
+        <form action="{% url 'add_homework' student.id %}" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="mb-15"><label class="form-label">Предмет</label><select name="subject" class="filter-select" required>{% for sub in subjects %}<option value="{{ sub.id }}">{{ sub.name }}</option>{% endfor %}</select></div>
             <div class="mb-15"><label class="form-label">Описание</label><textarea name="description" class="filter-select" style="height: 100px; padding: 10px;" required placeholder="Напр: Выучить формулы..."></textarea></div>
             <div class="mb-15"><label class="form-label">Срок сдачи</label><input type="datetime-local" name="deadline" class="filter-select"></div>
             <div class="form-group" style="margin-top: 15px;">
                 <label class="form-label"><i class="fas fa-paperclip"></i> Прикрепить файлы к ДЗ</label>
-
-                <button type="button" onclick="openFilePickerModal('add-hw-display', 'add-hw-select')"
-                        class="file-picker-trigger">
-                    <i class="fas fa-plus-circle"></i> Выбрать файлы
-                </button>
-
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="file" name="device_files" multiple
+                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.txt,.rtf,.odt,.ods,.xls,.xlsx"
+                           class="filter-select"
+                           style="padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box;">
+                    <span style="font-size: 12px; color: var(--text-muted); text-align: center;">или</span>
+                    <button type="button" onclick="openFilePickerModal('add-hw-display', 'add-hw-select')"
+                            class="file-picker-trigger" style="width: 100%;">
+                        <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                    </button>
+                </div>
                 <div id="add-hw-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
-
                 <select id="add-hw-select" name="files" multiple hidden></select>
             </div>
             <button type="submit" class="btn btn-primary" style="width: 100%;">Отправить ученику</button>
@@ -383,7 +387,7 @@
     <div class="modal-window" style="max-width: 500px;">
         <div class="close-btn" onclick="closeModal('editHWModal')">&times;</div>
         <h2 class="modal-title">Редактировать ДЗ</h2>
-        <form id="editHWForm" method="post">
+        <form id="editHWForm" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="mb-15">
                 <label class="form-label">Предмет</label>
@@ -405,14 +409,18 @@
             </div>
             <div class="form-group" style="margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px;">
                 <label class="form-label"><i class="fas fa-paperclip"></i> Изменить материалы</label>
-
-                <button type="button" onclick="openFilePickerModal('edit-hw-display', 'edit-hw-select')"
-                        class="file-picker-trigger">
-                    <i class="fas fa-plus-circle"></i> Выбрать материалы из библиотеки
-                </button>
-
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="file" name="device_files" multiple id="edit-hw-device-files"
+                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.txt,.rtf,.odt,.ods,.xls,.xlsx"
+                           class="filter-select"
+                           style="padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box;">
+                    <span style="font-size: 12px; color: var(--text-muted); text-align: center;">или</span>
+                    <button type="button" onclick="openFilePickerModal('edit-hw-display', 'edit-hw-select')"
+                            class="file-picker-trigger" style="width: 100%;">
+                        <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                    </button>
+                </div>
                 <div id="edit-hw-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
-
                 <select id="edit-hw-select" name="files" multiple hidden></select>
             </div>
             <button type="submit" class="btn btn-primary" style="width: 100%;">Сохранить изменения</button>
@@ -500,6 +508,8 @@
     const hiddenSelect = document.getElementById('edit-hw-select');
     if(displayContainer) displayContainer.innerHTML = '';
     if(hiddenSelect) hiddenSelect.innerHTML = '';
+    var devInp = document.getElementById('edit-hw-device-files');
+    if (devInp) devInp.value = '';
 
     if (files && files.length > 0) {
         files.forEach(m => {

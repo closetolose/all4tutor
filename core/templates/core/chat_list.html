@@ -12,19 +12,6 @@
     </div>
 
     <div style="display: flex; flex-direction: column; gap: 12px;">
-        <a href="{% url 'bot_chat' %}" class="card list-item" style="text-decoration: none; color: inherit; display: block; padding: 16px 20px; border-radius: 12px; border: 1px solid var(--border); border-left: 4px solid var(--primary); transition: background 0.2s, box-shadow 0.2s;" onmouseover="this.style.background='var(--card-hover, #f8fafc)'" onmouseout="this.style.background=''">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
-                <div style="flex: 1; min-width: 0;">
-                    <h3 style="font-size: 17px; margin: 0 0 10px 0; color: var(--text); display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-robot" style="color: var(--primary);"></i>
-                        AI-помощник (GigaChat)
-                    </h3>
-                    <p style="margin: 0; font-size: 14px; color: var(--text-muted);">Нейросеть поможет с вопросами об учёбе и платформе</p>
-                </div>
-                <i class="fas fa-chevron-right" style="color: var(--text-muted); font-size: 14px; flex-shrink: 0;"></i>
-            </div>
-        </a>
-
     {% if connections %}
             {% for conn in connections %}
                 {% if is_tutor %}

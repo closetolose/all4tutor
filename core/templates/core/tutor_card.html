@@ -124,11 +124,11 @@
             <td style="padding: 15px;"><strong>{{ hw.subject.name }}</strong></td>
 
             <td style="max-width: 300px;">
-                <div style="font-size: 13px; font-weight: 600;">{{ hw.description }}</div>
+                <div style="font-size: 13px; font-weight: 600;">{{ hw.effective_description }}</div>
 
-                {% if hw.files.exists %}
+                {% if hw.has_effective_attachments %}
                     <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
-                        {% for f in hw.files.all %}
+                        {% for f in hw.effective_files %}
                             <a href="#"
                                onclick="event.stopPropagation(); window.open('{% url 'download_homework_all' hw.id %}', '_blank')"
                                style="font-size: 10px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; color: var(--primary); text-decoration: none;">
@@ -155,7 +155,7 @@
                 {% endif %}
             </td>
 
-            <td style="font-size: 13px;">{{ hw.deadline|date:"d.m.Y H:i"|default:"---" }}</td>
+            <td style="font-size: 13px;">{{ hw.effective_deadline|date:"d.m.Y H:i"|default:"---" }}</td>
 
             <td>
                 <span class="badge-hw status-{{ hw.status }}">
@@ -272,7 +272,7 @@
     <div class="modal-window" style="max-width: 450px;">
         <div class="close-btn" onclick="closeModal('submitModal{{ hw.id }}')">&times;</div>
         <h3 style="margin-top: 0; margin-bottom: 10px;">Сдать работу</h3>
-        <p style="font-size: 13px; color: #64748b; margin-bottom: 20px; line-height: 1.4;">{{ hw.description|truncatechars:80 }}</p>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 20px; line-height: 1.4;">{{ hw.effective_description|truncatechars:80 }}</p>
 
         <form action="{% url 'submit_homework' hw.id %}" method="post" enctype="multipart/form-data" onsubmit="return checkHwSubmit('{{ hw.id }}')">
             {% csrf_token %}
@@ -285,7 +285,7 @@
                            style="padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px;"
                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
                     <span style="font-size: 12px; color: var(--text-muted);">или</span>
-                    <button type="button" onclick="openFilePickerModal('submit-hw-display-{{ hw.id }}', 'submit-hw-select-{{ hw.id }}')"
+                    <button type="button" onclick="openFilePickerModal('submit-hw-display-{{ hw.id }}', 'submit-hw-select-{{ hw.id }}', false, '{{ hw.tutor_id }}')"
                             class="file-picker-trigger" style="width: 100%;">
                         <i class="fas fa-folder-open"></i> Выбрать из библиотеки
                     </button>

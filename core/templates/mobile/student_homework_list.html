@@ -1,0 +1,150 @@
+{% extends 'mobile/base.html' %}
+
+{% block header_left %}
+    <a href="{% url 'student_card' student.id %}" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<div class="s-section" style="margin-bottom: 8px;">
+    <h2 class="section-title" style="margin-bottom: 4px;">Домашние задания</h2>
+    <p class="mobile-subtle-note">{{ student.first_name }} {{ student.last_name }} — нажмите карточку для подробностей. Ниже список подгружается при прокрутке.</p>
+</div>
+
+<div id="student-hw-list" class="m-hw-lazy-list">
+    {% for hw in page_obj %}
+    {% include 'mobile/partials/student_homework_card.html' with hw=hw %}
+    {% empty %}
+    <div class="empty-msg">Заданий пока нет</div>
+    {% endfor %}
+</div>
+<div id="student-hw-sentinel" class="m-lazy-sentinel" aria-hidden="true"
+     data-base-url="{% url 'student_homework_list' student.id %}"
+     data-next="{% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}0{% endif %}"
+     data-last="{{ page_obj.paginator.num_pages }}"></div>
+<p id="student-hw-lazy-status" class="mobile-subtle-note" style="text-align:center;margin:12px 0;"></p>
+
+<div id="edit-hw-modal" class="tg-modal">
+    <div class="tg-modal-content">
+        <div class="tg-modal-header">
+            <h3>Редактировать ДЗ</h3>
+            <button type="button" onclick="closeModal('edit-hw-modal')" class="close-modal">&times;</button>
+        </div>
+        <div class="tg-modal-scroll">
+            <form id="edit-hw-form" method="POST">
+                {% csrf_token %}
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Предмет</label>
+                    <select name="subject" id="edit_hw_subject" class="tg-modal-field-input">
+                        {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Задание</label>
+                    <textarea name="description" id="edit_hw_desc" class="tg-modal-field-input"></textarea>
+                </div>
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Срок</label>
+                    <input type="datetime-local" name="deadline" id="edit_hw_deadline" class="tg-modal-field-input">
+                </div>
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Файлы из библиотеки</label>
+                    <button type="button" class="mobile-fp-trigger" onclick="openMobileFilePicker('edit-hw-files-display', 'edit-hw-files-select')">
+                        <i class="fas fa-paperclip"></i> Прикрепить файлы
+                    </button>
+                    <div id="edit-hw-files-display" class="m-files-display"></div>
+                    <select id="edit-hw-files-select" name="files" multiple hidden></select>
+                </div>
+                <button type="submit" class="tg-modal-btn">Сохранить</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="check-hw-modal" class="tg-modal">
+    <div class="tg-modal-content">
+        <div class="tg-modal-header">
+            <h3>Проверить работу</h3>
+            <button type="button" onclick="closeModal('check-hw-modal')" class="close-modal">&times;</button>
+        </div>
+        <div class="tg-modal-scroll">
+            <form id="check-hw-form" method="POST">
+                {% csrf_token %}
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Статус</label>
+                    <select name="status" id="check_status" class="tg-modal-field-input">
+                        <option value="pending">Задано</option>
+                        <option value="submitted">На проверке</option>
+                        <option value="revision">Доработать</option>
+                        <option value="completed">Выполнено</option>
+                        <option value="overdue">Просрочено</option>
+                    </select>
+                </div>
+                <div class="tg-modal-field">
+                    <label class="tg-modal-field-label">Комментарий</label>
+                    <textarea name="tutor_comment" id="check_comment" class="tg-modal-field-input"></textarea>
+                </div>
+                <button type="submit" class="tg-modal-btn">Сохранить результат</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    window.onclick = function(e) { if (e.target.classList.contains('tg-modal')) e.target.style.display = 'none'; }
+
+    function openEditHW(id, subjectId, desc, deadline) {
+        var form = document.getElementById('edit-hw-form');
+        form.action = '/homework/edit/' + id + '/';
+        document.getElementById('edit_hw_subject').value = subjectId;
+        document.getElementById('edit_hw_desc').value = desc;
+        document.getElementById('edit_hw_deadline').value = deadline;
+        openModal('edit-hw-modal');
+    }
+    function openCheckHW(id, status, comment) {
+        var form = document.getElementById('check-hw-form');
+        form.action = '/homework/edit/' + id + '/';
+        document.getElementById('check_status').value = status;
+        document.getElementById('check_comment').value = comment;
+        openModal('check-hw-modal');
+    }
+
+    (function lazyHw() {
+        var el = document.getElementById('student-hw-sentinel');
+        var list = document.getElementById('student-hw-list');
+        var status = document.getElementById('student-hw-lazy-status');
+        if (!el || !list) return;
+        var baseUrl = el.getAttribute('data-base-url');
+        var next = parseInt(el.getAttribute('data-next') || '0', 10);
+        var last = parseInt(el.getAttribute('data-last') || '1', 10);
+        if (!next || next > last) return;
+        var loading = false;
+        function load() {
+            if (loading || next > last) return;
+            loading = true;
+            if (status) status.textContent = 'Загрузка…';
+            fetch(baseUrl + '?page=' + next + '&partial=1')
+                .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
+                .then(function(html) {
+                    list.insertAdjacentHTML('beforeend', html);
+                    next += 1;
+                    el.setAttribute('data-next', String(next));
+                    loading = false;
+                    if (status) status.textContent = next > last ? 'Все задания загружены' : '';
+                    if (next > last) obs.disconnect();
+                })
+                .catch(function() {
+                    loading = false;
+                    if (status) status.textContent = 'Не удалось подгрузить.';
+                });
+        }
+        var obs = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) load();
+            });
+        }, { rootMargin: '200px' });
+        obs.observe(el);
+    })();
+</script>
+{% endblock %}

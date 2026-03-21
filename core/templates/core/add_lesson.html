@@ -21,7 +21,7 @@
         </div>
         {% endif %}
 
-        <form method="post" action="{% url 'add_lesson' %}" id="addLessonForm">
+        <form method="post" action="{% url 'add_lesson' %}" id="addLessonForm" enctype="multipart/form-data">
             {% csrf_token %}
 
             <div class="lesson-type-selector">
@@ -87,9 +87,16 @@
 
             <div class="form-group">
                 <label class="form-label"><i class="fas fa-paperclip"></i> Материалы</label>
-                <button type="button" class="btn btn-outline btn-full" onclick="openFilePickerModal('add-lesson-display', 'add-lesson-select')">
-                    <i class="fas fa-folder-open"></i> Выбрать из библиотеки
-                </button>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="file" name="materials_upload" multiple
+                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.txt,.rtf,.odt,.ods,.xls,.xlsx"
+                           class="filter-select"
+                           style="padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box;">
+                    <span style="font-size: 12px; color: var(--text-muted); text-align: center;">или</span>
+                    <button type="button" class="btn btn-outline btn-full" onclick="openFilePickerModal('add-lesson-display', 'add-lesson-select')">
+                        <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                    </button>
+                </div>
                 <div id="add-lesson-display" class="materials-chips"></div>
                 <select id="add-lesson-select" name="materials" multiple hidden></select>
             </div>

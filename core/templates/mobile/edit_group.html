@@ -1,134 +1,148 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'my_students' %}" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'my_students' %}?tab=groups" style="color: var(--tg-text);"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
 <style>
-    .eg-page { padding: 20px 15px; }
-    .eg-title { font-size: 20px; font-weight: 800; color: var(--tg-text); margin-bottom: 20px; }
+    .eg-page { padding: 16px 15px 32px; max-width: 560px; margin: 0 auto; }
+    .eg-title { font-size: 20px; font-weight: 800; color: var(--tg-text); margin: 0 0 16px; line-height: 1.25; }
     .eg-card {
         background: var(--tg-sidebar); border: 1px solid var(--tg-separator);
-        border-radius: 16px; padding: 20px;
+        border-radius: 16px; padding: 18px 16px 20px;
+        margin-bottom: 12px;
     }
-    .eg-field { margin-bottom: 20px; }
-    .eg-label { display: block; font-size: 13px; font-weight: 700; color: var(--tg-hint); margin-bottom: 6px; text-transform: uppercase; }
+    .eg-field { margin-bottom: 18px; }
+    .eg-field:last-of-type { margin-bottom: 0; }
+    .eg-label { display: block; font-size: 11px; font-weight: 800; color: var(--tg-hint); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
     .eg-card input[type="text"],
     .eg-card select {
-        background: transparent; border: 1px solid var(--tg-separator);
-        color: var(--tg-text); padding: 12px; border-radius: 10px; width: 100%;
-        font-size: 16px; min-height: 44px; outline: none; box-sizing: border-box;
+        background: var(--tg-input-bg); border: 1px solid var(--tg-separator);
+        color: var(--tg-text); padding: 12px 14px; border-radius: 12px; width: 100%;
+        font-size: 16px; min-height: 48px; outline: none; box-sizing: border-box;
         -webkit-appearance: none; appearance: none;
     }
     .eg-card select option { background: var(--tg-sidebar); color: var(--tg-text); }
     .eg-students-list {
-        max-height: 250px; overflow-y: auto;
-        border: 1px solid var(--tg-separator); border-radius: 10px; padding: 10px;
+        max-height: 220px; overflow-y: auto;
+        border: 1px solid var(--tg-separator); border-radius: 12px; padding: 6px;
+        background: var(--tg-input-bg);
     }
     .eg-student-item {
         display: flex; align-items: center; gap: 10px;
-        padding: 0; margin-bottom: 5px;
-        background: var(--tg-card-active); border-radius: 8px;
-        min-height: 44px;
+        margin-bottom: 4px;
+        background: var(--tg-sidebar); border-radius: 10px;
+        min-height: 48px; border: 1px solid transparent;
     }
     .eg-student-item:last-child { margin-bottom: 0; }
-    .eg-student-item input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--tg-active); flex-shrink: 0; margin: 0; }
-    .eg-student-item label { color: var(--tg-text); font-size: 14px; margin: 0; cursor: pointer; flex: 1; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 10px 10px 0; }
+    .eg-student-item input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--tg-active); flex-shrink: 0; margin: 0 0 0 12px; }
+    .eg-student-item label { color: var(--tg-text); font-size: 15px; margin: 0; cursor: pointer; flex: 1; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 10px 12px 10px 0; }
     .eg-section-title {
-        font-size: 12px; font-weight: 800; color: var(--tg-hint);
-        text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;
+        font-size: 11px; font-weight: 800; color: var(--tg-hint);
+        text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 14px;
     }
-    .eg-actions { display: flex; flex-direction: column; gap: 10px; }
-    .eg-submit {
-        background: var(--tg-active); color: white; border: none;
-        min-height: 44px; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 16px; width: 100%;
-    }
-    .eg-submit:active { opacity: 0.8; }
-    .eg-cancel {
-        background: var(--tg-separator); color: var(--tg-text); border: none;
-        min-height: 44px; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 16px;
-        width: 100%; text-align: center; text-decoration: none; display: block;
-    }
-    .eg-cancel:active { opacity: 0.8; }
-    .eg-color-section {
-        margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--tg-separator);
-    }
+    .eg-hint { font-size: 13px; color: var(--tg-hint); margin: -6px 0 14px; line-height: 1.45; }
     .eg-color-picker-row {
-        display: flex; gap: 8px; align-items: center; margin-bottom: 12px;
+        display: flex; gap: 12px; align-items: center; margin-bottom: 14px;
     }
     .eg-color-picker-input {
-        width: 44px; height: 44px; min-width: 44px;
-        border: 1px solid var(--tg-separator); border-radius: 8px; cursor: pointer; padding: 2px;
+        width: 48px; height: 48px; min-width: 48px;
+        border: 1px solid var(--tg-separator); border-radius: 12px; cursor: pointer; padding: 2px;
     }
-    .eg-color-hint { font-size: 12px; color: var(--tg-hint); }
+    .eg-color-hint { font-size: 14px; font-weight: 600; color: var(--tg-text); }
     .eg-color-actions { display: flex; gap: 8px; }
-    .eg-color-actions > * { flex: 1; }
+    .eg-btn-secondary {
+        flex: 1; padding: 12px 10px; border-radius: 12px; font-weight: 700; font-size: 14px;
+        border: 1px solid var(--tg-separator); background: var(--tg-bg); color: var(--tg-text);
+    }
+    .eg-btn-secondary:active { opacity: 0.85; }
+    .eg-footer { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .eg-submit {
+        background: var(--tg-active); color: white; border: none;
+        min-height: 52px; padding: 14px; border-radius: 14px; font-weight: 800; font-size: 16px; width: 100%;
+    }
+    .eg-submit:active { opacity: 0.9; }
+    .eg-cancel {
+        background: var(--tg-separator); color: var(--tg-text); border: none;
+        min-height: 52px; padding: 14px; border-radius: 14px; font-weight: 700; font-size: 16px;
+        width: 100%; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;
+    }
+    .eg-cancel:active { opacity: 0.85; }
+    .eg-archive-form { margin-top: 6px; }
+    .eg-archive-btn {
+        width: 100%; min-height: 48px; padding: 12px; border-radius: 14px; font-weight: 700; font-size: 15px;
+        border: 1px solid rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.08); color: var(--tg-red, #ef4444);
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .eg-archive-btn:active { opacity: 0.88; }
 </style>
 
 <div class="eg-page">
-    <div class="eg-title">Редактировать: {{ group.name }}</div>
+    <h1 class="eg-title">Редактировать: {{ group.name }}</h1>
+
+    <form method="post" id="edit-group-main-m" class="eg-card">
+        {% csrf_token %}
+        <div class="eg-section-title">Основное</div>
+
+        <div class="eg-field">
+            <label class="eg-label" for="id_name">Название</label>
+            {{ form.name }}
+        </div>
+
+        <div class="eg-field">
+            <label class="eg-label" for="id_subject">Предмет</label>
+            {{ form.subject }}
+        </div>
+
+        <div class="eg-field">
+            <label class="eg-label">Ученики</label>
+            <div class="eg-students-list">
+                {% for checkbox in form.students %}
+                    <div class="eg-student-item">
+                        <label for="{{ checkbox.id_for_label }}">{{ checkbox.tag }} {{ checkbox.choice_label }}</label>
+                    </div>
+                {% empty %}
+                    <div style="color: var(--tg-hint); font-size: 14px; text-align: center; padding: 24px 12px;">Нет доступных учеников</div>
+                {% endfor %}
+            </div>
+        </div>
+    </form>
 
     <div class="eg-card">
-        <form method="post" id="edit-group-main-m">
+        <div class="eg-section-title">Цвет в расписании</div>
+        <p class="eg-hint">Настройка отображения группы в календаре. Сохраняется отдельно от названия и состава.</p>
+        <form action="{% url 'update_group_color' group.id %}" method="post" id="edit-group-color-form-m">
             {% csrf_token %}
-
-            <div class="eg-section-title">Основное</div>
-
-            <div class="eg-field">
-                <label class="eg-label">Название</label>
-                {{ form.name }}
+            <input type="hidden" name="color_hex" id="edit-group-color-hex-m" value="{{ group_color_hex|default:'' }}">
+            <div class="entity-color-palette m-mb">
+                <span class="color-swatch" data-color="#6366f1" style="border-radius:8px;background:#6366f1;cursor:pointer;"></span>
+                <span class="color-swatch" data-color="#22c55e" style="border-radius:8px;background:#22c55e;cursor:pointer;"></span>
+                <span class="color-swatch" data-color="#f59e0b" style="border-radius:8px;background:#f59e0b;cursor:pointer;"></span>
+                <span class="color-swatch" data-color="#ef4444" style="border-radius:8px;background:#ef4444;cursor:pointer;"></span>
+                <span class="color-swatch" data-color="#ec4899" style="border-radius:8px;background:#ec4899;cursor:pointer;"></span>
+                <span class="color-swatch" data-color="#8b5cf6" style="border-radius:8px;background:#8b5cf6;cursor:pointer;"></span>
+                <span class="color-swatch" data-color="#06b6d4" style="border-radius:8px;background:#06b6d4;cursor:pointer;"></span>
+                <span class="color-swatch" data-color="#84cc16" style="border-radius:8px;background:#84cc16;cursor:pointer;"></span>
             </div>
-
-            <div class="eg-field">
-                <label class="eg-label">Предмет</label>
-                {{ form.subject }}
+            <div class="eg-color-picker-row">
+                <input type="color" id="edit-group-color-picker-m" value="{{ group_color_hex|default:'#6366f1' }}" class="eg-color-picker-input" aria-label="Свой цвет">
+                <span class="eg-color-hint">Свой цвет</span>
             </div>
-
-            <div class="eg-field">
-                <label class="eg-label">Ученики</label>
-                <div class="eg-students-list">
-                    {% for checkbox in form.students %}
-                        <div class="eg-student-item">
-                            <label for="{{ checkbox.id_for_label }}" style="padding-left: 10px;">{{ checkbox.tag }} {{ checkbox.choice_label }}</label>
-                        </div>
-                    {% empty %}
-                        <div style="color: var(--tg-hint); font-size: 13px; text-align: center; padding: 20px;">Нет доступных учеников</div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="eg-actions">
-                <button type="submit" class="eg-submit">Сохранить</button>
-                <a href="{% url 'my_students' %}" class="eg-cancel">Отмена</a>
+            <div class="eg-color-actions">
+                <button type="submit" class="eg-btn-secondary">Применить цвет</button>
+                <button type="button" class="eg-btn-secondary" onclick="document.getElementById('edit-group-color-hex-m').value=''; document.getElementById('edit-group-color-form-m').submit();">Сбросить</button>
             </div>
         </form>
+    </div>
 
-        <div class="eg-color-section">
-            <div class="eg-section-title">Цвет группы</div>
-            <form action="{% url 'update_group_color' group.id %}" method="post" id="edit-group-color-form-m">
-                {% csrf_token %}
-                <input type="hidden" name="color_hex" id="edit-group-color-hex-m" value="{{ group_color_hex|default:'' }}">
-                <div class="entity-color-palette m-mb">
-                    <span class="color-swatch" data-color="#6366f1" style="border-radius:8px;background:#6366f1;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#22c55e" style="border-radius:8px;background:#22c55e;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#f59e0b" style="border-radius:8px;background:#f59e0b;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#ef4444" style="border-radius:8px;background:#ef4444;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#ec4899" style="border-radius:8px;background:#ec4899;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#8b5cf6" style="border-radius:8px;background:#8b5cf6;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#06b6d4" style="border-radius:8px;background:#06b6d4;cursor:pointer;"></span>
-                    <span class="color-swatch" data-color="#84cc16" style="border-radius:8px;background:#84cc16;cursor:pointer;"></span>
-                </div>
-                <div class="eg-color-picker-row">
-                    <input type="color" id="edit-group-color-picker-m" value="{{ group_color_hex|default:'#6366f1' }}" class="eg-color-picker-input">
-                    <span class="eg-color-hint">Свой цвет</span>
-                </div>
-                <div class="eg-color-actions">
-                    <button type="submit" class="eg-submit">Сохранить цвет</button>
-                    <button type="button" onclick="document.getElementById('edit-group-color-hex-m').value=''; document.getElementById('edit-group-color-form-m').submit();" class="eg-cancel">Убрать цвет</button>
-                </div>
-            </form>
-        </div>
+    <div class="eg-footer">
+        <button type="submit" form="edit-group-main-m" class="eg-submit">Сохранить изменения</button>
+        <a href="{% url 'my_students' %}?tab=groups" class="eg-cancel">Отмена</a>
+        <form method="post" action="{% url 'archive_group' group.id %}" class="eg-archive-form" onsubmit="return confirm('Отправить группу «{{ group.name|escapejs }}» в архив? Она скроется из списка и из выбора при создании урока. Карточку группы и историю занятий можно будет открыть.');">
+            {% csrf_token %}
+            <button type="submit" class="eg-archive-btn"><i class="fas fa-archive"></i> В архив</button>
+        </form>
     </div>
 </div>
 <script>

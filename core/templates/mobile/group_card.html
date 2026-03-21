@@ -1,16 +1,50 @@
 {% extends 'mobile/base.html' %}
 
 {% block header_left %}
-    <a href="{% url 'my_students' %}" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
+    <a href="{% url 'my_students' %}?tab=groups" class="m-back-link"><i class="fas fa-chevron-left"></i></a>
 {% endblock %}
 
 {% block content %}
+<style>
+    .gc-archived-banner {
+        margin: 0 0 16px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        color: var(--tg-text);
+    }
+    .gc-archived-banner p { margin: 0 0 12px; font-size: 14px; font-weight: 700; }
+    .gc-archived-banner .gc-archived-hint { font-size: 13px; font-weight: 500; color: var(--tg-hint); margin-bottom: 12px; line-height: 1.4; }
+    .gc-unarchive-btn {
+        width: 100%; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 15px;
+        border: none; background: var(--tg-active); color: white;
+    }
+    .gc-archive-form { margin-top: 12px; }
+    .gc-archive-btn {
+        width: 100%; padding: 12px 14px; border-radius: 12px; font-weight: 700; font-size: 14px;
+        border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08);
+        color: var(--tg-red, #ef4444); display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .gc-archive-btn:active { opacity: 0.88; }
+</style>
 
 <div class="gc-header">
     <div class="gc-avatar">{{ group.name|slice:":2"|upper }}</div>
     <h2>{{ group.name }}</h2>
     <div class="gc-subject">Предмет: {{ group.subject.name }}</div>
 </div>
+
+{% if group.is_archived and is_tutor_owner %}
+<div class="gc-archived-banner">
+    <p><i class="fas fa-archive"></i> Группа в архиве</p>
+    <div class="gc-archived-hint">Не отображается в списке «Мои ученики» и недоступна при создании новых уроков. История занятий сохраняется.</div>
+    <form method="post" action="{% url 'unarchive_group' group.id %}">
+        {% csrf_token %}
+        <button type="submit" class="gc-unarchive-btn">Вернуть из архива</button>
+    </form>
+</div>
+{% endif %}
 
 <div class="gc-section">
     <div class="gc-members-card">
@@ -25,10 +59,15 @@
         {% endfor %}
     </div>
 
-    {% if is_tutor_owner %}
-    <button class="gc-hw-btn" onclick="document.getElementById('hwModal').style.display='flex'">
+    {% if is_tutor_owner and not group.is_archived %}
+    <button type="button" class="gc-hw-btn" onclick="document.getElementById('hwModal').style.display='flex'">
         <i class="fas fa-plus-circle"></i> Задать ДЗ группе
     </button>
+    <form method="post" action="{% url 'archive_group' group.id %}" class="gc-archive-form"
+          onsubmit="return confirm('Отправить группу «{{ group.name|escapejs }}» в архив? Она исчезнет из списка и из выбора при создании урока.');">
+        {% csrf_token %}
+        <button type="submit" class="gc-archive-btn"><i class="fas fa-archive"></i> В архив</button>
+    </form>
     {% endif %}
 
     <div class="m-color-section">

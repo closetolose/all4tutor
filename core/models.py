@@ -1,8 +1,10 @@
 import os
 
 import pytz
+from datetime import timedelta
 from django.conf import settings
 from django.db import models
+from django.db.models import CheckConstraint
 from django.utils import timezone
 
 from .validators import validate_file_size, validate_chat_file, validate_receipt_file
@@ -10,7 +12,7 @@ import uuid
 
 
 
-class Users(models.Model):
+class Profile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='profile', db_column="user_id"
@@ -48,7 +50,7 @@ class Users(models.Model):
 
 class FileTag(models.Model):
     """Тег файлов репетитора (уникальное имя в рамках репетитора)."""
-    tutor = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='file_tags')
+    tutor = models.ForeignKey('Profile', on_delete=models.CASCADE, related_name='file_tags')
     name = models.CharField(max_length=50)
 
     class Meta:
@@ -60,7 +62,7 @@ class FileTag(models.Model):
 
 
 class FilesLibrary(models.Model):
-    tutor = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='materials')
+    tutor = models.ForeignKey('Profile', on_delete=models.CASCADE, related_name='materials')
     file = models.FileField(
         upload_to='tutor_materials/%Y/%m/%d/',
         null=True,
@@ -84,17 +86,9 @@ class FilesLibrary(models.Model):
         return extension.lower()
 
 
-class GroupMembers(models.Model):
-    group = models.ForeignKey('StudyGroups', models.CASCADE)
-    student = models.ForeignKey('Users', models.CASCADE)
-
-    class Meta:
-        db_table = 'group_members'
-
-
 class LessonAttendance(models.Model):
     lesson = models.ForeignKey('Lessons', models.CASCADE, related_name='attendances')
-    student = models.ForeignKey('Users', models.CASCADE)
+    student = models.ForeignKey('Profile', models.CASCADE)
     is_paid = models.BooleanField(default=False)
     was_present = models.BooleanField(default=False)
 
@@ -105,9 +99,10 @@ class LessonAttendance(models.Model):
 
 class StudyGroups(models.Model):
     name = models.CharField(max_length=100)
-    tutor = models.ForeignKey('Users', models.CASCADE)
+    tutor = models.ForeignKey('Profile', models.CASCADE)
     subject = models.ForeignKey('Subjects', models.CASCADE)
-    students = models.ManyToManyField('Users', related_name='study_groups', blank=True)
+    students = models.ManyToManyField('Profile', related_name='study_groups', blank=True)
+    is_archived = models.BooleanField(default=False, verbose_name='В архиве')
 
     class Meta:
         db_table = 'study_groups'
@@ -117,10 +112,10 @@ class StudyGroups(models.Model):
 
 
 class Lessons(models.Model):
-    tutor = models.ForeignKey('Users', models.CASCADE)
+    tutor = models.ForeignKey('Profile', models.CASCADE)
     subject = models.ForeignKey('Subjects', on_delete=models.PROTECT,related_name='lessons')
     student = models.ForeignKey(
-        'Users', on_delete=models.CASCADE,
+        'Profile', on_delete=models.CASCADE,
         related_name='lessons_student_set', blank=True, null=True
     )
     group = models.ForeignKey(
@@ -134,7 +129,6 @@ class Lessons(models.Model):
     duration = models.IntegerField(default=60, verbose_name="Длительность (мин)")
     format = models.CharField(max_length=12)
     location = models.TextField(blank=True, null=True)
-    is_paid = models.BooleanField(default=False)
     series_id = models.UUIDField(default=None, null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     materials = models.ManyToManyField('FilesLibrary', blank=True, related_name='lessons_materials')
@@ -144,19 +138,34 @@ class Lessons(models.Model):
 
     class Meta:
         db_table = 'lessons'
+        constraints = [
+            CheckConstraint(check=models.Q(price__gte=0), name='lessons_price_non_negative'),
+            CheckConstraint(check=models.Q(duration__gt=0), name='lessons_duration_positive'),
+        ]
+        indexes = [
+            models.Index(fields=['tutor', 'start_time'], name='lessons_tutor_start'),
+            models.Index(fields=['student', 'start_time'], name='lessons_student_start'),
+        ]
 
+    def save(self, *args, **kwargs):
+        # end_time является производным полем: считается из start_time и duration.
+        # Это устраняет аномалии обновления, если где-то забудут пересчитать end_time.
+        if self.start_time is not None and self.duration is not None:
+            self.end_time = self.start_time + timedelta(minutes=int(self.duration))
+        return super().save(*args, **kwargs)
 
-class StudentBalance(models.Model):
-    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='student_balances')
-    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='balances_with_tutors')
-    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    @property
+    def is_paid(self):
+        """Вычисляется из LessonAttendance: оплачено, если все присутствовавшие оплачены."""
+        present = self.attendances.filter(was_present=True)
+        if not present.exists():
+            return False
+        return not present.filter(is_paid=False).exists()
 
-    class Meta:
-        unique_together = ('tutor', 'student')
 
 class Subjects(models.Model):
     name = models.CharField(max_length=100)
-    tutor = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='subjects')
+    tutor = models.ForeignKey('Profile', on_delete=models.CASCADE, related_name='subjects')
 
     class Meta:
         db_table = 'subjects'
@@ -168,17 +177,20 @@ class Subjects(models.Model):
 
 class Transaction(models.Model):
     TYPES = [('deposit', 'Пополнение'), ('withdrawal', 'Списание')]
-    student = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='transactions')
-    tutor = models.ForeignKey('Users', on_delete=models.CASCADE)
+    student = models.ForeignKey('Profile', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
+    tutor = models.ForeignKey('Profile', on_delete=models.SET_NULL, null=True, blank=True)
     attendance = models.ForeignKey('LessonAttendance', on_delete=models.SET_NULL, null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     type = models.CharField(max_length=10, choices=TYPES)
-    description = models.CharField(max_length=255, blank=True)
+    description = models.CharField(max_length=255, blank=True, default='')
     date = models.DateTimeField(default=timezone.now,blank=True)
 
     class Meta:
         db_table = 'student_transactions'
         ordering = ['-date']
+        constraints = [
+            CheckConstraint(check=models.Q(amount__gt=0), name='transaction_amount_positive'),
+        ]
 
 
 class PaymentReceipt(models.Model):
@@ -188,8 +200,8 @@ class PaymentReceipt(models.Model):
         ('approved', 'Подтверждён'),
         ('rejected', 'Отклонён'),
     ]
-    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='payment_receipts')
-    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='incoming_receipts')
+    student = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, blank=True, related_name='payment_receipts')
+    tutor = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, blank=True, related_name='incoming_receipts')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     receipt_date = models.DateField()
     file = models.FileField(upload_to='payment_receipts/%Y/%m/', validators=[validate_receipt_file])
@@ -201,16 +213,9 @@ class PaymentReceipt(models.Model):
     class Meta:
         db_table = 'payment_receipts'
         ordering = ['-created_at']
-
-
-class TutorSubjects(models.Model):
-    tutor = models.ForeignKey('Users', models.CASCADE, db_column='tutor_id')
-    subject = models.ForeignKey(Subjects, models.CASCADE, db_column='subject_id')
-
-    class Meta:
-        managed = True
-        db_table = 'tutor_subjects'
-        unique_together = (('tutor', 'subject'),)
+        constraints = [
+            CheckConstraint(check=models.Q(amount__gt=0), name='payment_receipt_amount_positive'),
+        ]
 
 
 class ConnectionRequest(models.Model):
@@ -221,43 +226,34 @@ class ConnectionRequest(models.Model):
         ('archived', 'В архиве'),
     ]
 
-    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='sent_requests')
-    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='received_requests')
+    tutor = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='sent_requests')
+    student = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='received_requests')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(default=timezone.now,blank=True)
     color_hex = models.CharField(max_length=7, null=True, blank=True)  # цвет репетитора для ученика (задаёт ученик)
     tutor_color_hex = models.CharField(max_length=7, null=True, blank=True)  # цвет связи для репетитора (задаёт репетитор)
-
-    class Meta:
-        db_table = 'connection_requests'
-
-
-class UnlinkRequest(models.Model):
-    """Заявка ученика на открепление от репетитора (обрабатывается администратором)."""
-    STATUS_CHOICES = [
-        ('pending', 'Ожидает рассмотрения'),
-        ('approved', 'Одобрено'),
-        ('rejected', 'Отклонено'),
-    ]
-    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='unlink_requests_sent')
-    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='unlink_requests_received')
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
-    reason = models.TextField(blank=True, verbose_name='Причина открепления')
-    created_at = models.DateTimeField(default=timezone.now)
-    reviewed_at = models.DateTimeField(null=True, blank=True)
-    reviewed_by = models.ForeignKey(
+    tutor_note = models.TextField(blank=True, null=True, verbose_name='Заметка репетитора об ученике')
+    # Заявка на открепление (ученик → админ)
+    unlink_requested = models.BooleanField(default=False, verbose_name='Заявка на открепление')
+    unlink_reason = models.TextField(blank=True, null=True, verbose_name='Причина открепления')
+    unlink_requested_at = models.DateTimeField(null=True, blank=True)
+    unlink_reviewed_at = models.DateTimeField(null=True, blank=True)
+    unlink_reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='unlink_requests_reviewed'
+        related_name='unlink_reviews'
     )
 
     class Meta:
-        db_table = 'unlink_requests'
-        ordering = ['-created_at']
+        db_table = 'connection_requests'
+        indexes = [
+            models.Index(fields=['tutor', 'status'], name='conn_req_tutor_status'),
+            models.Index(fields=['student', 'status'], name='conn_req_student_status'),
+        ]
 
 
 class UserGroupColor(models.Model):
     """Цветовая метка группы для пользователя (репетитор или ученик)."""
-    user = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='group_colors')
+    user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='group_colors')
     group = models.ForeignKey(StudyGroups, on_delete=models.CASCADE, related_name='user_colors')
     color_hex = models.CharField(max_length=7, blank=True, null=True)
 
@@ -267,24 +263,37 @@ class UserGroupColor(models.Model):
 
 
 class StudentTariff(models.Model):
-    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='tutor_tariffs')
-    student = models.ForeignKey(Users, on_delete=models.CASCADE, null=True, blank=True)
+    tutor = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='tutor_tariffs')
+    student = models.ForeignKey(Profile, on_delete=models.CASCADE, null=True, blank=True)
     group = models.ForeignKey(StudyGroups, on_delete=models.CASCADE, null=True, blank=True)
     subject = models.ForeignKey(Subjects, on_delete=models.CASCADE)
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
-        unique_together = ('tutor', 'student', 'subject')
-
-
-class StudentPerformance(models.Model):
-    TYPE_CHOICES = [('hw', 'Домашняя работа'), ('test', 'Контрольная работа')]
-    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='performance')
-    lesson = models.ForeignKey('Lessons', on_delete=models.SET_NULL, null=True, blank=True)
-    type = models.CharField(max_length=4, choices=TYPE_CHOICES)
-    score = models.IntegerField(help_text="Оценка или процент выполнения")
-    comment = models.TextField(blank=True, null=True)
-    date = models.DateField(default=timezone.now,blank=True)
+        constraints = [
+            # Ровно одно поле должно быть заполнено: либо индивидуальный тариф для ученика,
+            # либо тариф для группы.
+            CheckConstraint(
+                check=(
+                    (models.Q(student__isnull=False, group__isnull=True)) |
+                    (models.Q(student__isnull=True, group__isnull=False))
+                ),
+                name='student_tariff_student_xor_group',
+            ),
+            # Для индивидуальных тарифов уникальность по (tutor, student, subject).
+            # Для групповых строк `student` = NULL, а значит уникальность не конфликтует.
+            models.UniqueConstraint(
+                fields=('tutor', 'student', 'subject'),
+                name='student_tariff_unique_student',
+            ),
+            # Для групповых тарифов уникальность по (tutor, group, subject).
+            # Для индивидуальных строк `group` = NULL.
+            models.UniqueConstraint(
+                fields=('tutor', 'group', 'subject'),
+                name='student_tariff_unique_group',
+            ),
+            CheckConstraint(check=models.Q(price__gte=0), name='student_tariff_price_non_negative'),
+        ]
 
 
 class Notification(models.Model):
@@ -307,6 +316,27 @@ class Notification(models.Model):
     class Meta:
         db_table = 'notifications'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_read'], name='notif_user_is_read'),
+        ]
+
+
+class GroupHomework(models.Model):
+    """Общее ДЗ группы: одно описание, срок и набор файлов для всех учеников."""
+
+    group = models.ForeignKey('StudyGroups', on_delete=models.CASCADE, related_name='homework_assignments')
+    description = models.TextField(verbose_name='Описание задания')
+    deadline = models.DateTimeField(null=True, blank=True)
+    files = models.ManyToManyField('FilesLibrary', blank=True, related_name='group_homework_files')
+    created_at = models.DateTimeField(default=timezone.now, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'group_homework'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'ДЗ группы «{self.group.name}»'
 
 
 class Homework(models.Model):
@@ -318,9 +348,16 @@ class Homework(models.Model):
         ('overdue', 'Просрочено'),
     ]
 
-    tutor = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='assigned_homework')
-    student = models.ForeignKey('Users', on_delete=models.CASCADE, related_name='student_homework')
+    tutor = models.ForeignKey('Profile', on_delete=models.CASCADE, related_name='assigned_homework')
+    student = models.ForeignKey('Profile', on_delete=models.CASCADE, related_name='student_homework')
     subject = models.ForeignKey('Subjects', on_delete=models.CASCADE)
+    group_assignment = models.ForeignKey(
+        'GroupHomework',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='student_homeworks',
+    )
     description = models.TextField(verbose_name="Описание задания")
     files = models.ManyToManyField('FilesLibrary', blank=True, related_name='homework_files')
     deadline = models.DateTimeField(null=True, blank=True)
@@ -334,6 +371,34 @@ class Homework(models.Model):
     class Meta:
         db_table = 'homework'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['student', 'status'], name='homework_student_status'),
+            models.Index(fields=['tutor', 'deadline'], name='homework_tutor_deadline'),
+        ]
+
+    @property
+    def effective_description(self):
+        if self.group_assignment_id:
+            return self.group_assignment.description
+        return self.description
+
+    @property
+    def effective_deadline(self):
+        if self.group_assignment_id:
+            return self.group_assignment.deadline
+        return self.deadline
+
+    @property
+    def effective_files(self):
+        if self.group_assignment_id:
+            return self.group_assignment.files.all()
+        return self.files.all()
+
+    @property
+    def has_effective_attachments(self):
+        if self.group_assignment_id:
+            return self.group_assignment.files.exists()
+        return self.files.exists()
 
 
 class HomeworkResponse(models.Model):
@@ -343,28 +408,16 @@ class HomeworkResponse(models.Model):
         validators=[validate_file_size],
     )
     file_name = models.CharField(max_length=255)
-    created_at = models.DateTimeField(default=timezone.now,blank=True)
-    student = models.ForeignKey('Users', on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Ответ от {self.homework.student} на {self.homework.subject}"
-
-
-class TutorStudentNote(models.Model):
-    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='notes_created')
-    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='notes_about_me')
-    text = models.TextField(blank=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ('tutor', 'student')
+        return f"Ответ на {self.homework.subject}"
 
 
 class TestResult(models.Model):
-    """Результат проверочной/контрольной работы (модуль Аналитика)."""
-    tutor = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='test_results_as_tutor')
-    student = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='test_results_as_student')
+    """Результат проверочной/контрольной работы (модуль Аналитика). Репетитор = subject.tutor."""
+    student = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='test_results_as_student')
     subject = models.ForeignKey(Subjects, on_delete=models.CASCADE, related_name='test_results')
     max_score = models.DecimalField(max_digits=8, decimal_places=2, help_text='Максимальный балл')
     score = models.DecimalField(max_digits=8, decimal_places=2, help_text='Полученный балл')
@@ -374,6 +427,11 @@ class TestResult(models.Model):
     class Meta:
         db_table = 'test_results'
         ordering = ['-date']
+        constraints = [
+            CheckConstraint(check=models.Q(max_score__gt=0), name='test_result_max_score_positive'),
+            CheckConstraint(check=models.Q(score__gte=0), name='test_result_score_non_negative'),
+            CheckConstraint(check=models.Q(score__lte=models.F('max_score')), name='test_result_score_lte_max'),
+        ]
 
     @property
     def percent(self):
@@ -390,7 +448,7 @@ class ChatMessage(models.Model):
         related_name='chat_messages'
     )
     sender = models.ForeignKey(
-        Users,
+        Profile,
         on_delete=models.CASCADE,
         related_name='sent_chat_messages'
     )
@@ -408,6 +466,9 @@ class ChatMessage(models.Model):
     class Meta:
         db_table = 'chat_messages'
         ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['connection', 'is_read'], name='chat_conn_is_read'),
+        ]
 
     def is_image(self):
         if not self.file:
@@ -416,21 +477,3 @@ class ChatMessage(models.Model):
         return ext in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp')
 
 
-class BotChatMessage(models.Model):
-    """Сообщение в чате пользователя с AI-ботом (GigaChat)."""
-    ROLE_CHOICES = [
-        ('user', 'Пользователь'),
-        ('assistant', 'Ассистент'),
-    ]
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='bot_chat_messages'
-    )
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-    content = models.TextField()
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        db_table = 'bot_chat_messages'
-        ordering = ['created_at']

@@ -7,6 +7,7 @@ import zipfile
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+from django.core.paginator import Paginator
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -14,7 +15,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User as AuthUser
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Exists, OuterRef, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
@@ -33,11 +34,72 @@ from django.core.exceptions import ValidationError
 
 from .forms import AddLessonForm, AddSubjectForm, ProfileUpdateForm, RegistrationForm, StudyGroupForm
 from .models import (
-    BotChatMessage, ChatMessage, ConnectionRequest, FileTag, FilesLibrary, Homework, HomeworkResponse,
+    ChatMessage, ConnectionRequest, FileTag, FilesLibrary, GroupHomework, Homework, HomeworkResponse,
     LessonAttendance, Lessons, Notification, PaymentReceipt, StudentTariff,
-    StudyGroups, Subjects, Transaction, TutorStudentNote, TutorSubjects,
-    UnlinkRequest, UserGroupColor, Users, StudentBalance, TestResult,
+    StudyGroups, Subjects, Transaction,
+    UserGroupColor, Profile, TestResult,
 )
+
+# Пагинация / «Подгрузить ещё» на мобильных списках журнала и ДЗ
+MOBILE_LIST_PER_PAGE = 15
+
+
+def _student_my_assignments_overdue_count(student_profile):
+    now = timezone.now()
+    n = 0
+    for hw in Homework.objects.filter(student=student_profile).select_related('group_assignment').iterator(
+        chunk_size=400
+    ):
+        dl = hw.effective_deadline
+        if dl and dl < now and hw.status != 'completed':
+            n += 1
+    return n
+
+
+def _annotate_student_assignment_rows(page_obj, tutor_colors, now):
+    """display_color и is_overdue для элементов страницы «Мои задания»."""
+    for hw in page_obj:
+        setattr(hw, 'display_color', tutor_colors.get(hw.tutor_id))
+        dl = hw.effective_deadline
+        setattr(hw, 'is_overdue', bool(dl and dl < now and hw.status != 'completed'))
+
+
+def _parse_homework_deadline_post(raw):
+    """Парсинг даты/времени из формы ДЗ (datetime-local и др.)."""
+    if raw is None:
+        return None
+    raw = str(raw).strip()
+    if not raw:
+        return None
+    dt = parse_datetime(raw)
+    if dt is None:
+        for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+            try:
+                dt = datetime.strptime(raw, fmt)
+                break
+            except ValueError:
+                continue
+    if dt is None:
+        return None
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, timezone.get_current_timezone())
+    return dt
+
+
+def _sync_homework_denormalized_from_group_assignment(ga):
+    """Копирует описание и дедлайн с общего задания на персональные Homework (индексы, сортировка)."""
+    if ga is None:
+        return
+    Homework.objects.filter(group_assignment=ga).update(description=ga.description, deadline=ga.deadline)
+
+
+def _compute_balance(tutor, student):
+    """Баланс ученика у репетитора: сумма пополнений минус списания."""
+    agg = Transaction.objects.filter(tutor=tutor, student=student).aggregate(
+        dep=Sum('amount', filter=Q(type='deposit')),
+        wth=Sum('amount', filter=Q(type='withdrawal')),
+    )
+    return float((agg['dep'] or 0) - (agg['wth'] or 0))
 from .utils import notify_user, send_telegram_notification, send_verification_email
 # from ratelimit.decorators import ratelimit  # установите django-ratelimit и пересоберите Docker-образ
 from django.db.models import ProtectedError
@@ -60,6 +122,21 @@ def get_tutor_file_ids(tutor_profile, raw_ids):
     if not clean:
         return []
     return list(FilesLibrary.objects.filter(tutor=tutor_profile, id__in=clean).values_list('id', flat=True))
+
+
+def create_library_entries_from_uploads(tutor_profile, uploaded_file_list):
+    """Создаёт записи в библиотеке репетитора из загруженных файлов. Возвращает список id."""
+    ids = []
+    for f in uploaded_file_list or []:
+        if not f:
+            continue
+        obj = FilesLibrary.objects.create(
+            tutor=tutor_profile,
+            file=f,
+            file_name=(f.name or 'file')[:30],
+        )
+        ids.append(obj.id)
+    return ids
 
 
 @login_required
@@ -174,9 +251,9 @@ def index(request):
             status='confirmed'
         ).values_list('student_id', flat=True)
 
-        tutor_students = Users.objects.filter(id__in=accepted_ids)
-        tutor_groups = StudyGroups.objects.filter(tutor=user_profile)
-        my_subjects = TutorSubjects.objects.filter(tutor=user_profile).select_related('subject')
+        tutor_students = Profile.objects.filter(id__in=accepted_ids)
+        tutor_groups = StudyGroups.objects.filter(tutor=user_profile, is_archived=False)
+        my_subjects = Subjects.objects.filter(tutor=user_profile)
         files = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
 
     elif user_role == 'student':
@@ -196,7 +273,7 @@ def index(request):
 
         subj_ids = lessons_qs.values_list('subject_id', flat=True).distinct()
 
-        my_subjects = [{'subject': s} for s in Subjects.objects.filter(id__in=subj_ids)]
+        my_subjects = list(Subjects.objects.filter(id__in=subj_ids))
 
         target = request.GET.get('target')
         if target:
@@ -244,21 +321,39 @@ def index(request):
         if 'add_subject' in request.POST:
             subject_name = request.POST.get('subject_name')
             if subject_name:
-                subject_obj, _ = Subjects.objects.get_or_create(name=subject_name)
-                TutorSubjects.objects.get_or_create(tutor=user_profile, subject=subject_obj)
+                Subjects.objects.get_or_create(name=subject_name.strip(), tutor=user_profile)
             return redirect('index')
 
 
         if 'delete_subject' in request.POST:
             subj_id = request.POST.get('subject_id')
-            TutorSubjects.objects.filter(tutor=user_profile, subject_id=subj_id).delete()
+            subject = Subjects.objects.filter(tutor=user_profile, id=subj_id).first()
+            if subject:
+                try:
+                    subject.delete()
+                    messages.success(request, "Предмет удалён.")
+                except ProtectedError:
+                    messages.error(request, "Нельзя удалить предмет: по нему уже проведены уроки.")
             return redirect('index')
 
         if 'save_tariff' in request.POST:
-            s_id = request.POST.get('t_student')
-            g_id = request.POST.get('t_group')
+            s_id = request.POST.get('t_student') or None
+            g_id = request.POST.get('t_group') or None
             subj_id = request.POST.get('t_subject')
             val = request.POST.get('t_price')
+
+            # Инвариант модели: одновременно нельзя задавать и student, и group,
+            # и нельзя оставлять оба пустыми.
+            if (s_id and g_id) or (not s_id and not g_id):
+                messages.error(request, 'Нужно выбрать либо ученика, либо группу для тарифа.')
+                return redirect('index')
+            if not subj_id:
+                messages.error(request, 'Выберите предмет для тарифа.')
+                return redirect('index')
+            if val in (None, ''):
+                messages.error(request, 'Введите цену тарифа.')
+                return redirect('index')
+
             StudentTariff.objects.update_or_create(
                 tutor=user_profile,
                 student_id=s_id if s_id else None,
@@ -361,7 +456,7 @@ def register(request):
 
                     user.save()
 
-                    Users.objects.create(
+                    Profile.objects.create(
                         user=user,
                         role=form.cleaned_data['role']
                     )
@@ -383,8 +478,8 @@ def register(request):
 def edit_profile(request):
     try:
         profile = request.user.profile
-    except Users.DoesNotExist:
-        profile = Users.objects.create(user=request.user, role='student')
+    except Profile.DoesNotExist:
+        profile = Profile.objects.create(user=request.user, role='student')
 
     if request.method == 'POST':
         form = ProfileUpdateForm(request.POST, instance=profile)
@@ -473,20 +568,37 @@ def my_students(request):
     user_profile = request.user.profile
 
     if request.method == 'POST' and 'save_tariff' in request.POST:
+        s_id = request.POST.get('t_student') or None
+        g_id = request.POST.get('t_group') or None
+        subj_id = request.POST.get('t_subject')
+        val = request.POST.get('t_price')
+
+        # Инвариант модели: одновременно нельзя задавать и student, и group,
+        # и нельзя оставлять оба пустыми.
+        if (s_id and g_id) or (not s_id and not g_id):
+            messages.error(request, 'Нужно выбрать либо ученика, либо группу для тарифа.')
+            return redirect('my_students')
+        if not subj_id:
+            messages.error(request, 'Выберите предмет для тарифа.')
+            return redirect('my_students')
+        if val in (None, ''):
+            messages.error(request, 'Введите цену тарифа.')
+            return redirect('my_students')
+
         StudentTariff.objects.update_or_create(
             tutor=user_profile,
-            student_id=request.POST.get('t_student') or None,
-            group_id=request.POST.get('t_group') or None,
-            subject_id=request.POST.get('t_subject'),
-            defaults={'price': request.POST.get('t_price')}
+            student_id=s_id,
+            group_id=g_id,
+            subject_id=subj_id,
+            defaults={'price': val},
         )
         messages.success(request, 'Тариф сохранён.')
         return redirect('my_students')
 
     # Твои активные связи
     connections = ConnectionRequest.objects.filter(tutor=user_profile, status='confirmed').select_related('student')
-    groups = StudyGroups.objects.filter(tutor=user_profile).select_related('subject').prefetch_related('students')
-    my_subjects = TutorSubjects.objects.filter(tutor=user_profile).select_related('subject')
+    groups = StudyGroups.objects.filter(tutor=user_profile, is_archived=False).select_related('subject').prefetch_related('students')
+    my_subjects = Subjects.objects.filter(tutor=user_profile)
 
     return smart_render(request, 'core/my_students.html', {
         'connections': connections,
@@ -504,9 +616,10 @@ def my_tutors(request):
     pending_unlink_tutor_ids = set()
     if request.user.profile.role == 'student':
         pending_unlink_tutor_ids = set(
-            UnlinkRequest.objects.filter(
+            ConnectionRequest.objects.filter(
                 student=request.user.profile,
-                status='pending',
+                status='confirmed',
+                unlink_requested=True,
             ).values_list('tutor_id', flat=True)
         )
     return smart_render(request, 'core/my_tutors.html', {
@@ -556,6 +669,15 @@ def add_lesson(request):
     if request.method == 'POST':
         form = AddLessonForm(request.POST, tutor=request.user.profile)
         if form.is_valid():
+            try:
+                extra_material_ids = create_library_entries_from_uploads(
+                    request.user.profile,
+                    request.FILES.getlist('materials_upload'),
+                )
+            except ValidationError as e:
+                messages.error(request, str(e))
+                return smart_render(request, 'core/add_lesson.html', {'form': form})
+
             base_start_time = form.cleaned_data.get('start_time')
             duration = form.cleaned_data.get('duration')
 
@@ -631,6 +753,8 @@ def add_lesson(request):
 
                     lesson.save()
                     form.save_m2m()
+                    for mid in extra_material_ids:
+                        lesson.materials.add(mid)
                     created_count += 1
 
                     # Создаем записи посещаемости
@@ -685,7 +809,19 @@ def edit_lesson(request, lesson_id):
             else:
                 updated_lesson.save()
                 form.save_m2m()
-                messages.success(request, "Занятие обновлено!")
+                try:
+                    for mid in create_library_entries_from_uploads(
+                        request.user.profile,
+                        request.FILES.getlist('materials_upload'),
+                    ):
+                        updated_lesson.materials.add(mid)
+                except ValidationError as e:
+                    messages.warning(
+                        request,
+                        f"Занятие обновлено, но файлы с устройства не прикреплены: {e}",
+                    )
+                else:
+                    messages.success(request, "Занятие обновлено!")
                 return redirect(reverse('index') + '?saved=1')
     else:
         form = AddLessonForm(instance=lesson, tutor=request.user.profile)
@@ -725,6 +861,12 @@ def delete_lesson(request, lesson_id):
 def edit_group(request, group_id):
     profile = request.user.profile
     group = get_object_or_404(StudyGroups, id=group_id, tutor=profile)
+    if group.is_archived:
+        messages.info(
+            request,
+            'Группа в архиве. Восстановите её в карточке группы, чтобы редактировать название, предмет и состав.',
+        )
+        return redirect('group_card', group_id=group.id)
 
     if request.method == 'POST':
         form = StudyGroupForm(request.POST, instance=group, tutor=profile)
@@ -732,7 +874,7 @@ def edit_group(request, group_id):
             form.save()
             messages.success(request, f"Группа '{group.name}' обновлена!")
             from django.urls import reverse
-            return redirect(reverse('my_students') + '?saved=1')
+            return redirect(reverse('my_students') + '?saved=1&tab=groups')
     else:
         form = StudyGroupForm(instance=group, tutor=profile)
 
@@ -751,7 +893,37 @@ def delete_group(request, group_id):
     if request.method == 'POST':
         group.delete()
         messages.success(request, "Группа удалена.")
-    return redirect('my_students')
+    return redirect(reverse('my_students') + '?tab=groups')
+
+
+@login_required
+@require_POST
+def archive_group(request, group_id):
+    group = get_object_or_404(
+        StudyGroups,
+        id=group_id,
+        tutor=request.user.profile,
+        is_archived=False,
+    )
+    group.is_archived = True
+    group.save(update_fields=['is_archived'])
+    messages.success(request, f'Группа «{group.name}» перенесена в архив.')
+    return redirect(reverse('my_students') + '?tab=groups')
+
+
+@login_required
+@require_POST
+def unarchive_group(request, group_id):
+    group = get_object_or_404(
+        StudyGroups,
+        id=group_id,
+        tutor=request.user.profile,
+        is_archived=True,
+    )
+    group.is_archived = False
+    group.save(update_fields=['is_archived'])
+    messages.success(request, f'Группа «{group.name}» снова в списке.')
+    return redirect('group_card', group_id=group.id)
 
 
 @login_required
@@ -775,7 +947,7 @@ def add_group(request):
             new_group.save()
             form.save_m2m()
             messages.success(request, f"Группа '{new_group.name}' успешно создана!")
-            return redirect(reverse('my_students') + '?saved=1')
+            return redirect(reverse('my_students') + '?saved=1&tab=groups')
     else:
         form = StudyGroupForm(tutor=request.user.profile)
 
@@ -845,10 +1017,24 @@ def bulk_action_lessons(request):
                 tutor=tutor_profile, student_id=new_student, status__in=['confirmed', 'archived']
             ).exists():
                 new_student = None
-            if new_group and not StudyGroups.objects.filter(id=new_group, tutor=tutor_profile).exists():
+            if new_group and not StudyGroups.objects.filter(
+                id=new_group, tutor=tutor_profile, is_archived=False
+            ).exists():
                 new_group = None
 
-            valid_material_ids = get_tutor_file_ids(tutor_profile, selected_materials) if selected_materials else []
+            uploaded_material_ids = []
+            if request.FILES.getlist('materials_upload'):
+                try:
+                    uploaded_material_ids = create_library_entries_from_uploads(
+                        tutor_profile,
+                        request.FILES.getlist('materials_upload'),
+                    )
+                except ValidationError as e:
+                    messages.error(request, str(e))
+                    return redirect('index')
+
+            lib_ids = get_tutor_file_ids(tutor_profile, selected_materials) if selected_materials else []
+            valid_material_ids = list(dict.fromkeys(lib_ids + uploaded_material_ids))
 
             with transaction.atomic():
                 for lesson in queryset:
@@ -909,23 +1095,22 @@ def toggle_attendance_pay(request, attendance_id):
     )
 
     tutor = request.user.profile
+    price = attendance.lesson.price
 
     with transaction.atomic():
-        balance_obj, _ = StudentBalance.objects.select_for_update().get_or_create(
-            tutor=tutor,
-            student=attendance.student,
-        )
-        price = attendance.lesson.price
+        # Блокировка для предотвращения гонки при одновременной оплате
+        Profile.objects.select_for_update().get(id=attendance.student_id)
 
         if not attendance.is_paid:
             if price <= 0:
                 return JsonResponse({'status': 'error', 'message': 'Цена должна быть > 0'}, status=400)
 
-            if balance_obj.balance < price:
+            balance = _compute_balance(tutor, attendance.student)
+            if balance < price:
                 return JsonResponse({'status': 'error', 'message': 'Недостаточно средств'}, status=400)
 
-            balance_obj.balance -= price
             attendance.is_paid = True
+            attendance.save()
             Transaction.objects.create(
                 student=attendance.student,
                 tutor=tutor,
@@ -935,17 +1120,14 @@ def toggle_attendance_pay(request, attendance_id):
                 description=f"Оплата: {attendance.lesson.subject.name} ({attendance.lesson.start_time.strftime('%d.%m')})",
             )
         else:
-            balance_obj.balance += price
             attendance.is_paid = False
+            attendance.save()
             Transaction.objects.filter(
                 attendance=attendance,
                 type='withdrawal',
             ).delete()
 
-        balance_obj.save()
-        attendance.save()
-
-    # перерасчёт долга именно перед этим репетитором
+    new_balance = _compute_balance(tutor, attendance.student)
     now = timezone.now()
     new_total_debt = LessonAttendance.objects.filter(
         student=attendance.student,
@@ -954,12 +1136,12 @@ def toggle_attendance_pay(request, attendance_id):
         lesson__start_time__lt=now,
         is_paid=False,
     ).aggregate(total=Sum('lesson__price'))['total'] or 0
-    new_total_debt = max(0, new_total_debt - balance_obj.balance)
+    new_total_debt = max(0, new_total_debt - new_balance)
 
     return JsonResponse({
         'status': 'ok',
         'is_paid': attendance.is_paid,
-        'new_balance': float(balance_obj.balance),
+        'new_balance': new_balance,
         'new_total_debt': float(new_total_debt),
     })
 
@@ -968,19 +1150,20 @@ def toggle_attendance_pay(request, attendance_id):
 #@ratelimit(key='ip', rate='5/m', block=True)
 def student_card(request, student_id):
     tutor = request.user.profile
-    student = get_object_or_404(Users, id=student_id)
+    student = get_object_or_404(Profile, id=student_id)
     now = timezone.now()
-    note_obj, created = TutorStudentNote.objects.get_or_create(tutor=tutor, student=student)
     if request.user.profile.role != 'tutor':
         return redirect('index')
-    has_access = ConnectionRequest.objects.filter(
+
+    connection = ConnectionRequest.objects.filter(
         tutor=tutor,
         student=student,
         status__in=['confirmed', 'archived']
-    ).exists()
-    if not has_access:
+    ).first()
+    if not connection:
         messages.error(request, "Ошибка доступа: это не ваш ученик.")
         return redirect('my_students')
+
     # Пополнение баланса
     if request.method == 'POST' and 'update_balance' in request.POST:
         raw_amount = request.POST.get('amount', '').replace(',', '.')
@@ -1006,79 +1189,58 @@ def student_card(request, student_id):
             messages.error(request, "Некорректная дата.")
             return redirect('student_card', student_id=student.id)
 
-        with transaction.atomic():
-            balance_obj, _ = StudentBalance.objects.select_for_update().get_or_create(
-                tutor=tutor,
-                student=student,
-            )
-
-            Transaction.objects.create(
-                student=student,
-                tutor=tutor,
-                amount=amount,
-                type='deposit',
-                description=desc,
-                date=tx_date,
-            )
-
-            balance_obj.balance += amount
-            balance_obj.save()
-
+        Transaction.objects.create(
+            student=student,
+            tutor=tutor,
+            amount=amount,
+            type='deposit',
+            description=desc,
+            date=tx_date,
+        )
         messages.success(request, "Баланс пополнен")
         return redirect('student_card', student_id=student.id)
 
-    # Сохранение заметки
+    # Сохранение заметки (в ConnectionRequest)
     if request.method == 'POST' and 'save_tutor_note' in request.POST:
-        note_obj.text = request.POST.get('tutor_note_text')
-        note_obj.save()
+        connection.tutor_note = request.POST.get('tutor_note_text')
+        connection.save()
         messages.success(request, "Заметка сохранена")
         return redirect('student_card', student_id=student.id)
 
-    # Данные для отображения
-    attendances = LessonAttendance.objects.filter(
+    # Данные для отображения (на мобильной карточке журнал/ДЗ — отдельные страницы)
+    att_base = LessonAttendance.objects.filter(
         student=student,
         lesson__tutor=tutor,
         was_present=True,
         lesson__start_time__lt=now,
-    ).select_related('lesson', 'lesson__subject').order_by('-lesson__start_time')
-
-    total_debt = attendances.filter(is_paid=False).aggregate(
+    )
+    total_debt = att_base.filter(is_paid=False).aggregate(
         total=Sum('lesson__price')
     )['total'] or 0
 
-    homeworks = Homework.objects.filter(
-        student=student,
-        tutor=tutor,
-    ).prefetch_related('files', 'responses').order_by('-created_at')
+    if getattr(request, 'is_mobile', False):
+        attendances = LessonAttendance.objects.none()
+        homeworks = Homework.objects.none()
+    else:
+        attendances = att_base.select_related('lesson', 'lesson__subject').order_by('-lesson__start_time')
+        homeworks = Homework.objects.filter(
+            student=student,
+            tutor=tutor,
+        ).select_related('group_assignment').prefetch_related(
+            'files', 'responses', 'group_assignment__files'
+        ).order_by('-created_at')
 
     tutor_files = FilesLibrary.objects.filter(tutor=tutor).order_by('-upload_date')
-    subjects = Subjects.objects.filter(tutorsubjects__tutor=tutor)
+    subjects = Subjects.objects.filter(tutor=tutor)
 
-    # баланс ученика у этого репетитора
-    balance_obj, _ = StudentBalance.objects.get_or_create(
-        tutor=tutor,
-        student=student,
+    # Аналитика: результаты контрольных (TestResult)
+    performance_tests = list(
+        TestResult.objects.filter(student=student, subject__tutor=tutor)
+        .select_related('subject').order_by('-date')[:15]
     )
-
-    # связь репетитор–ученик (для формы «Цветовая метка»)
-    connection = ConnectionRequest.objects.filter(
-        tutor=tutor, student=student, status__in=['confirmed', 'archived']
-    ).first()
-
-    # группы этого репетитора, в которых состоит ученик
-    student_groups = StudyGroups.objects.filter(tutor=tutor, students=student).order_by('name')
-
-    # Аналитика: раздельно ДЗ (hw) и проверочные/контрольные (test)
-    performance_all = student.performance.filter(lesson__tutor=tutor).select_related('lesson', 'lesson__subject').order_by('-date')
-    performance_hw = list(performance_all.filter(type='hw')[:15])
-    performance_tests = list(performance_all.filter(type='test')[:15])
-    avg_score_hw = None
     avg_score_tests = None
-    if performance_hw:
-        scores = [p.score for p in performance_hw]
-        avg_score_hw = round(sum(scores) / len(scores), 1)
     if performance_tests:
-        scores = [p.score for p in performance_tests]
+        scores = [float(p.score) / float(p.max_score) * 100 if p.max_score else 0 for p in performance_tests]
         avg_score_tests = round(sum(scores) / len(scores), 1)
 
     context = {
@@ -1089,46 +1251,121 @@ def student_card(request, student_id):
         'tutor_files': tutor_files,
         'subjects': subjects,
         'transactions': student.transactions.filter(tutor=tutor).order_by('-date'),
-        'performance_hw': performance_hw,
+        'performance_hw': [],  # StudentPerformance удалено
         'performance_tests': performance_tests,
-        'avg_score_hw': avg_score_hw,
+        'avg_score_hw': None,
         'avg_score_tests': avg_score_tests,
-        'tutor_note': note_obj.text,
-        'balance': balance_obj.balance,
+        'tutor_note': connection.tutor_note or '',
+        'balance': _compute_balance(tutor, student),
         'connection': connection,
-        'student_groups': student_groups,
+        'student_groups': StudyGroups.objects.filter(tutor=tutor, students=student).order_by('name'),
     }
 
     return smart_render(request, 'core/student_card.html', context)
 
 
 @login_required
+def student_journal(request, student_id):
+    """Журнал проведённых занятий (репетитор → ученик), с пагинацией и lazy-load на мобильных."""
+    tutor = request.user.profile
+    if tutor.role != 'tutor':
+        return redirect('index')
+    student = get_object_or_404(Profile, id=student_id)
+    connection = ConnectionRequest.objects.filter(
+        tutor=tutor, student=student, status__in=['confirmed', 'archived']
+    ).first()
+    if not connection:
+        messages.error(request, "Ошибка доступа: это не ваш ученик.")
+        return redirect('my_students')
+
+    now = timezone.now()
+    base = LessonAttendance.objects.filter(
+        student=student,
+        lesson__tutor=tutor,
+        was_present=True,
+        lesson__start_time__lt=now,
+    ).select_related('lesson', 'lesson__subject').order_by('-lesson__start_time')
+
+    paginator = Paginator(base, MOBILE_LIST_PER_PAGE)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
+    if request.GET.get('partial') == '1':
+        if not getattr(request, 'is_mobile', False):
+            return HttpResponse('Partial only for mobile', status=400)
+        return render(
+            request,
+            'mobile/partials/student_journal_rows.html',
+            {'page_obj': page_obj, 'student': student},
+        )
+
+    context = {
+        'student': student,
+        'connection': connection,
+        'page_obj': page_obj,
+    }
+    return smart_render(request, 'core/student_journal.html', context)
+
+
+@login_required
+def student_homework_list(request, student_id):
+    """Список ДЗ репетитора по ученику (отдельная страница + lazy-load)."""
+    tutor = request.user.profile
+    if tutor.role != 'tutor':
+        return redirect('index')
+    student = get_object_or_404(Profile, id=student_id)
+    connection = ConnectionRequest.objects.filter(
+        tutor=tutor, student=student, status__in=['confirmed', 'archived']
+    ).first()
+    if not connection:
+        messages.error(request, "Ошибка доступа: это не ваш ученик.")
+        return redirect('my_students')
+
+    hw_qs = Homework.objects.filter(
+        student=student,
+        tutor=tutor,
+    ).select_related('group_assignment').prefetch_related(
+        'files', 'responses', 'group_assignment__files'
+    ).order_by('-created_at')
+
+    paginator = Paginator(hw_qs, MOBILE_LIST_PER_PAGE)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
+    if request.GET.get('partial') == '1':
+        if not getattr(request, 'is_mobile', False):
+            return HttpResponse('Partial only for mobile', status=400)
+        return render(
+            request,
+            'mobile/partials/student_homework_cards.html',
+            {'page_obj': page_obj, 'student': student},
+        )
+
+    subjects = Subjects.objects.filter(tutor=tutor)
+    context = {
+        'student': student,
+        'connection': connection,
+        'page_obj': page_obj,
+        'subjects': subjects,
+    }
+    return smart_render(request, 'core/student_homework_list.html', context)
+
+
+@login_required
 @require_POST
 def delete_transaction(request, transaction_id):
-    """Удаление транзакции с корректировкой баланса (и снятием отметки об оплате, если это списание за урок)."""
+    """Удаление транзакции (и снятие отметки об оплате, если это списание за урок)."""
     tutor = request.user.profile
     tx = get_object_or_404(Transaction, id=transaction_id, tutor=tutor)
-    student = tx.student
+    student_id = tx.student_id
 
-    with transaction.atomic():
-        balance_obj, _ = StudentBalance.objects.select_for_update().get_or_create(
-            tutor=tutor,
-            student=student,
-        )
-        if tx.type == 'deposit':
-            balance_obj.balance -= tx.amount
-        else:
-            balance_obj.balance += tx.amount
-            if tx.attendance_id:
-                att = LessonAttendance.objects.filter(id=tx.attendance_id).first()
-                if att:
-                    att.is_paid = False
-                    att.save(update_fields=['is_paid'])
-        balance_obj.save()
-        tx.delete()
+    if tx.type == 'withdrawal' and tx.attendance_id:
+        att = LessonAttendance.objects.filter(id=tx.attendance_id).first()
+        if att:
+            att.is_paid = False
+            att.save(update_fields=['is_paid'])
+    tx.delete()
 
-    messages.success(request, "Транзакция удалена, баланс обновлён.")
-    return redirect('student_card', student_id=student.id)
+    messages.success(request, "Транзакция удалена.")
+    return redirect('student_card', student_id=student_id) if student_id else redirect('my_students')
 
 
 @login_required
@@ -1136,7 +1373,7 @@ def delete_transaction(request, transaction_id):
 def add_homework(request, student_id):
     if request.method == 'POST':
         tutor = request.user.profile
-        student = get_object_or_404(Users, id=student_id)
+        student = get_object_or_404(Profile, id=student_id)
 
         has_access = ConnectionRequest.objects.filter(
             tutor=tutor,
@@ -1183,8 +1420,26 @@ def add_homework(request, student_id):
             send_telegram_notification(student, msg)
 
         file_ids = get_tutor_file_ids(tutor, request.POST.getlist('files'))
-        if file_ids:
-            hw.files.set(file_ids)
+        device_files = request.FILES.getlist('device_files')
+        created_ids = []
+        for uploaded in device_files:
+            if not uploaded:
+                continue
+            try:
+                created_ids.append(
+                    FilesLibrary.objects.create(
+                        tutor=tutor,
+                        file=uploaded,
+                        file_name=(uploaded.name or 'file')[:30],
+                    ).id
+                )
+            except ValidationError as e:
+                messages.error(request, str(e))
+                return redirect('student_card', student_id=student_id)
+
+        file_ids_all = file_ids + created_ids
+        if file_ids_all:
+            hw.files.set(file_ids_all)
 
         messages.success(request, "Домашнее задание добавлено")
 
@@ -1377,7 +1632,7 @@ def download_homework_all(request, hw_id):
     user_profile = request.user.profile
 
     hw = get_object_or_404(
-        Homework.objects.select_related('tutor', 'student'),
+        Homework.objects.select_related('tutor', 'student', 'group_assignment'),
         id=hw_id,
     )
 
@@ -1388,7 +1643,7 @@ def download_homework_all(request, hw_id):
         messages.error(request, "У вас нет доступа к этим файлам.")
         return safe_referer_redirect(request, 'index')
 
-    files = hw.files.all()
+    files = list(hw.effective_files)
     if not files:
         messages.warning(request, "Файлов для скачивания нет")
         return safe_referer_redirect(request, 'index')
@@ -1443,25 +1698,64 @@ def download_homework_response(request, response_id):
 @require_POST
 #@ratelimit(key='ip', rate='5/m', block=True)
 def edit_homework(request, hw_id):
-    hw = get_object_or_404(Homework, id=hw_id, tutor=request.user.profile)
+    hw = get_object_or_404(
+        Homework.objects.select_related('group_assignment', 'student'),
+        id=hw_id,
+        tutor=request.user.profile,
+    )
     if request.method == 'POST':
-        if request.POST.get('description'):
-            hw.description = request.POST.get('description')
-        if request.POST.get('subject'):
-            hw.subject_id = request.POST.get('subject')
-        if request.POST.get('deadline'):
-            hw.deadline = request.POST.get('deadline')
+        # Только смена статуса (fetch с карточки) — не трогаем текст, дедлайн и файлы
+        has_meta = (
+            'description' in request.POST
+            or 'deadline' in request.POST
+            or bool(request.POST.getlist('files'))
+            or bool(request.FILES.getlist('device_files'))
+        )
+        file_ids = None
+        if has_meta:
+            raw_ids = get_tutor_file_ids(request.user.profile, request.POST.getlist('files'))
+            try:
+                new_ids = create_library_entries_from_uploads(
+                    request.user.profile,
+                    request.FILES.getlist('device_files'),
+                )
+            except ValidationError as e:
+                messages.error(request, str(e))
+                return redirect('student_card', student_id=hw.student.id)
+            file_ids = list(dict.fromkeys(raw_ids + new_ids))
+
+        ga = hw.group_assignment
+        if ga is not None:
+            if has_meta:
+                if 'description' in request.POST:
+                    ga.description = (request.POST.get('description') or '').strip() or '—'
+                if 'deadline' in request.POST:
+                    ga.deadline = _parse_homework_deadline_post(request.POST.get('deadline'))
+                ga.save()
+                ga.files.set(file_ids)
+                _sync_homework_denormalized_from_group_assignment(ga)
+                hw.refresh_from_db()
+        elif has_meta:
+            if request.POST.get('description'):
+                hw.description = request.POST.get('description')
+            if request.POST.get('subject'):
+                hw.subject_id = request.POST.get('subject')
+            if 'deadline' in request.POST:
+                hw.deadline = _parse_homework_deadline_post(request.POST.get('deadline'))
+            hw.files.set(file_ids)
 
         if request.POST.get('status'):
             hw.status = request.POST.get('status')
         if 'tutor_comment' in request.POST:
             hw.tutor_comment = request.POST.get('tutor_comment')
 
-        file_ids = get_tutor_file_ids(request.user.profile, request.POST.getlist('files'))
-        hw.files.set(file_ids)
-
         hw.save()
-        messages.success(request, "Задание обновлено")
+        messages.success(
+            request,
+            "Задание обновлено для всей группы"
+            if (ga is not None and has_meta)
+            else "Задание обновлено",
+        )
     return redirect('student_card', student_id=hw.student.id)
 
 
@@ -1470,8 +1764,11 @@ def edit_homework(request, hw_id):
 def delete_homework(request, hw_id):
     hw = get_object_or_404(Homework, id=hw_id, tutor=request.user.profile)
     student_id = hw.student.id
+    ga_id = hw.group_assignment_id
     if request.method == 'POST':
         hw.delete()
+        if ga_id and not Homework.objects.filter(group_assignment_id=ga_id).exists():
+            GroupHomework.objects.filter(id=ga_id).delete()
         messages.success(request, "Задание удалено")
     return redirect('student_card', student_id=student_id)
 
@@ -1546,7 +1843,7 @@ def results_page(request):
 
     # ——— Ученик: только свои результаты, без доступа к чужим ———
     if user_profile.role == 'student':
-        qs = TestResult.objects.filter(student=user_profile).select_related('tutor', 'subject').order_by('-date')
+        qs = TestResult.objects.filter(student=user_profile).select_related('subject', 'subject__tutor').order_by('-date')
         date_from = request.GET.get('date_from')
         date_to = request.GET.get('date_to')
         subject_id_param = request.GET.get('subject_id')
@@ -1616,15 +1913,15 @@ def results_page(request):
         if result_date > timezone.now().date():
             messages.error(request, 'Дата не может быть в будущем.')
             return redirect('results_page')
-        student = get_object_or_404(Users, id=student_id, role='student')
+        student = get_object_or_404(Profile, id=student_id, role='student')
         subject = get_object_or_404(Subjects, id=subject_id)
-        if not TutorSubjects.objects.filter(tutor=tutor, subject=subject).exists():
+        if not Subjects.objects.filter(tutor=tutor, id=subject.id).exists():
             messages.error(request, 'Этот предмет не принадлежит вам.')
             return redirect('results_page')
         if not ConnectionRequest.objects.filter(tutor=tutor, student=student, status__in=['confirmed', 'archived']).exists():
             messages.error(request, 'Ученик не привязан к вам.')
             return redirect('results_page')
-        TestResult.objects.create(tutor=tutor, student=student, subject=subject, max_score=max_score, score=score, date=result_date, comment=comment)
+        TestResult.objects.create(student=student, subject=subject, max_score=max_score, score=score, date=result_date, comment=comment)
         messages.success(request, 'Результат добавлен.')
         return redirect('results_page')
 
@@ -1641,7 +1938,14 @@ def results_page(request):
         if sid in confirmed_ids:
             student_id_filter = sid
 
-    qs = TestResult.objects.filter(tutor=tutor).select_related('student', 'subject').order_by('-date')
+    group_id_param = request.GET.get('group_id')
+    group_id_filter = None
+    if group_id_param and group_id_param.isdigit():
+        gid = int(group_id_param)
+        if StudyGroups.objects.filter(id=gid, tutor=tutor, is_archived=False).exists():
+            group_id_filter = gid
+
+    qs = TestResult.objects.filter(subject__tutor=tutor).select_related('student', 'subject').order_by('-date')
     if date_from:
         qs = qs.filter(date__gte=date_from)
     if date_to:
@@ -1650,9 +1954,12 @@ def results_page(request):
         qs = qs.filter(subject_id=subject_id_filter)
     if student_id_filter is not None:
         qs = qs.filter(student_id=student_id_filter)
+    if group_id_filter is not None:
+        qs = qs.filter(student__study_groups__id=group_id_filter).distinct()
 
-    subjects_list = Subjects.objects.filter(tutorsubjects__tutor=tutor).order_by('name')
-    students_list = Users.objects.filter(id__in=confirmed_ids, role='student').order_by('last_name', 'first_name')
+    subjects_list = Subjects.objects.filter(tutor=tutor).order_by('name')
+    students_list = Profile.objects.filter(id__in=confirmed_ids, role='student').order_by('last_name', 'first_name')
+    groups_list = StudyGroups.objects.filter(tutor=tutor, is_archived=False).order_by('name')
 
     from collections import defaultdict
     by_date = defaultdict(list)
@@ -1673,6 +1980,9 @@ def results_page(request):
         'subject_id': subject_id_param,
         'subject_id_filter': subject_id_filter,
         'student_id_filter': student_id_filter,
+        'group_id_param': group_id_param,
+        'group_id_filter': group_id_filter,
+        'groups_list': groups_list,
         'chart_labels': json.dumps(chart_labels),
         'chart_values': json.dumps(chart_values),
         'is_student_view': False,
@@ -1705,7 +2015,6 @@ def submit_homework(request, hw_id):
                         homework=homework,
                         file=f,
                         file_name=f.name,
-                        student=user_profile
                     )
                     added_new = True
 
@@ -1713,14 +2022,13 @@ def submit_homework(request, hw_id):
         if library_file_ids:
             for f_id in library_file_ids:
                 try:
-                    lib_file = FilesLibrary.objects.get(id=f_id, tutor=user_profile)
+                    lib_file = FilesLibrary.objects.get(id=f_id, tutor=homework.tutor)
                     # ПРОВЕРКА НА ДУБЛИКАТ:
                     if not HomeworkResponse.objects.filter(homework=homework, file_name=lib_file.file_name).exists():
                         HomeworkResponse.objects.create(
                             homework=homework,
                             file=lib_file.file,
                             file_name=lib_file.file_name,
-                            student=user_profile
                         )
                         added_new = True
                 except FilesLibrary.DoesNotExist:
@@ -1770,23 +2078,43 @@ def my_assignments(request):
         return redirect('index')
 
     now = timezone.now()
-    homeworks = list(Homework.objects.filter(student=profile).select_related('tutor', 'subject').order_by('-deadline'))
-    tutor_ids = list({hw.tutor_id for hw in homeworks})
-    tutor_colors = dict(
-        ConnectionRequest.objects.filter(
-            student=profile, status='confirmed', tutor_id__in=tutor_ids
-        ).exclude(color_hex__isnull=True).exclude(color_hex='').values_list('tutor_id', 'color_hex')
-    ) if tutor_ids else {}
-    overdue_count = 0
-    for hw in homeworks:
-        setattr(hw, 'display_color', tutor_colors.get(hw.tutor_id))
-        is_overdue = hw.deadline and hw.deadline < now and hw.status != 'completed'
-        setattr(hw, 'is_overdue', is_overdue)
-        if is_overdue:
-            overdue_count += 1
+    hw_qs = (
+        Homework.objects.filter(student=profile)
+        .select_related('tutor', 'subject', 'group_assignment')
+        .prefetch_related('files', 'group_assignment__files', 'responses')
+        .order_by('-deadline')
+    )
+    tutor_ids = list(hw_qs.values_list('tutor_id', flat=True).distinct())
+    tutor_colors = (
+        dict(
+            ConnectionRequest.objects.filter(
+                student=profile, status='confirmed', tutor_id__in=tutor_ids
+            )
+            .exclude(color_hex__isnull=True)
+            .exclude(color_hex='')
+            .values_list('tutor_id', 'color_hex')
+        )
+        if tutor_ids
+        else {}
+    )
+    overdue_count = _student_my_assignments_overdue_count(profile)
+
+    paginator = Paginator(hw_qs, MOBILE_LIST_PER_PAGE)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+    _annotate_student_assignment_rows(page_obj, tutor_colors, now)
+
+    if request.GET.get('partial') == '1':
+        if not getattr(request, 'is_mobile', False):
+            return HttpResponse('Partial only for mobile', status=400)
+        return render(
+            request,
+            'mobile/partials/my_assignments_cards.html',
+            {'page_obj': page_obj, 'profile': profile},
+        )
 
     context = {
-        'homeworks': homeworks,
+        'homeworks': page_obj,
+        'page_obj': page_obj,
         'profile': profile,
         'tutor_colors': tutor_colors,
         'overdue_count': overdue_count,
@@ -1798,9 +2126,9 @@ def my_assignments(request):
 def my_subjects(request):
     tutor = getattr(request.user, 'profile', None)
     if not tutor:
-        tutor = Users.objects.filter(user=request.user).first()
+        tutor = Profile.objects.filter(user=request.user).first()
     if not tutor:
-        tutor = Users.objects.create(user=request.user)
+        tutor = Profile.objects.create(user=request.user)
     if request.method == 'POST':
         subject_name = request.POST.get('name')
         if subject_name:
@@ -1808,7 +2136,6 @@ def my_subjects(request):
                 name=subject_name.strip(),
                 tutor=tutor
             )
-            TutorSubjects.objects.get_or_create(tutor=tutor, subject=subject)
             messages.success(request, f"Предмет '{subject_name}' добавлен!")
         return smart_render(request, 'core/my_subjects.html')
 
@@ -1887,20 +2214,39 @@ def group_card(request, group_id):
         return redirect('index')
 
     if request.method == 'POST' and 'assign_group_homework' in request.POST and is_tutor_owner:
+        if group.is_archived:
+            messages.error(request, 'Нельзя задавать ДЗ архивной группе. Сначала верните группу из архива.')
+            return redirect('group_card', group_id=group.id)
         description = request.POST.get('description')
         deadline = request.POST.get('deadline')
-        file_ids = get_tutor_file_ids(profile, request.POST.getlist('files'))
+        try:
+            uploaded_ids = create_library_entries_from_uploads(
+                profile, request.FILES.getlist('device_files')
+            )
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return redirect('group_card', group_id=group.id)
+        file_ids = get_tutor_file_ids(profile, request.POST.getlist('files')) + uploaded_ids
+        deadline_dt = _parse_homework_deadline_post(deadline)
+        desc = (description or '').strip() or '—'
+
+        gh = GroupHomework.objects.create(
+            group=group,
+            description=desc,
+            deadline=deadline_dt,
+        )
+        if file_ids:
+            gh.files.set(file_ids)
 
         for student in group.students.all():
             hw = Homework.objects.create(
                 tutor=profile,
                 student=student,
                 subject=group.subject,
-                description=description,
-                deadline=deadline if deadline else None
+                description=gh.description,
+                deadline=gh.deadline,
+                group_assignment=gh,
             )
-            if file_ids:
-                hw.files.set(file_ids)
             notify_user(
                 student.user,
                 f"Новое ДЗ по {group.subject.name}",
@@ -2060,37 +2406,34 @@ def logout_all_devices(request):
 def tutor_card(request, tutor_id):
     # Получаем профиль ученика и репетитора
     student_profile = request.user.profile
-    tutor = get_object_or_404(Users, id=tutor_id, role='tutor')
+    tutor = get_object_or_404(Profile, id=tutor_id, role='tutor')
 
-    # Используем LessonAttendance вместо несуществующей модели Attendance
-    attendances = LessonAttendance.objects.filter(
+    att_base = LessonAttendance.objects.filter(
         student=student_profile,
         lesson__tutor=tutor,
-        was_present=True
-    ).select_related('lesson', 'lesson__subject').order_by('-lesson__start_time')
+        was_present=True,
+    )
+    total_debt = att_base.filter(is_paid=False).aggregate(
+        total=Sum('lesson__price')
+    )['total'] or 0
 
-    # ДЗ именно от этого репетитора
-    homeworks = Homework.objects.filter(
-        student=student_profile,
-        tutor=tutor
-    ).prefetch_related('files', 'responses').order_by('-created_at')
+    if getattr(request, 'is_mobile', False):
+        attendances = LessonAttendance.objects.none()
+        homeworks = Homework.objects.none()
+    else:
+        attendances = att_base.select_related('lesson', 'lesson__subject').order_by('-lesson__start_time')
+        homeworks = Homework.objects.filter(
+            student=student_profile,
+            tutor=tutor,
+        ).select_related('group_assignment').prefetch_related(
+            'files', 'responses', 'group_assignment__files'
+        ).order_by('-created_at')
 
     # Финансы (транзакции ученика именно с этим репетитором)
     transactions = Transaction.objects.filter(
         student=student_profile,
         tutor=tutor
     ).order_by('-date')
-
-    # Получаем баланс ученика у этого конкретного репетитора
-    balance_obj, _ = StudentBalance.objects.get_or_create(
-        tutor=tutor,
-        student=student_profile,
-    )
-
-    # Считаем сумму долга за неоплаченные уроки
-    total_debt = attendances.filter(is_paid=False,was_present=True).aggregate(
-        total=Sum('lesson__price')
-    )['total'] or 0
 
     # Связь ученик–репетитор для формы цвета (только для ученика)
     connection = None
@@ -2100,8 +2443,8 @@ def tutor_card(request, tutor_id):
             student=student_profile, tutor=tutor, status='confirmed'
         ).first()
         if connection:
-            has_pending_unlink = UnlinkRequest.objects.filter(
-                student=student_profile, tutor=tutor, status='pending'
+            has_pending_unlink = ConnectionRequest.objects.filter(
+                student=student_profile, tutor=tutor, status='confirmed', unlink_requested=True
             ).exists()
 
     context = {
@@ -2112,10 +2455,89 @@ def tutor_card(request, tutor_id):
         'attendances': attendances,
         'homeworks': homeworks,
         'transactions': transactions,
-        'balance': balance_obj.balance,
+        'balance': _compute_balance(tutor, student_profile),
         'total_debt': total_debt,
     }
     return smart_render(request, 'core/tutor_card.html', context)
+
+
+@login_required
+def tutor_card_journal(request, tutor_id):
+    """Журнал занятий ученика с выбранным репетитором (отдельная страница)."""
+    student_profile = request.user.profile
+    if student_profile.role != 'student':
+        return redirect('index')
+    tutor = get_object_or_404(Profile, id=tutor_id, role='tutor')
+    if not ConnectionRequest.objects.filter(
+        student=student_profile, tutor=tutor, status='confirmed'
+    ).exists():
+        messages.error(request, "Нет доступа к этому репетитору.")
+        return redirect('my_tutors')
+
+    base = LessonAttendance.objects.filter(
+        student=student_profile,
+        lesson__tutor=tutor,
+        was_present=True,
+    ).select_related('lesson', 'lesson__subject').order_by('-lesson__start_time')
+
+    paginator = Paginator(base, MOBILE_LIST_PER_PAGE)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
+    if request.GET.get('partial') == '1':
+        if not getattr(request, 'is_mobile', False):
+            return HttpResponse('Partial only for mobile', status=400)
+        return render(
+            request,
+            'mobile/partials/tutor_card_journal_rows.html',
+            {'page_obj': page_obj, 'tutor': tutor},
+        )
+
+    context = {
+        'tutor': tutor,
+        'student': student_profile,
+        'page_obj': page_obj,
+    }
+    return smart_render(request, 'core/tutor_card_journal.html', context)
+
+
+@login_required
+def tutor_card_homework(request, tutor_id):
+    """ДЗ от конкретного репетитора (отдельная страница)."""
+    student_profile = request.user.profile
+    if student_profile.role != 'student':
+        return redirect('index')
+    tutor = get_object_or_404(Profile, id=tutor_id, role='tutor')
+    if not ConnectionRequest.objects.filter(
+        student=student_profile, tutor=tutor, status='confirmed'
+    ).exists():
+        messages.error(request, "Нет доступа к этому репетитору.")
+        return redirect('my_tutors')
+
+    hw_qs = Homework.objects.filter(
+        student=student_profile,
+        tutor=tutor,
+    ).select_related('group_assignment').prefetch_related(
+        'files', 'responses', 'group_assignment__files'
+    ).order_by('-created_at')
+
+    paginator = Paginator(hw_qs, MOBILE_LIST_PER_PAGE)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
+    if request.GET.get('partial') == '1':
+        if not getattr(request, 'is_mobile', False):
+            return HttpResponse('Partial only for mobile', status=400)
+        return render(
+            request,
+            'mobile/partials/tutor_card_homework_cards.html',
+            {'page_obj': page_obj, 'tutor': tutor},
+        )
+
+    context = {
+        'tutor': tutor,
+        'student': student_profile,
+        'page_obj': page_obj,
+    }
+    return smart_render(request, 'core/tutor_card_homework.html', context)
 
 
 @login_required
@@ -2184,7 +2606,7 @@ def update_group_color(request, group_id):
 @require_POST
 def archive_student(request, student_id):
     tutor = request.user.profile
-    student = get_object_or_404(Users, id=student_id, role='student')
+    student = get_object_or_404(Profile, id=student_id, role='student')
     now = timezone.now()
 
     # 1. Проверка долга: был на уроке (was_present), но не оплатил
@@ -2236,7 +2658,7 @@ def archived_students(request):
         status='archived'
     ).values_list('student_id', flat=True)
 
-    students = Users.objects.filter(id__in=archived_ids).distinct()
+    students = Profile.objects.filter(id__in=archived_ids).distinct()
 
     return smart_render(request, 'core/archived_students.html', {'students': students})
 
@@ -2245,7 +2667,7 @@ def archived_students(request):
 @require_POST
 def restore_student(request, student_id):
     tutor = request.user.profile
-    student = get_object_or_404(Users, id=student_id, role='student')
+    student = get_object_or_404(Profile, id=student_id, role='student')
 
     archived_connection = ConnectionRequest.objects.filter(
         tutor=tutor,
@@ -2274,8 +2696,10 @@ def homework_detail(request, hw_id):
 
     # Достаем задание со всеми связями, чтобы не делать лишних запросов к БД
     hw = get_object_or_404(
-        Homework.objects.select_related('tutor', 'student'),
-        id=hw_id
+        Homework.objects.select_related('tutor', 'student', 'group_assignment').prefetch_related(
+            'files', 'group_assignment__files'
+        ),
+        id=hw_id,
     )
 
     # Проверка прав: чужие зайти не смогут
@@ -2295,49 +2719,10 @@ def homework_detail(request, hw_id):
         'responses': responses,
         'is_tutor': is_tutor,
     }
-    return render(request, 'core/homework_detail.html', context)
+    return smart_render(request, 'core/homework_detail.html', context)
 
 
 # --- Chat (репетитор ↔ ученик) ---
-
-
-@login_required
-def bot_chat(request):
-    """Чат с AI-ботом (GigaChat)."""
-    if request.method == 'POST':
-        text = (request.POST.get('text') or '').strip()
-        if text:
-            # Сохраняем сообщение пользователя
-            BotChatMessage.objects.create(
-                user=request.user,
-                role='user',
-                content=text[:8000],
-            )
-            # Собираем историю для контекста (последние 20 пар)
-            # QuerySet не поддерживает [-21:], поэтому сначала list, потом срез
-            all_history = list(
-                BotChatMessage.objects.filter(user=request.user)
-                .order_by('created_at')
-                .values_list('role', 'content')
-            )
-            history = all_history[-21:]
-            api_messages = [{"role": r, "content": c} for r, c in history]
-            # Запрос к GigaChat
-            from core.services.gigachat import get_giga_response
-            reply = get_giga_response(api_messages)
-            # Сохраняем ответ бота
-            BotChatMessage.objects.create(
-                user=request.user,
-                role='assistant',
-                content=reply[:16000],
-            )
-            return redirect('bot_chat')
-
-    bot_messages = BotChatMessage.objects.filter(user=request.user).order_by('created_at')
-    context = {
-        'bot_messages': bot_messages,
-    }
-    return smart_render(request, 'core/bot_chat.html', context)
 
 
 @login_required
@@ -2402,18 +2787,47 @@ def chat_thread(request, connection_id):
     if request.method == 'POST':
         text = (request.POST.get('text') or '').strip()
         uploaded_file = request.FILES.get('file')
-        if text or uploaded_file:
+        library_raw = (request.POST.get('library_file_id') or '').strip()
+        if text or uploaded_file or library_raw:
+            msg = ChatMessage(
+                connection=connection,
+                sender=profile,
+                text=text[:5000] if text else '',
+            )
             try:
-                msg = ChatMessage(
-                    connection=connection,
-                    sender=profile,
-                    text=text[:5000] if text else '',
-                )
                 if uploaded_file:
                     from core.validators import validate_chat_file
                     validate_chat_file(uploaded_file)
                     msg.file = uploaded_file
                     msg.file_name = uploaded_file.name[:255]
+                elif library_raw.isdigit():
+                    if profile.role == 'tutor':
+                        lib = FilesLibrary.objects.filter(
+                            id=int(library_raw), tutor=profile
+                        ).first()
+                    else:
+                        lib = FilesLibrary.objects.filter(
+                            id=int(library_raw), tutor_id=connection.tutor_id
+                        ).first()
+                    if lib and lib.file:
+                        from .validators import CHAT_FILE_EXTS
+
+                        ext = (
+                            (lib.file_name or os.path.basename(lib.file.name) or '')
+                            .lower()
+                            .split('.')[-1]
+                        )
+                        if ext not in CHAT_FILE_EXTS:
+                            messages.error(
+                                request,
+                                'Этот тип файла из библиотеки нельзя отправить в чат.',
+                            )
+                            return redirect('chat_thread', connection_id=connection.id)
+                        msg.file = lib.file
+                        msg.file_name = (lib.file_name or 'file')[:255]
+                    else:
+                        messages.error(request, 'Файл из библиотеки не найден.')
+                        return redirect('chat_thread', connection_id=connection.id)
                 msg.save()
             except ValidationError as e:
                 messages.error(request, str(e))
@@ -2479,9 +2893,24 @@ def api_get_user_files(request):
     query = request.GET.get('search', '')
     page_number = request.GET.get('page', 1)
 
-    # 1. Достаем файлы только текущего репетитора из правильной модели
-    # Сортируем по дате загрузки (самые новые сверху)
-    files = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
+    owner_tid = (request.GET.get('owner_tutor_id') or '').strip()
+    if owner_tid.isdigit():
+        tid = int(owner_tid)
+        if user_profile.role == 'student':
+            allowed = ConnectionRequest.objects.filter(
+                student=user_profile, tutor_id=tid, status__in=['confirmed', 'archived']
+            ).exists()
+            files = (
+                FilesLibrary.objects.filter(tutor_id=tid).order_by('-upload_date')
+                if allowed
+                else FilesLibrary.objects.none()
+            )
+        elif user_profile.role == 'tutor' and tid == user_profile.id:
+            files = FilesLibrary.objects.filter(tutor_id=tid).order_by('-upload_date')
+        else:
+            files = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
+    else:
+        files = FilesLibrary.objects.filter(tutor=user_profile).order_by('-upload_date')
 
     # 2. Живой поиск по названию
     if query:
@@ -2571,7 +3000,7 @@ def payment_receipts(request):
         confirmed_tutor_ids = ConnectionRequest.objects.filter(
             student=user_profile, status='confirmed'
         ).values_list('tutor_id', flat=True)
-        my_tutors = Users.objects.filter(id__in=confirmed_tutor_ids)
+        my_tutors = Profile.objects.filter(id__in=confirmed_tutor_ids)
         my_receipts = PaymentReceipt.objects.filter(student=user_profile).select_related('tutor').order_by('-created_at')
         return smart_render(request, 'core/payment_receipts_student.html', {
             'my_tutors': my_tutors,
@@ -2595,7 +3024,7 @@ def submit_receipt(request):
         messages.error(request, 'Только ученик может отправить чек.')
         return redirect('payment_receipts')
     tutor_id = request.POST.get('tutor_id')
-    tutor = get_object_or_404(Users, id=tutor_id, role='tutor')
+    tutor = get_object_or_404(Profile, id=tutor_id, role='tutor')
     if not ConnectionRequest.objects.filter(student=user_profile, tutor=tutor, status='confirmed').exists():
         messages.error(request, 'Нет подтверждённой связи с этим репетитором.')
         return redirect('payment_receipts')
@@ -2657,19 +3086,13 @@ def submit_receipt(request):
 @login_required
 @require_POST
 def approve_receipt(request, receipt_id):
-    """Репетитор подтверждает чек: обновляет статус, баланс и создаёт транзакцию (атомарно)."""
+    """Репетитор подтверждает чек: обновляет статус и создаёт транзакцию (атомарно)."""
     receipt = get_object_or_404(PaymentReceipt, id=receipt_id, tutor=request.user.profile, status='pending')
     try:
         with transaction.atomic():
             receipt.status = 'approved'
             receipt.reviewed_at = timezone.now()
             receipt.save()
-            balance_obj, _ = StudentBalance.objects.select_for_update().get_or_create(
-                tutor=receipt.tutor,
-                student=receipt.student,
-            )
-            balance_obj.balance += receipt.amount
-            balance_obj.save()
             Transaction.objects.create(
                 student=receipt.student,
                 tutor=receipt.tutor,
@@ -2678,13 +3101,14 @@ def approve_receipt(request, receipt_id):
                 description='Пополнение по чеку от %s' % receipt.receipt_date.strftime('%d.%m.%Y'),
                 date=timezone.now(),
             )
-        notify_user(
-            receipt.student.user,
-            f"Чек подтверждён. Баланс пополнен на {receipt.amount} ₽",
-            link=reverse('payment_receipts'),
-            notification_type='info',
-        )
-        student_name = '%s %s' % (receipt.student.first_name, receipt.student.last_name)
+        if receipt.student and receipt.student.user_id:
+            notify_user(
+                receipt.student.user,
+                f"Чек подтверждён. Баланс пополнен на {receipt.amount} ₽",
+                link=reverse('payment_receipts'),
+                notification_type='info',
+            )
+        student_name = (f"{receipt.student.first_name} {receipt.student.last_name}") if receipt.student else 'Ученик'
         messages.success(request, 'Чек подтверждён. Баланс ученика %s пополнен на %s ₽.' % (student_name, receipt.amount))
     except Exception:
         messages.error(request, 'Ошибка при подтверждении.')
@@ -2723,11 +3147,14 @@ def request_unlink(request, connection_id):
         student=user_profile,
         status='confirmed',
     )
-    if UnlinkRequest.objects.filter(student=user_profile, tutor=connection.tutor, status='pending').exists():
+    if connection.unlink_requested:
         messages.info(request, 'Заявка на открепление уже отправлена и ожидает рассмотрения администратором.')
         return redirect('my_tutors')
     reason = (request.POST.get('reason') or '').strip()[:2000]
-    UnlinkRequest.objects.create(student=user_profile, tutor=connection.tutor, status='pending', reason=reason)
+    connection.unlink_requested = True
+    connection.unlink_reason = reason
+    connection.unlink_requested_at = timezone.now()
+    connection.save(update_fields=['unlink_requested', 'unlink_reason', 'unlink_requested_at'])
     messages.success(request, 'Заявка на открепление отправлена. Решение примет администратор платформы.')
     return redirect('my_tutors')
 
@@ -2735,45 +3162,69 @@ def request_unlink(request, connection_id):
 @login_required
 def export_lessons_csv(request):
     user_profile = request.user.profile
+    if user_profile.role != 'tutor':
+        messages.error(request, 'Экспорт доступен только репетитору.')
+        return redirect('index')
 
-    # Получаем параметры
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     pay_status = request.GET.get('pay_status')
-    lesson_type = request.GET.get('lesson_type')
     subject_id = request.GET.get('subject_id')
-    student_id = request.GET.get('student_id')
+    export_target = (request.GET.get('export_target') or '').strip()
+    legacy_sid = (request.GET.get('student_id') or '').strip()
+    if not export_target and legacy_sid.isdigit():
+        export_target = f's{legacy_sid}'
 
-    # Базовый запрос
-    lessons = Lessons.objects.filter(tutor=user_profile).select_related('student', 'group', 'subject')
+    now = timezone.now()
 
-    # 1. Фильтр по датам
+    lessons = Lessons.objects.filter(tutor=user_profile, start_time__lt=now).select_related(
+        'student', 'group', 'subject'
+    ).prefetch_related('attendances')
+
+    attendance_marked = LessonAttendance.objects.filter(
+        lesson_id=OuterRef('pk'),
+        was_present=True,
+    )
+
+    if export_target.startswith('s') and export_target[1:].isdigit():
+        sid = int(export_target[1:])
+        if not ConnectionRequest.objects.filter(
+            tutor=user_profile, student_id=sid, status='confirmed'
+        ).exists():
+            messages.error(request, 'Выбранный ученик недоступен.')
+            return redirect('index')
+        lessons = lessons.filter(Q(student_id=sid) | Q(group__students=sid)).distinct()
+        attendance_marked = LessonAttendance.objects.filter(
+            lesson_id=OuterRef('pk'),
+            student_id=sid,
+            was_present=True,
+        )
+    elif export_target.startswith('g') and export_target[1:].isdigit():
+        gid = int(export_target[1:])
+        if not StudyGroups.objects.filter(id=gid, tutor=user_profile).exists():
+            messages.error(request, 'Выбранная группа недоступна.')
+            return redirect('index')
+        lessons = lessons.filter(group_id=gid)
+
+    lessons = lessons.filter(Exists(attendance_marked))
+
     if date_from:
         lessons = lessons.filter(start_time__date__gte=date_from)
     if date_to:
         lessons = lessons.filter(start_time__date__lte=date_to)
 
-    # 2. Фильтр по оплате
     if pay_status == 'paid':
-        lessons = lessons.filter(is_paid=True)
+        lessons = lessons.filter(attendances__was_present=True).exclude(
+            attendances__is_paid=False
+        ).distinct()
     elif pay_status == 'debt':
-        lessons = lessons.filter(is_paid=False)
+        lessons = lessons.filter(
+            attendances__was_present=True, attendances__is_paid=False
+        ).distinct()
 
-    # 3. ИСПРАВЛЕННЫЙ Фильтр по формату (индив/группа)
-    if lesson_type == 'individual':
-        lessons = lessons.filter(student__isnull=False)
-    elif lesson_type == 'group':
-        lessons = lessons.filter(group__isnull=False)
-
-    # 4. Фильтр по предмету
     if subject_id:
         lessons = lessons.filter(subject_id=subject_id)
 
-    # 5. ИСПРАВЛЕННЫЙ Фильтр по ученику
-    if student_id:
-        lessons = lessons.filter(student_id=student_id)
-
-    # Сортировка
     lessons = lessons.order_by('-start_time')
 
     # Формируем Excel
@@ -2816,7 +3267,7 @@ def delete_homework_response(request, response_id):
     hw = response_obj.homework
 
     # Проверка безопасности: удалить может только автор (ученик)
-    if request.user.profile != response_obj.student:
+    if request.user.profile != hw.student:
         messages.error(request, "У вас нет прав для удаления этого файла.")
         return safe_referer_redirect(request, 'index')
 
@@ -2842,6 +3293,14 @@ def api_notification_mark_read(request, notification_id):
     )
     notification.is_read = True
     notification.save(update_fields=['is_read'])
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def api_notifications_clear_all(request):
+    """Удалить все уведомления текущего пользователя."""
+    Notification.objects.filter(user=request.user).delete()
     return JsonResponse({'ok': True})
 
 
@@ -2914,7 +3373,9 @@ def dashboard_admin_users(request):
 @_admin_required
 def dashboard_admin_unlink_requests(request):
     """Список заявок на открепление с пагинацией."""
-    qs = UnlinkRequest.objects.select_related('student', 'tutor', 'reviewed_by').order_by('-created_at')
+    qs = ConnectionRequest.objects.filter(
+        status='confirmed', unlink_requested=True
+    ).select_related('student', 'tutor', 'unlink_reviewed_by').order_by('-unlink_requested_at')
     paginator = Paginator(qs, 25)
     page_num = request.GET.get('page', 1)
     try:
@@ -2965,23 +3426,22 @@ def dashboard_admin_delete_user(request, user_id):
 
 @_admin_required
 @require_POST
-def dashboard_admin_unlink_approve(request, pk):
-    """Одобрить заявку: UnlinkRequest → approved, ConnectionRequest (confirmed → archived)."""
-    unlink = get_object_or_404(UnlinkRequest, pk=pk)
-    if unlink.status != 'pending':
-        return JsonResponse({'success': False, 'error': 'Заявка уже рассмотрена.'}, status=400)
+def dashboard_admin_unlink_approve(request, connection_id):
+    """Одобрить заявку: ConnectionRequest (confirmed → archived), снять unlink_requested."""
+    conn = get_object_or_404(
+        ConnectionRequest,
+        pk=connection_id,
+        status='confirmed',
+        unlink_requested=True
+    )
     try:
         with transaction.atomic():
-            unlink.status = 'approved'
-            unlink.reviewed_at = timezone.now()
-            unlink.reviewed_by = request.user
-            unlink.save(update_fields=['status', 'reviewed_at', 'reviewed_by'])
-            conn = ConnectionRequest.objects.filter(
-                student=unlink.student, tutor=unlink.tutor, status='confirmed'
-            ).first()
-            if conn:
-                conn.status = 'archived'
-                conn.save(update_fields=['status'])
+            conn.status = 'archived'
+            conn.unlink_requested = False
+            conn.unlink_reason = ''
+            conn.unlink_reviewed_at = timezone.now()
+            conn.unlink_reviewed_by = request.user
+            conn.save(update_fields=['status', 'unlink_requested', 'unlink_reason', 'unlink_reviewed_at', 'unlink_reviewed_by'])
         return JsonResponse({'success': True, 'message': 'Заявка одобрена.'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -2989,13 +3449,17 @@ def dashboard_admin_unlink_approve(request, pk):
 
 @_admin_required
 @require_POST
-def dashboard_admin_unlink_reject(request, pk):
+def dashboard_admin_unlink_reject(request, connection_id):
     """Отклонить заявку на открепление."""
-    unlink = get_object_or_404(UnlinkRequest, pk=pk)
-    if unlink.status != 'pending':
-        return JsonResponse({'success': False, 'error': 'Заявка уже рассмотрена.'}, status=400)
-    unlink.status = 'rejected'
-    unlink.reviewed_at = timezone.now()
-    unlink.reviewed_by = request.user
-    unlink.save(update_fields=['status', 'reviewed_at', 'reviewed_by'])
+    conn = get_object_or_404(
+        ConnectionRequest,
+        pk=connection_id,
+        status='confirmed',
+        unlink_requested=True
+    )
+    conn.unlink_requested = False
+    conn.unlink_reason = ''
+    conn.unlink_reviewed_at = timezone.now()
+    conn.unlink_reviewed_by = request.user
+    conn.save(update_fields=['unlink_requested', 'unlink_reason', 'unlink_reviewed_at', 'unlink_reviewed_by'])
     return JsonResponse({'success': True, 'message': 'Заявка отклонена.'})

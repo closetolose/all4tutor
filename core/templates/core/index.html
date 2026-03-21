@@ -271,8 +271,8 @@
   <div class="dashboard-wrapper">
     <div class="page-header">
         <div>
-            <h1 style="font-size: 24px; margin: 0;">Привет, {{ user.first_name|default:user.username }}!</h1>
-            <p style="color: var(--text-muted); margin: 5px 0 0;">Твое расписание на сегодня.</p>
+            <h1 class="hero-title">Привет, {{ user.first_name|default:user.username }}!</h1>
+            <p class="hero-subtitle">Твое расписание на сегодня.</p>
         </div>
         {% if role == 'tutor' %}
         <button type="button" onclick="openModal('exportFilterModal')" class="btn btn-success">
@@ -330,7 +330,7 @@
                 <select name="subject" class="modern-select" id="filter-subject">
                     <option value="" {% if not current_filter_subject %}selected{% endif %}>Все предметы</option>
                     {% for item in my_subjects %}
-                        <option value="{{ item.subject.id }}" {% if current_filter_subject == item.subject.id|stringformat:"s" %}selected{% endif %}>{{ item.subject.name }}</option>
+                        <option value="{{ item.id }}" {% if current_filter_subject == item.id|stringformat:"s" %}selected{% endif %}>{{ item.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -410,9 +410,9 @@
 
 </div> {% endif %}
 
-    <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 32px;">
-        <div style="padding: 20px; border-bottom: 1px solid var(--border);" class="flex-between">
-            <h3 style="margin: 0; font-size: 18px;"><i class="fas fa-calendar-alt"></i> Ближайшие занятия</h3>
+    <div class="card card-compact">
+        <div class="card-header flex-between">
+            <h3 class="card-header-title"><i class="fas fa-calendar-alt"></i> Ближайшие занятия</h3>
             {% if role == 'tutor' %}
                 <button onclick="openModal('lessonModal')" class="btn btn-primary btn-sm">+ Добавить занятие</button>
             {% endif %}
@@ -561,7 +561,7 @@
         <div class="close-btn" onclick="closeModal('lessonModal')">&times;</div>
         <h2 class="modal-title">Новое занятие</h2>
 
-        <form method="post" action="{% url 'add_lesson' %}">
+        <form method="post" action="{% url 'add_lesson' %}" enctype="multipart/form-data">
             {% csrf_token %}
 
             <div class="lesson-type-tabs">
@@ -628,14 +628,18 @@
 
            <div class="form-group" style="margin-top: 15px;">
                 <label class="form-label"><i class="fas fa-paperclip"></i> Материалы к уроку</label>
-
-                <button type="button" onclick="openFilePickerModal('add-lesson-display', 'add-lesson-select')"
-                        class="file-picker-trigger">
-                    <i class="fas fa-plus-circle"></i> Выбрать материалы из библиотеки
-                </button>
-
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="file" name="materials_upload" multiple
+                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.txt,.rtf,.odt,.ods,.xls,.xlsx"
+                           class="filter-select"
+                           style="padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box;">
+                    <span style="font-size: 12px; color: var(--text-muted); text-align: center;">или</span>
+                    <button type="button" onclick="openFilePickerModal('add-lesson-display', 'add-lesson-select')"
+                            class="file-picker-trigger" style="width: 100%;">
+                        <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                    </button>
+                </div>
                 <div id="add-lesson-display" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
-
                 <select id="add-lesson-select" name="materials" multiple hidden></select>
             </div>
 
@@ -739,7 +743,7 @@
             <label class="form-label">Предмет</label>
             <select id="m-subject-select" class="filter-select">
                 <option value="">Без изменений</option>
-                {% for item in my_subjects %}<option value="{{ item.subject.id }}">{{ item.subject.name }}</option>{% endfor %}
+                {% for item in my_subjects %}<option value="{{ item.id }}">{{ item.name }}</option>{% endfor %}
             </select>
         </div>
         <div style="display: flex; gap: 15px;" class="mb-20">
@@ -776,10 +780,17 @@
 
         <div class="form-group" style="margin-top: 15px;">
             <label class="form-label"><i class="fas fa-paperclip"></i> Материалы к уроку</label>
-            <button type="button" onclick="openFilePickerModal('univ-selected-files', 'univ-hidden-files')"
-                    class="file-picker-trigger">
-                <i class="fas fa-plus-circle"></i> Выбрать материалы из библиотеки
-            </button>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <input type="file" name="materials_upload" multiple id="univ-materials-upload" form="bulk-form"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.txt,.rtf,.odt,.ods,.xls,.xlsx"
+                       class="filter-select"
+                       style="padding: 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box;">
+                <span style="font-size: 12px; color: var(--text-muted); text-align: center;">или</span>
+                <button type="button" onclick="openFilePickerModal('univ-selected-files', 'univ-hidden-files')"
+                        class="file-picker-trigger" style="width: 100%;">
+                    <i class="fas fa-folder-open"></i> Выбрать из библиотеки
+                </button>
+            </div>
             <div id="univ-selected-files" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;"></div>
             <select id="univ-hidden-files" multiple hidden></select>
         </div>
@@ -791,7 +802,7 @@
     <div id="bulk-actions-bar" class="bulk-bar">
         <div class="bulk-content">
             <span>Выбрано: <strong id="selected-count">0</strong></span>
-            <form action="{% url 'bulk_action' %}" method="post" id="bulk-form">
+            <form action="{% url 'bulk_action' %}" method="post" id="bulk-form" enctype="multipart/form-data">
                 {% csrf_token %}
                 <input type="hidden" name="lesson_ids" id="hidden-ids">
                 <input type="hidden" name="action_type" id="action-type">
@@ -858,17 +869,28 @@
                     <select name="subject_id" class="filter-select">
                         <option value="">Все предметы</option>
                         {% for item in my_subjects %}
-                            <option value="{{ item.subject.id }}">{{ item.subject.name }}</option>
+                            <option value="{{ item.id }}">{{ item.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div style="flex: 1;">
-                    <label class="form-label" style="font-size: 12px; color: var(--text-muted); font-weight: 700;">УЧЕНИК</label>
-                    <select name="student_id" class="filter-select">
-                        <option value="">Все ученики</option>
-                        {% for st in tutor_students %}
-                            <option value="{{ st.id }}">{{ st.first_name }} {{ st.last_name }}</option>
-                        {% endfor %}
+                    <label class="form-label" style="font-size: 12px; color: var(--text-muted); font-weight: 700;">УЧЕНИК ИЛИ ГРУППА</label>
+                    <select name="export_target" class="filter-select">
+                        <option value="">Все ученики и группы</option>
+                        {% if tutor_students %}
+                        <optgroup label="Ученики">
+                            {% for st in tutor_students %}
+                            <option value="s{{ st.id }}">{{ st.first_name }} {{ st.last_name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                        {% if tutor_groups %}
+                        <optgroup label="Группы">
+                            {% for g in tutor_groups %}
+                            <option value="g{{ g.id }}">{{ g.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
                     </select>
                 </div>
             </div>
@@ -880,14 +902,6 @@
                         <option value="">Все</option>
                         <option value="paid">Оплачено</option>
                         <option value="debt">Долг</option>
-                    </select>
-                </div>
-                <div style="flex: 1;">
-                    <label class="form-label" style="font-size: 12px; color: var(--text-muted); font-weight: 700;">ФОРМАТ</label>
-                    <select name="lesson_type" class="filter-select">
-                        <option value="">Все</option>
-                        <option value="individual">Индив.</option>
-                        <option value="group">Группы</option>
                     </select>
                 </div>
             </div>
@@ -921,7 +935,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const selectAll = document.getElementById('selectAll');
-    const checkboxes = document.querySelectorAll('.lesson-checkbox');
     const hiddenIdsInput = document.getElementById('hidden-ids');
 
     function updateBulk() {
@@ -946,13 +959,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    checkboxes.forEach(cb => {
-        cb.addEventListener('change', updateBulk);
+    document.querySelector('.table-container tbody')?.addEventListener('change', function(e) {
+        if (e.target.classList && e.target.classList.contains('lesson-checkbox')) {
+            updateBulk();
+        }
     });
 
     if (selectAll) {
         selectAll.addEventListener('change', function() {
-            checkboxes.forEach(cb => {
+            document.querySelectorAll('.lesson-checkbox').forEach(cb => {
                 cb.checked = selectAll.checked;
             });
             updateBulk();
@@ -1057,6 +1072,8 @@ function openUniversalEdit(mode, id, data) {
     const hiddenSelect = document.getElementById('univ-hidden-files');
     if (displayContainer) displayContainer.innerHTML = '';
     if (hiddenSelect) hiddenSelect.innerHTML = '';
+    var mu = document.getElementById('univ-materials-upload');
+    if (mu) mu.value = '';
 
     if (mode === 'single') {
         title.innerText = "Редактировать занятие";
@@ -1118,12 +1135,16 @@ function applyMassEdit() {
     document.getElementById('m-notes-input').value = document.getElementById('m-notes-select').value || '';
 
     const selectedFiles = Array.from(document.getElementById('univ-hidden-files').options).map(opt => opt.value);
+    const uploadEl = document.getElementById('univ-materials-upload');
+    const hasUploads = uploadEl && uploadEl.files && uploadEl.files.length > 0;
     const mContainer = document.getElementById('m-materials-container');
     mContainer.innerHTML = '';
-    mContainer.innerHTML += `<input type="hidden" name="materials_updated" value="1">`;
-    selectedFiles.forEach(fileId => {
-        mContainer.innerHTML += `<input type="hidden" name="materials" value="${fileId}">`;
-    });
+    if (selectedFiles.length || hasUploads) {
+        mContainer.innerHTML += `<input type="hidden" name="materials_updated" value="1">`;
+        selectedFiles.forEach(fileId => {
+            mContainer.innerHTML += `<input type="hidden" name="materials" value="${fileId}">`;
+        });
+    }
 
     document.getElementById('action-type').value = 'mass_edit';
     document.getElementById('bulk-form').submit();

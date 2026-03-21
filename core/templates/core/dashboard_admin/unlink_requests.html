@@ -19,25 +19,19 @@
             </tr>
         </thead>
         <tbody>
-            {% for req in page_obj %}
-            <tr data-unlink-id="{{ req.id }}">
-                <td>{{ req.id }}</td>
-                <td>{{ req.student.last_name }} {{ req.student.first_name }}</td>
-                <td>{{ req.tutor.last_name }} {{ req.tutor.first_name }}</td>
-                <td style="max-width: 200px;" title="{{ req.reason|default:'' }}">{% if req.reason %}{{ req.reason|truncatewords:15 }}{% else %}—{% endif %}</td>
-                <td>{{ req.created_at|date:"d.m.Y H:i" }}</td>
+            {% for conn in page_obj %}
+            <tr data-connection-id="{{ conn.id }}">
+                <td>{{ conn.id }}</td>
+                <td>{{ conn.student.last_name }} {{ conn.student.first_name }}</td>
+                <td>{{ conn.tutor.last_name }} {{ conn.tutor.first_name }}</td>
+                <td style="max-width: 200px;" title="{{ conn.unlink_reason|default:'' }}">{% if conn.unlink_reason %}{{ conn.unlink_reason|truncatewords:15 }}{% else %}—{% endif %}</td>
+                <td>{{ conn.unlink_requested_at|date:"d.m.Y H:i" }}</td>
                 <td>
-                    <span class="dashboard-admin-status status-{{ req.status }}">
-                        {{ req.get_status_display }}
-                    </span>
+                    <span class="dashboard-admin-status status-pending">Ожидает рассмотрения</span>
                 </td>
                 <td class="dashboard-admin-actions">
-                    {% if req.status == 'pending' %}
-                    <button type="button" class="btn btn-sm btn-success dashboard-admin-btn-approve" data-id="{{ req.id }}"><i class="fas fa-check"></i> Одобрить</button>
-                    <button type="button" class="btn btn-sm btn-danger dashboard-admin-btn-reject" data-id="{{ req.id }}"><i class="fas fa-times"></i> Отклонить</button>
-                    {% else %}
-                    <span class="dashboard-admin-muted">—</span>
-                    {% endif %}
+                    <button type="button" class="btn btn-sm btn-success dashboard-admin-btn-approve" data-id="{{ conn.id }}"><i class="fas fa-check"></i> Одобрить</button>
+                    <button type="button" class="btn btn-sm btn-danger dashboard-admin-btn-reject" data-id="{{ conn.id }}"><i class="fas fa-times"></i> Отклонить</button>
                 </td>
             </tr>
             {% empty %}
@@ -87,7 +81,7 @@
     }
 
     function updateRow(id, statusLabel) {
-        var row = document.querySelector('tr[data-unlink-id="' + id + '"]');
+        var row = document.querySelector('tr[data-connection-id="' + id + '"]');
         if (!row) return;
         var statusCell = row.querySelector('.dashboard-admin-status');
         if (statusCell) {
